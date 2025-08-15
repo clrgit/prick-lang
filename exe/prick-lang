@@ -1,5 +1,68 @@
 #!/usr/bin/env ruby
 
-require 'prick-lang.rb'
+require_relative '../lib/prick/lang.rb'
 
-puts Prick-Lang::VERSION
+require 'shellopts'
+
+SPEC = %(
+  @ Compile a prick file
+
+  -- FILE
+
+  Language
+
+    schema SCHEMA-NAME
+    options TODO
+
+    Blocks
+      A block is a list of commands enclosed in '{' and '}'
+
+    if PRICK-EXPR|BLOCK then COMMAND... end
+    if PRICK-EXPR|BLOCK then COMMAND... else COMMAND... end
+    if PRICK-EXPR|BLOCK then COMMAND... elsif COMMAND... end
+
+    case PRICK-EXPR|BLOCK
+      when PATTERN
+        COMMAND...
+      ...
+      else
+        COMMAND...
+    end
+
+  Phases
+    init COMMAND|BLOCK
+    term COMMAND|BLOCK
+    meta COMMAND|BLOCK
+    seeds COMMAND|BLOCK
+    auth COMMAND|BLOCK
+
+  Commands
+    exec BASH-EXPR
+    eval BASH-EXPR
+    ruby RUBY_SCRIPT ARGUMENTS...
+
+    sql SQL-EXPR
+      Execute the expression
+
+  File types
+    *.sql
+    *.psql
+    *.fox
+    *.prick
+    *.rb
+      Special inline execution
+
+    file
+    expr
+
+
+)
+
+opts, args = ShellOpts.process(SPEC, ARGV)
+
+file = args.expect(1)
+
+compiler = Prick::Lang::Compiler.new(file)
+
+compiler.compile
+

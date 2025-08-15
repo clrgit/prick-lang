@@ -1,0 +1,76 @@
+
+init {
+  init.sql
+}
+
+term {
+  term.sql
+}
+
+seeds {
+  seeds.sql
+}
+
+meta {
+  meta.sql
+}
+
+auth {
+  auth.sql
+}
+
+exec {
+  ls -l >output
+}
+
+exec "ls -l"
+
+
+# Meta
+meta.fox
+if env == :meta
+  exec make-defs >defs.sql
+  defs.sql
+  sql "select do_some_function()"
+  break
+else
+  defs.sql
+end
+
+# Static check
+if env = :seeds
+  do_something.sql
+end
+
+# Dynamic check. The result of the block is the result of the last statement:
+# If an eval then the result of running the query (a single-row, single-column
+# containing true or false. If an exec, the exit status is used (note that the
+# exec expression can be an arbitrary bash snippet that can interpret any
+# result into a exit status
+#
+#if { sql select is_something_not_present }
+# do_something.sql
+#end
+#if { exec check_something }
+# do_something.sql
+#end
+#if dynamic exec check_something
+# do_something.sql
+#end
+
+# Seeds
+case env
+  when :seeds
+    something.sql
+  else
+    something-else.sql
+end
+
+
+case env
+  when :a
+  when :b, :c
+  else
+end
+
+
