@@ -2,16 +2,16 @@
 module Prick::Lang
   class Token
     KEYWORDS = %w(schema options if elsif else case when init term meta seeds auth exec eval ruby sql psql)
-    PUNCT = %w({ })
+    PUNCTS = %w({ })
 
-    KEYWORD_KINDS = KEYSWORDS.map(&:upcase).map(&:to_sym)
+    KEYWORD_KINDS = KEYWORDS.map(&:upcase).map(&:to_sym)
     PUNCT_KINDS = %w(BLOCK_BEGIN BLOCK_END).map(&:to_sym)
     INTERN = %w(TEXT).map(&:to_sym)
 
     KINDS = KEYWORD_KINDS + PUNCT_KINDS + INTERN
 
     # Maps from keyword/punctuation to kind
-    WORDS = ((KEYWORDS + PUNCT).zip(KEYWORD_KINDS + PUNCT_KIND).to_h)
+    WORDS = ((KEYWORDS + PUNCTS).zip(KEYWORD_KINDS + PUNCT_KINDS).to_h)
 
     attr_accessor :kind # String
     attr_accessor :text

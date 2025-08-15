@@ -3,7 +3,7 @@
 
 # frozen_string_literal: true
 
-require "prick/lang"
+require "prick/lang.rb"
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure

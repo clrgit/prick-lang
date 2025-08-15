@@ -42,3 +42,4 @@ module Prick::Lang
       end
     end
   end
+end

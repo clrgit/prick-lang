@@ -1,3 +1,4 @@
+module Prick::Lang
   module Ast
     class Node
       attr_accessor :parent # Node or nil
@@ -106,8 +107,9 @@
     end
 
     class InitBlock
+    end
 
     class Expr < Node
     end
   end
-
+end

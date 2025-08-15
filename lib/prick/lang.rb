@@ -5,9 +5,13 @@ require_relative "lang/version"
 require 'constrain'
 require 'forward_to'
 require 'indented_io'
+require 'string-text'
 
 include ForwardTo
 include Constrain
+include IndentedIO
+
+using String::Text
 
 require_relative 'lang/token.rb'
 require_relative 'lang/ast.rb'
