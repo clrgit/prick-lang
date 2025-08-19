@@ -13,26 +13,29 @@ include IndentedIO
 
 using String::Text
 
-require_relative 'lang/token.rb'
-require_relative 'lang/ast.rb'
-require_relative 'lang/idr.rb'
-
-require_relative 'lang/tokenizer.rb'
-require_relative 'lang/parser.rb'
-#require_relative 'lang/analyzer.rb'
-#require_relative 'lang/generator.rb'
-
 module Prick::Lang
   class Error < StandardError; end
+  class TokenizerError < Error; end
   class InternalError < Error; end
+
+  def error(token, message)
+    $stderr.puts "#{token.file} #{token.lineno}:#{token.charno} #{message}"
+    exit 1
+  end
 
   class Compiler
     attr_reader :file
+
+    attr_reader :tokenizer
+    attr_reader :parser
+    attr_reader :analyzer
+
     attr_reader :ast # Ast::Program
     attr_reader :idr # Idr::Program
 
     def initialize(file)
       @file = file
+
     end
 
     def compile
@@ -46,3 +49,12 @@ module Prick::Lang
   end
 end
 
+
+require_relative './lang/token.rb'
+#require_relative './lang/ast.rb'
+#require_relative './lang/idr.rb'
+
+require_relative './lang/tokenizer.rb'
+#require_relative './lang/parser.rb'
+#require_relative 'lang/analyzer.rb'
+#require_relative 'lang/generator.rb'

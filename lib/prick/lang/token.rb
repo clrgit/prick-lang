@@ -1,27 +1,96 @@
 
 module Prick::Lang
   class Token
-    KEYWORDS = %w(schema options if elsif else case when init term meta seeds auth exec eval ruby sql psql)
-    PUNCTS = %w({ })
+    TOKENS = {
+      PROGRAM: nil,
+      SCHEMA: "schema",
+      OPTION: "option",
+      REQUIRE: "require",
+      INIT: "init",
+      TERM: "term",
+      META: "meta",
+      SEEDS: "seeds",
+      AUTH: "auth",
+      GROUP: "group",
+      IF: "if",
+      ELSE: "else",
+      ELSIF: "elsif",
+      CASE: "case",
+      WHEN: "when",
+      EXEC: "exec",
+      EVAL: "eval",
+      RUBY: "ruby",
+      SQL: "sql",
+      FILE: nil,
+      ENV: "env",
+      CMD: "cmd",
+      NOT: "not",
 
-    KEYWORD_KINDS = KEYWORDS.map(&:upcase).map(&:to_sym)
-    PUNCT_KINDS = %w(BLOCK_BEGIN BLOCK_END).map(&:to_sym)
-    INTERN = %w(TEXT).map(&:to_sym)
+      BLOCK_BEGIN: "{",
+      BLOCK_END: "}",
+      MULTILINE: "|",
 
-    KINDS = KEYWORD_KINDS + PUNCT_KINDS + INTERN
+      TEXT: nil,
+      LINE: nil
+    }
 
-    # Maps from keyword/punctuation to kind
-    WORDS = ((KEYWORDS + PUNCTS).zip(KEYWORD_KINDS + PUNCT_KINDS).to_h)
+    # List of token kinds
+    KINDS = TOKENS.keys
 
-    attr_accessor :kind # String
-    attr_accessor :text
+    # List of keywords and punctuation characters
+    WORDS = TOKENS.values.compact
+
+    # Regular expression matching a keyword. Note that this also matches
+    # undefined words
+#   KEYWORD_RE = /\w+/
+    KEYWORD_RE = /[\w.]+/
+
+    # List of keyword strings
+    KEYWORDS = WORDS.select { _1 =~ KEYWORD_RE }
+
+    # List of punctuation strings
+    PUNCTS = WORDS - KEYWORDS
+
+    # Punctuation
+    PUNCT_RE = Regexp.union *PUNCTS
+
+    # A single non-space character
+    CHAR_RE = /\S/
+
+    WORD_RE = Regexp.union KEYWORD_RE, PUNCT_RE, CHAR_RE
+
     attr_accessor :file
     attr_accessor :lineno
     attr_accessor :charno
+    attr_accessor :kind # Symbol
+    attr_accessor :text # String
 
-    def initialize(file, lineno, charno, kind, text)
-      @file, @lineno, @charno, @kind, @text = file, lineno, charno, kind, text
+    # Only defined for :FILE tokens. TODO: Make into a general PrickPath object
+    attr_accessor :filename
+    attr_accessor :extname
+
+    def initialize(file, lineno, charno, text, kind = nil, filename = nil, extname = nil)
+      @file, @lineno, @charno, @text, @kind, @filename, @extname =
+          file, lineno, charno, text, kind, filename, extname
+#     @kind, @filename, @extname = *(kind ? [kind, filename, extname] : Token.args(text))
     end
+
+    # Return true if token belongs to the given grammar group (see parse.rb)
+    def group?(group) = Tokenizer::GRAMMAR_GROUPS[group].include?(kind)
+
+#   def self.kind(text)
+#     MAP[text] or (File.basename(text) =~ FILENAME_RE ? :FILE : :TEXT)
+#   end
+#
+#   def self.args(text)
+#     if kind = MAP[text]
+#       [kind]
+#     elsif File.basename(text) =~ FILENAME_RE
+#       [:FILE, $1, $2]
+#     else
+#       [:TEXT]
+#     end
+#   end
   end
 end
 

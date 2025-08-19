@@ -1,9 +1,9 @@
 module Prick::Lang
   module Ast
     class Node
-      attr_accessor :parent # Node or nil
-      attr_accessor :children # [Node]
-      attr_accessor :token
+      attr_reader :parent # Node or nil
+      attr_reader :children # [Node]
+      attr_reader :token
 
       forward_to :token, :lineno, :charno
 
@@ -14,14 +14,36 @@ module Prick::Lang
       end
     end
 
-    class Block < Node
-      alias_method :nodes, :children
-      def lineno() @lineno ||= children.first&.lineno or raise end
-      def charno() @charno ||= children.first&.charno or raise end
+    class Program < Node
+      def initialize(file)
+        super(nil, Token.new(file, 1, 1, "", :PROGRAM)
+      end
     end
 
-    class Program < Block
+    class Block < Node
+      def name = @token.text
+      alias_method :start_token, :token
+      attr_accessor :stop_token, :token
+      def initialize(parent, start_token, stop_token = start_token)
+        super(parent, start_token)
+        @stop_token = stop_token
+      end
     end
+
+#   class SchemaStmt < Block
+#     attr_reader :name
+#
+#
+#   end
+
+
+
+
+
+
+
+
+
 
     class InitBlock < Block
     end
@@ -45,9 +67,9 @@ module Prick::Lang
     end
 
     class IfStmt < Node
-      attr_accessor :expr # Expr
-      attr_accessor :then # Block
-      attr_accessor :else # Block
+      attr_reader :expr # Expr
+      attr_reader :then # Block
+      attr_reader :else # Block
 
       def initialize(token, parent, expr, then_, else_)
         super(token, parent)
@@ -58,14 +80,14 @@ module Prick::Lang
     end
 
     class CaseStmt < Node
-      attr_accessor :expr
-      attr_accessor :when_entries # {expr => Node}
-      attr_accessor :else_entry # Node or nil
+      attr_reader :expr
+      attr_reader :when_entries # {expr => Node}
+      attr_reader :else_entry # Node or nil
     end
 
     class CallStmt < Node
       # Single-line command or multiline inline script
-      attr_accessor :source # String
+      attr_reader :source # String
 
       # True if source is a multiline inline script
       def multiline?() end
@@ -74,7 +96,7 @@ module Prick::Lang
 #     def command() end
 
       # True if calling a ruby script using require, default false
-      attr_accessor :ruby
+      attr_reader :ruby
     end
 
     class ExecStmt < CallStmt
@@ -84,7 +106,7 @@ module Prick::Lang
     end
 
     class FileStmt < Node
-      attr_accessor :filename
+      forward_to :token, :filename, :extname
     end
 
     class SqlFileStmt < FileStmt

@@ -1,308 +1,136 @@
-
 module Prick::Lang
   class Tokenizer
+    # Map from keyword or punctuation to token kind
+    KEYWORDS = Token::TOKENS.compact.invert
+
+    PEEK_RE = /((\s*)(#{Token::WORD_RE}))/
+    EXT_RE = /(?:sql|psql|rb|fox|prick)/
+    FILENAME_RE = /^([\w-]+)\.(#{EXT_RE}\b)$/
+
     attr_reader :compiler
-    attr_reader :tokens
-
     forward_to :compiler, :file
-    attr_reader :lineno
-    attr_reader :charno
-    attr_reader :level
-    attr_reader :word
 
-    # A tokenizer starts reading the file immediately but should only be
-    # instantiated within the Compiler#compile method that is going to read the
-    # file anyway
+    attr_reader :line, :lineno, :charno
+
     def initialize(compiler)
       @compiler = compiler
-      @lines = IO.readlines(file).map { |line|
-        line.sub(/#.*/, "").sub(/\s*$/, "")
-      }
-
-      @lineno = 0
-      @charno = nil
-      @level = nil
-      @whitespace = nil
-      @word = nil
+      @lines = IO.readlines(file).map { |line| line.sub(/#.*/, "").sub(/\s*$/, "") }
+      @line = nil
+      @lineno = 0 # Index in @lines of next line
+      @charno = 0 # Index in @line of next character
+      peekreset
     end
 
-    def eof?() @lineno >= @lines.size end
-    def eol?() @charno >= (line&.size || 0) end
+    def eol?() @line.nil? || @line.size == @charno end
+    def eof?() @lines.size == @lineno && eol? end
+    def peek?() !@peektoken.nil? end # Token has been cached
+    def empty?() @lines.empty? end
 
-    def line = @lines[@lineno - 1]
-    def rest = line&.[](@charno - 1 .. -1)
-
-    # Read line into buffer
-    def readline
-      @lineno += 1
-      @charno = 1
-
-      # Skip blank lines
-      while @lineno <= @lines.size && line =~ /^$/
-        @lineno += 1
-      end
-
-      return nil if @lineno > @lines.size
-      return nil if line == "__END__"
-
-      # Update word and level
-      update
-      @level = @whitespace
-      line
+    # Line indent. Zero-based, nil if line is empty
+    def indent()
+      peekword if !peek?
+      @peekindent
     end
 
-    def peekword
-      if eol?
-        readline or return nil
-        word
-      else
-        word
-      end
+    def peekreset()
+      @peekindent = @peekcharno = @peeklength = @peekword = @peektoken = nil
     end
 
-    # Extract next word, prefixed whitespace is ignored
-    def readword
-      puts "readword"
-      readline if lineno == 0
-      return nil if eof?
-      if eol?
-        puts "  eol?"
-        readline or return nil
-        w = word
-        skipchars(@whitespace + @word.size)
-      else
-        puts "  !eol?"
-        w = word
-        skipchars(@whitespace + @word.size)
-      end
-      p w
-      w
-    end
-
-    # Extract 'n' chars. It is assumed that the line has already been read
-    # using #readline
-    def readchars(n)
-      chars = rest[@charno - 1, n]
-      @charno += n
-      if eol?
-        readline
-      else
-        update
-      end
-      chars
-    end
-
-    def skipchars(n)
-      @charno += n
-      if eol?
-        readline
-      else
-        update
-      end
-    end
-
-    # Get next token
-    def get()
-#     readword
-#     case word
-#       when 'hej'; puts "Hej"
-#       when 
-    end
-
-    # Get a TEXT token of the rest of the line
-    def gettext()
-    end
-
-    def dump
-      puts "Tokenizer(#{file})"
-      indent {
-        puts "lines : #{@lines.size}"
-        puts "lineno: #{lineno}"
-        puts "charno: #{charno}"
-        puts "level : #{level}"
-        puts "word  : #{word}"
-        puts "spaces: #{@whitespace}"
-        puts "eol?  : #{eol?}"
-        puts "eof?  : #{eof?}"
-
-      }
-    end
-
-  protected
-    def update
-      m = /(\s*)(\{|\}|\w+|.*)/.match(line, @charno-1)
-      @whitespace = m.match_length(1)
-      @word = m[2]
-    end
-  end
-end
-
-__END__
-
-
-
-    def eof?() end
-
-    def skipchars(n)
-      @charno += n
-      update
-    end
-
-    def skiplines
-      while @lineno <= @lines.size && @lines[@lineno -1] =~ /^$/
-        @lineno += 1
-        @charno = 1
-      end
-      # TODO check for eof
-      update
-    end
-
-    def readchars(n)
-      chars = rest[0...n]
-      skipchars(n)
-      chars
-    end
-
-    def readline()
-      @lineno < @lines.size or return nil
-      @lineno += 1
-      @charno = 1
-      update
-      @level = @whitespace
-      @line
-    end
-
-    def readword()
-      word = self.word
-      skipchars(@whitespace + word.size)
-      update
-      word
-    end
-
-    def getchars(n)
-      ensure_line or return nil
-      from = @charno - 1
-      @charno += n
-      chars = @line[from...@charno]
-      @line[@charno - 1, -1] =~ /^(\s*)(\{|\}|\w+)/
-      @level = $1.size
-
-    end
-
-    def getword
-      ensure_line or return nil
-      getchars(word.size)
-    end
-
-    def getword
-      word = self.word
-      getchars(word.size)
-
-    end
-
-    def get
-      if kind = Token::WORDS[word]
-        Token.new(file, lineno, charno, kind, getword)
-
-        word = getchars(word.size)
-
-        kind = Token::WORDS[word] || :TEXT
-
-        case word
-          when '{'; :BLOCK_BEGIN
-          when '}'; :BLOCK_END
-        else
-          if Token::KEYWORDS.include? word
-            word.upcase.to_sym
-          else
-            return Token.new(file, lineno, charno, :TEXT, getchars(@line.size - @charno + 1))
-          end
+    # Peek word
+    def peekword(rest: false)
+      @peekword ||= begin
+        readline(rest: rest) if eol?
+        if m = PEEK_RE.match(@line, @charno-1)
+          @peekindent ||= m.match_length(2)
+          @peekcharno = m.offset(3).first + 1
+          @peeklength = (rest ? @line.size - @peekindent : m.match_length(3))
+          @line[@peekcharno-1, @peeklength]
+        else # Empty line, should only happen when called through #peekline
+          @peekindent = nil
+          @peekcharno = 0
+          @peeklength = 0
+          ""
         end
-
-      getchars(word)
+      end
     end
 
-    # Return the rest of the line as a TEXT token
-    def gettext
-      ensure_line or return nil
-      Token.new(file, lineno, charno, :TEXT, getchars(@line.size - @charno + 1))
+    # Peek rest of line excluding leading whitespace
+    def peektext()
+      peekword(rest: true) if !peek?
+      @line[@peekcharno-1..-1]
     end
 
-
-
-    KINDS = %w(SCHEMA OPTIONS IF CASE INIT TERM META SEEDS AUTH EXEC EVAL RUBY FILE EXPR)
-
-        when '{'; :BLOCK_BEGIN
-        when '}'; :BLOCK_END
+    # Peek full line. Do not skip empty lines
+    def peekline()
+      eol? or raise ArgumentError, "Not at end of line"
+      peekword(rest: true)
     end
 
+    # Index of peek word
+    def peekcharno()
+      peekword if !peek?
+      @peekcharno
+    end
 
-    def ensure_line
-      if @line.nil?
-        !eof? or return nil
-        @line = @file.gets(chomp: true)
+    # Return the next token to be read. The kind argument explicitly sets the
+    # token kind; this is used to get a TEXT token that eats up the rest of the
+    # line
+    def peektoken(kind = nil)
+      return nil if eof?
+      if @peektoken.nil?
+        readline if eol?
+
+        # detect kind and build array of [text, kind, filename=nil, extname=nil]
+        # arguments to Token#initialize
+        if kind == :TEXT
+          args = [peektext, :TEXT]
+        elsif kind == :LINE
+          eol? or raise ArgumentError, "Not at start of line"
+          args = [@line, :LINE]
+        elsif kind
+          args = [peekword, kind]
+        elsif kind = KEYWORDS[peekword]
+          args = [peekword, kind]
+        elsif File.basename(peekword) =~ FILENAME_RE
+          filename, extname = $1, $2
+          args = [peekword, :FILE, filename, extname]
+        else
+          args = [peektext, :TEXT]
+        end
+        @peektoken = Token.new(file, lineno, peekcharno, *args)
+      else
+        kind.nil? || @peektoken.kind == kind or raise ArgumentError "token kind mismatch"
+      end
+    end
+
+    # Ignore peek'ed token. As a safeguard, it is an error if the token hasn't
+    # been peek'ed
+    def skiptoken(kind = nil)
+      peek? or raise ArgumentError "can't skip unknown token"
+      readtoken(kind)
+    end
+
+    # Read and return the next token. It is an internal error if kind is
+    # different from the cached token's kind if both are present
+    def readtoken(kind = nil)
+      return nil if eof?
+      kind.nil? || !peek? || peektoken.kind == kind or raise ArgumentError "read/peek mismatch"
+      token = peektoken(kind)
+      @charno = @charno + @peeklength
+      peekreset
+      token
+    end
+
+    # Read and return next line. Blank lines are excluded (but counted) unless :rest is true
+    def readline(rest: false)
+      while @line = @lines[@lineno]
         @lineno += 1
-        @charno = 1
-        @line =~ /^\s*/
-        @level = $&.size
-        @pos = 0
-        @peek = nil
+        break if rest || !@line.empty?
       end
-      @line
-    end
-
-    # Only non-empty when at start of string
-    def peek_level()
-      @level or begin
-        ensure_line
-        @level
-      end
-
-    def peek_word()
-      ensure_line
-    peek; return @peek_word end
-
-    # Return an [level, word] tuple
-    def peek()
-      @peek ||= begin
-        ensure_line or return nil
-        /^(\s*)(\{|\}|\w+)/ =~ @line[pos..]
-        [$1.size, $2]
-      end
-    end
-
-    def get()
-
-
-      @buffer or peek
-      r = peek or return nil
-      @peek = nil
-      getnext()
-      r
-    end
-
-    @buffer ||= peeend
-    def getline(kind: 'EXPR') end
-    def unget(token) end
-
-  private
-    def make_token
-    end
-
-    def advance
-      r = @buffer
-    end
-
-    def readline
-    end
-
-
-    def readchar()
-      @current = @file.getc
-    end
-
-    def skip_ws
-      while @file.
+      @charno = 1
+      peekreset
+      return @line
     end
   end
 end
+
