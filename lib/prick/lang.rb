@@ -15,8 +15,8 @@ using String::Text
 
 module Prick::Lang
   class Error < StandardError; end
-  class TokenizerError < Error; end
   class InternalError < Error; end
+  class EofError < Error; end # Not an error but used as a signal
 
   def error(token, message)
     $stderr.puts "#{token.file} #{token.lineno}:#{token.charno} #{message}"
@@ -40,9 +40,17 @@ module Prick::Lang
 
     def compile
       # Tokenize
-
+      @tokenizer = Prick::Lang::Tokenizer.new(self)
 
       puts "Compiling #{file}"
+      indent {
+        while line = @tokenizer.load_buffer
+          puts "#{@tokenizer.lineno} #{line}"
+        end
+#       while line = @tokenizer.readline
+#         puts "#{@tokenizer.lineno} #{line}"
+#       end
+      }
 
 
     end

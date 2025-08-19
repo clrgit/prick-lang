@@ -20,7 +20,9 @@ auth {
 }
 
 exec {
+  # This comment should survive
   ls -l >output
+  sed 's/#/SURVIVOR/' gryf.txt # this too
 }
 
 exec "ls -l"

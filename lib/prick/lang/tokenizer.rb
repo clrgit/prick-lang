@@ -1,3 +1,107 @@
+
+
+module Prick::Lang
+  class Tokenizer
+    class TokenizerError < Prick::Lang::Error; end
+
+    attr_reader :compiler
+
+    # Source file
+    forward_to :compiler, :file
+
+    # Current line number
+    def lineno() @index + 1 end
+    
+    # Current character position
+    def charno() @pos + 1 end
+
+    def initialize(compiler)
+      @compiler = compiler
+      @lines = IO.readlines(file)
+      @line = nil # Whitespace trimmed line
+      @token = nil # Current peek'ed token if present
+      @index = -1 # Index of last-read line in @lines
+      @pos = 0 # Index in @line
+    end
+
+    # Return next token to be extracted. Return nil if at end of file
+    def peek(kind = nil)
+      if !@line || eol?
+        load_buffer or return nil
+      end
+      parse_token(kind)
+    end
+
+    # Extract and return next token
+    def read(kind = nil) 
+      peek(kind) or return nil
+      extract_token
+    end
+
+    # Extract and return next token as a TEXT token
+    def readtext() 
+      read(:TEXT)
+    end
+
+    # Extract and return next line as a LINE token. It is an error if any text
+    # remains on the current line
+    def readline()
+      eol? or error "Not at start of line"
+      @line = nil
+      return nil if @lines.size == @index
+      @lines[@index+=1].chomp
+    end
+
+    def error(*args)
+      case args.first
+        when Token
+          lineno = args.first.lineno
+          charno = args.first.charno
+          args.shift
+        when Integer
+          lineno = args.shift
+          charno = args.shift
+        else
+          lineno = self.lineno
+          charno = self.charno
+      end
+      ShellOpts::failure "#{file}:#{lineno}:#{charno} #{args.join}"
+    end
+
+# protected
+
+    def eof?() @lines.size == @index end
+
+    # Return true if at end of line. #eol? is also true when eof? or if the
+    # buffer has not been loaded yet
+    def eol?() eof? || @line.nil? || @line.size == @pos end
+
+    # Loads current line into buffer or next line if at end of line. Blank
+    # lines are skipped
+    def load_buffer
+      eol? or error "Not at end of line"
+      while @line = @lines[@index]&.sub(/\s*(?:#.*)?\s*$/, "") and @line.empty?
+        @index += 1
+      end
+      return @line
+    end
+
+    # Parse a token. The buffer is cleared if at the end of line after the token
+    # has been extracted
+    def parse_token(kind = nil)
+    end
+
+    def extract_token
+    end
+  end
+end
+
+__END__
+
+
+
+
+
 module Prick::Lang
   class Tokenizer
     # Map from keyword or punctuation to token kind
