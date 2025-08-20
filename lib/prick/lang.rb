@@ -13,17 +13,16 @@ include IndentedIO
 
 using String::Text
 
+require_relative './lang/error.rb'
+
 module Prick::Lang
   class Error < StandardError; end
   class InternalError < Error; end
   class EofError < Error; end # Not an error but used as a signal
 
-  def error(token, message)
-    $stderr.puts "#{token.file} #{token.lineno}:#{token.charno} #{message}"
-    exit 1
-  end
-
   class Compiler
+    include ErrorFunctions
+
     attr_reader :file
 
     attr_reader :tokenizer
@@ -42,11 +41,29 @@ module Prick::Lang
       # Tokenize
       @tokenizer = Prick::Lang::Tokenizer.new(self)
 
-      puts "Compiling #{file}"
+      puts "Tokenizing #{file}"
       indent {
-        while line = @tokenizer.load_buffer
-          puts "#{@tokenizer.lineno} #{line}"
+#       while s = @tokenizer.read_line
+#         puts "#{@tokenizer.lineno} #{s}"
+#       end
+
+#       while s = @tokenizer.load_buffer
+#         puts "#{@tokenizer.lineno} #{s}"
+#       end
+
+#       while t = @tokenizer.readtext
+#         p t
+#       end
+
+        while t = @tokenizer.readline
+          p t
         end
+
+
+#       while line = @tokenizer.load_buffer
+#         puts "#{@tokenizer.lineno} #{line}"
+#       end
+
 #       while line = @tokenizer.readline
 #         puts "#{@tokenizer.lineno} #{line}"
 #       end
@@ -66,3 +83,4 @@ require_relative './lang/tokenizer.rb'
 #require_relative './lang/parser.rb'
 #require_relative 'lang/analyzer.rb'
 #require_relative 'lang/generator.rb'
+

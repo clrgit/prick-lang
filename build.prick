@@ -19,13 +19,16 @@ auth {
   auth.sql
 }
 
-exec {
-  # This comment should survive
-  ls -l >output
-  sed 's/#/SURVIVOR/' gryf.txt # this too
-}
+# EXEC TEXT
+exec ls -l
 
-exec "ls -l"
+# EXEC MULTILINE
+exec |
+  # This comment should survive
+  ls -l
+  sed 's/#/SURVIVOR/' gryf.txt # this too
+
+
 
 
 # Meta

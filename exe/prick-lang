@@ -52,7 +52,7 @@ SPEC = %(
     BLOCK-ARGS ::=
         COMMAND-STMT
       | FILE-STMT...
-      | BLOCK
+      |  BLOCK
 
     PRICK-EXPR ::=
         env PRICK-ENVIRONMENT...
@@ -79,5 +79,9 @@ file = args.expect(1)
 
 compiler = Prick::Lang::Compiler.new(file)
 
-compiler.compile
+begin
+  compiler.compile
+rescue => ex
+  raise Prick::Lang::ErrorFunctions.pretty_backtrace!(ex)
+end
 

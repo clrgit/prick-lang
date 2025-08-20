@@ -78,6 +78,9 @@ module Prick::Lang
     # Return true if token belongs to the given grammar group (see parse.rb)
     def group?(group) = Tokenizer::GRAMMAR_GROUPS[group].include?(kind)
 
+    def to_s = @text
+    def inspect = "#<Token:#{kind} #{lineno} #{text.inspect}>"
+
 #   def self.kind(text)
 #     MAP[text] or (File.basename(text) =~ FILENAME_RE ? :FILE : :TEXT)
 #   end
