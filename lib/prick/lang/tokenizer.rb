@@ -23,9 +23,8 @@ module Prick::Lang
     def initialize(compiler)
       @compiler = compiler
       @lines = IO.readlines(file).map(&:chomp)
-      @index = -1 # Current line
+      @index = 0 # Current line
       @indent = nil # Indent level of current line
-      @buffer = nil # Whitespace-trimmed line
       @pos = 0 # Current character
       @token = nil # Current peek'ed token if present
     end
@@ -44,11 +43,17 @@ module Prick::Lang
       extract_token
     end
 
-    # Return the rest of the line as a TEXT token
+    # Return the rest of the line as a TEXT token. Returns nil if at end of
+    # line
     def readtext()
-      !eof? && ensure_buffer or return nil
+#     puts "#readtext"
+#     puts "  index: #{@index}"
+#     puts "  pos: #{@pos}"
+#     puts "  eof?: #{eof?}"
+#     puts "  eol?: #{eol?}"
+      !eof? or return nil
+      !eol? or return nil
       token = Token.new(file, lineno, charno, @lines[@index][@pos..-1].lstrip, :TEXT)
-      eob!
       token
     end
 
@@ -58,7 +63,8 @@ module Prick::Lang
       !eof? or return nil
       !b? || bob? or error "Not at start of line"
       token = Token.new(file, lineno, charno, @lines[@index], :LINE)
-      reset_buffer
+      eol!
+      reset_line
       next_line
       token
     end
@@ -70,43 +76,64 @@ module Prick::Lang
 
     # Return true if at end of line. #eol? is also true when eof? or if the
     # buffer has not been loaded yet
-    def eol? = eof? || eob?
+    def eol? = eof? || @pos == (@lines[@index]&.size || 0)
 
-    # True if buffer has been loaded
-    def b? = !@buffer.nil?
+    def eol!() @pos = @lines[@index]&.size || 0 end
 
-    # End of buffer
-    def eob? = @pos == @buffer&.size
-
-    # Set end of buffer
-    def eob!() @pos = @buffer&.size || 0 end
-
-    # Start of buffer
-    def bob? = !b? || @pos == 0
-
-    def ensure_buffer
-      b? && !eob? or load_buffer
-    end
-
-    def load_buffer
-      reset_buffer
-      while (@buffer = next_line&.sub(/\s*(?:#.*)?\s*$/, ""))&.empty? ; end
-      @buffer
-    end
-
-    def reset_buffer
+    def reset_line
       @indent = nil
       @pos = 0
-      @buffer = nil
       @token = nil
     end
 
-    # NOTE: Does not reset buffer; it is the caller's responsibility
+    # NOTE: Does not reset line; it is the caller's responsibility
     def next_line = eof? ? nil : @lines[@index+=1]
+
+    def find_line 
+      puts "#find_line"
+      puts "  line: #{@lines[@index].inspect}"
+      puts "  index: #{@index}"
+      puts "  pos: #{@pos}"
+      puts "  eof?: #{eof?}"
+      puts "  eol?: #{eol?}"
+      !eof? or return nil
+      eol? or error "Not at end of line"
+      reset_line
+      while (line = next_line&.sub(/^\s*(?:#.*)$/, ""))&.empty? ; end
+      line
+    end
   end
 end
 
 __END__
+
+#   # True if buffer has been loaded
+#   def b? = !@buffer.nil?
+#
+#   # End of buffer
+#   def eob? = @pos == @buffer&.size
+#
+#   # Set end of buffer
+#   def eob!() @pos = (@buffer ||= @lines[@index]).size end
+#
+#   # Start of buffer
+#   def bob? = !b? || @pos == 0
+#
+#   def ensure_buffer
+#     b? && !eob? or load_buffer
+#   end
+
+#   def load_buffer
+#     reset_buffer
+#     while (@buffer = next_line&.sub(/^\s*(?:#.*)$/, ""))&.empty? ; end
+#     @buffer
+#   end
+#
+#   def next_buffer
+#     reset_buffer
+#     while (@buffer = next_line&.sub(/^\s*(?:#.*)$/, ""))&.empty? ; end
+#     @buffer
+#   end
 
     #############################################
 
