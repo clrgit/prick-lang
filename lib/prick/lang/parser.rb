@@ -86,10 +86,10 @@ module Prick::Lang
     def parse_block_args
       token = tokenizer.peektoken
       block = Ast::Block.new(curr_node, token)
-      if token.kind == :BLOCK_BEGIN
+      if token.kind == :BRACE_BEGIN
         tokenizer.skiptoken
         with(block) { parse_stmts }
-        block.stop_token = tokenizer.readtoken(:BLOCK_END)
+        block.stop_token = tokenizer.readtoken(:BRACE_END)
         tokenizer.eol? or error tokenizer.readtoken, "Unexpected text after '{'"
       elsif token.kind == :FILE
         with(block) { parse_files }

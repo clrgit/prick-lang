@@ -14,7 +14,7 @@ describe "Prick::Lang" do
 #         expect(call "if").to eq :IF
 #       end
 #       it "punctuation" do
-#         expect(call "{").to eq :BLOCK_BEGIN
+#         expect(call "{").to eq :BRACE_BEGIN
 #       end
 #       it "sql files" do
 #         expect(call "f.sql").to eq :FILE

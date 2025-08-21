@@ -26,8 +26,8 @@ module Prick::Lang
       CMD: "cmd",
       NOT: "not",
 
-      BLOCK_BEGIN: "{",
-      BLOCK_END: "}",
+      BRACE_BEGIN: "{", # is not related to the BRACE token
+      BRACE_END: "}",
       MULTILINE: "|",
 
       TEXT: nil,

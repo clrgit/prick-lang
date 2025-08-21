@@ -243,7 +243,7 @@ __END__
 #     end
 #     it "returns punctuation tokens" do
 #       s = "{ something.sql }"
-#       expect(kind(s)).to eq :BLOCK_BEGIN
+#       expect(kind(s)).to eq :BRACE_BEGIN
 #     end
 #     it "returns text tokens" do
 #       s = "command args"
@@ -374,7 +374,7 @@ describe "Prick::Lang" do
         context "punctuation" do
           def src = "{ statement"
           it "sets kind to the token" do
-            expect(kind src).to eq :BLOCK_BEGIN
+            expect(kind src).to eq :BRACE_BEGIN
           end
           it "sets text to the matched string" do
             expect(text src).to eq "{"
@@ -427,7 +427,7 @@ describe "Prick::Lang" do
 #         expect(kind "if something").to eq :IF
 #       end
 #       it "punctuation" do
-#         expect(kind "{ something").to eq :BLOCK_BEGIN
+#         expect(kind "{ something").to eq :BRACE_BEGIN
 #       end
 #       it "text" do
 #         expect(kind "word word").to eq :TEXT
@@ -447,7 +447,7 @@ __END__
           expect(call "if").to eq :IF
         end
         it "punctuation" do
-          expect(call "{").to eq :BLOCK_BEGIN
+          expect(call "{").to eq :BRACE_BEGIN
         end
         it "sql files" do
           expect(call "f.sql").to eq :FILE
