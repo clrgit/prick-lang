@@ -64,17 +64,17 @@ module Prick::Lang
     def readtext
       !eof? && !eol? or return nil
       token = Token.new(file, lineno, charno, @lines[@index][@pos..-1].lstrip, :TEXT)
-      eol!
+      next_line
       token
     end
 
     # Return line as a LINE token and advance to the next line. It is an error
-    # if any text remains on the current line
+    # if not at beginning of line
     def readline
       !eof? or return nil
-      !eol? or error "Not at start of line"
+      bol? or error "Not at start of line"
       token = Token.new(file, lineno, charno, @lines[@index], :LINE)
-      eol!
+      next_line
       token
     end
 
@@ -95,8 +95,10 @@ module Prick::Lang
 
     # Move to the next line. Returns nil
     def next_line
-      eol? or erorr "Not at end of line"
       @index += 1
+      @indent = nil
+      @pos = 0
+      @token = nil
     end
 
     # Read and ignore blank lines (incl. comments)

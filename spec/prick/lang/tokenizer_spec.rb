@@ -1,10 +1,12 @@
 
 describe "Prick::Lang" do
   describe "Tokenizer" do
+    def file = "file.txt" # Considered a constant
+
     def make(lines)
 #     lines = lines.split "\n", -1
 #     allow(IO).to receive(:readlines).with('file.txt').and_return(lines)
-      c = Prick::Lang::Compiler.new('file.txt')
+      c = Prick::Lang::Compiler.new(file)
       Prick::Lang::Tokenizer.new(c, lines)
     end
 
@@ -51,6 +53,39 @@ describe "Prick::Lang" do
       it "ignores embedded comments comments in otherwise blank lines" do
         t = make ["  # comment", "b"]
         expect(t.skip_blanks).to eq "b"
+      end
+    end
+
+    describe "#readline" do
+      it "returns nil if eof?" do
+        t = make []
+        expect(t.readline).to eq nil
+      end
+
+      it "raises if not bol?" do
+        t = make ["a", "b"]
+        t.eol!
+        expect { t.readline }.to raise_error Prick::Lang::Error, /Not at start of line/
+      end
+
+      it "returns a LINE token" do
+        t = make ["a", "b"]
+        expect(t.readline.kind).to eq :LINE
+      end
+
+      it "Sets token file/lineno/charno" do
+        t = make ["a", "b"]
+        tk = t.readline
+        expect(tk.file).to eq file
+        expect(tk.lineno).to eq 1
+        expect(tk.charno).to eq 1
+      end
+
+      it "advance to the next line" do
+        t = make ["a", "b"]
+        t.readline
+        expect(t.lineno).to eq 2
+        expect(t.charno).to eq 1
       end
     end
   end
