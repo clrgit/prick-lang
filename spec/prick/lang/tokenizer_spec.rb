@@ -101,41 +101,77 @@ describe "Prick::Lang" do
       end
     end
 
-#   describe "#readblock" do
-#     def call(lines) = make(lines).readblock
-#
-#     it "returns nil if eof?" do
-#       l = []
-#       expect(call l).to eq nil
-#     end
-#
-#     it "raises if not bol?" do
-#       t = make ["a", "b"]
-#       t.eol!
-#       expect { t.readblock }.to raise_error Prick::Lang::Error, /Not at start of line/
-#     end
-#
-#     it "returns a LINE token" do
-#       l = ["a", "b"]
-#       expect(call(l).kind).to eq :BLOCK
-#     end
-#
-#     it "sets token file/lineno/charno" do
-#       l = ["a", "b"]
-#       tk = call l
-#       expect(tk.file).to eq file
-#       expect(tk.lineno).to eq 1
-#       expect(tk.charno).to eq 1
-#     end
-#
-#     it "advances to the next line" do
-#       l = ["a", "b"]
-#       t = make l
-#       t.readline
-#       expect(t.lineno).to eq 2
-#       expect(t.charno).to eq 1
-#     end
-#   end
+    describe "#readblock" do
+      def call(lines) = make(lines).readblock(2)
+      def text(lines) = call(lines).text
+
+      it "returns nil if eof?" do
+        l = []
+        expect(call l).to eq nil
+      end
+
+      it "raises if not bol?" do
+        t = make ["a", "b"]
+        t.eol!
+        expect { t.readblock(2) }.to raise_error Prick::Lang::Error, /Not at start of line/
+      end
+
+      it "returns a BLOCK token" do
+        l = ["  a", "  b"]
+        expect(call(l).kind).to eq :BLOCK
+      end
+
+      it "sets token file/lineno/charno" do
+        l = ["  a", "  b"]
+        tk = call l
+        expect(tk.file).to eq file
+        expect(tk.lineno).to eq 1
+        expect(tk.charno).to eq 1
+      end
+
+      it "sets token text to the concanation of lines" do
+        l = ["  a", "  b"]
+        expect(text l).to eq "a\nb"
+      end
+
+      it "ignores leading blank lines" do
+        l = ["", "  a"]
+        expect(text l).to eq "a"
+      end
+
+      it "ignores trailing blank lines" do
+        l = ["", "  a", ""]
+        expect(text l).to eq "a"
+      end
+
+      it "keeps internal blank lines" do
+        l = ["  a", "", "  b"]
+        expect(text l).to eq "a\n\nb"
+      end
+
+      it "turns unindented comments into blank lines" do
+        l = ["", "  a", "# comment", "  b"]
+        expect(text l).to eq "a\n\nb"
+      end
+
+      it "keeps indented comments" do
+        l = ["", "  a", "  # comment", "  b"]
+        expect(text l).to eq "a\n# comment\nb"
+      end
+
+      it "aligns to the least indented non-blank line" do
+        l = ["", "    a", "", "  b"]
+        expect(text l).to eq "  a\n\nb"
+      end
+
+      it "advances to the next line" do
+        l = ["a", "b"]
+        t = make l
+        t.readline
+        expect(t.lineno).to eq 2
+        expect(t.charno).to eq 1
+      end
+    end
   end
 end
 

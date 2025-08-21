@@ -18,6 +18,7 @@ require_relative './lang/error.rb'
 module Prick::Lang
   class Error < StandardError; end
   class InternalError < Error; end
+  class TokenizerError < Error; end
   class EofError < Error; end # Not an error but used as a signal
 
   class Compiler

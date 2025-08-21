@@ -1,7 +1,8 @@
 
-
 module Prick::Lang
   class Tokenizer
+    using String::Text
+
     include ErrorFunctions
 
     class TokenizerError < Prick::Lang::Error; end
@@ -21,15 +22,14 @@ module Prick::Lang
     def charno = @pos + 1
 
     # Indent of current line
-#   def indent() @indent ||= line[/\A */].size end
+    def indent() = line[/\A */].size
 
     def initialize(compiler, lines = nil)
       constrain compiler, Compiler
       constrain lines, [String], nil
       @compiler = compiler
-      @lines = lines || IO.readlines(file).map(&:chomp)
+      @lines = lines || IO.readlines(file).map(&:rstrip)
       @index = 0 # Current line
-      @indent = nil # Indent level of current line
       @pos = 0 # Current character
       @token = nil # Current peek'ed token if present
     end
@@ -71,7 +71,7 @@ module Prick::Lang
       token
     end
 
-    # Return line as a LINE token and advance to the next line. It is an error
+    # Return line as a (possibly empty) LINE token and advance to the next line. It is an error
     # if not at beginning of line
     def readline
       !eof? or return nil
@@ -81,30 +81,43 @@ module Prick::Lang
       token
     end
 
-    # Return a BLOCK token of lines with indent bigger than min_indent. Lines
-    # with a '#' in the first column are replaced with an empty string and then
-    # the block is aligned as a whole to the least indented line. Leading and
-    # traling blank lines are ignored (but counted)
+    # Return a BLOCK token of lines with indent bigger or equal to min_indent.
+    # Lines with a '#' in the first column are replaced with an empty string
+    # and then the block is aligned as a whole to the least indented line.
+    # Leading and traling blank lines are ignored (but counted)
     def readblock(min_indent) # exclusive min value
       !eof? or return nil
-      eol? or error "Not at start of line"
+      bol? or error "Not at start of line" # Implies cached variables have been reset
+
+      start_index = @index # Initial value of @index, no start_pos because #bol? is true
+
       skip_empty or return nil
-      lines = []
-      if indent > indent_of_parent
-        lines << line
-      elsif line[0] == '#' || line == ""
-        lines << ""
-      else
-        true
-#       break
+      token_lineno = lineno # Line number of first non-blank line
+      token_charno = charno # Position in first non-blank line
+
+      block = []
+      while !eof?
+        if indent >= min_indent
+          block << line
+        elsif line == "" || line[0] == '#'
+          block << ""
+        else
+          break
+        end
+        @index += 1
       end
 
+      if block.empty?
+        @index = start_index - 1 # Reset line
+        return nil
+      end
+
+      Token.new(file, token_lineno, token_charno, block.join("\n").sub(/\n+\Z/, "").align, :BLOCK)
     end
 
 # protected
 
     def reset_line
-      @indent = nil
       @pos = 0
       @token = nil
     end
@@ -112,7 +125,6 @@ module Prick::Lang
     # Move to the next line. Returns nil
     def next_line
       @index += 1
-      @indent = nil
       @pos = 0
       @token = nil
     end
@@ -120,7 +132,7 @@ module Prick::Lang
     # Read and ignore empty lines. Used by #readblock
     def skip_empty
       !eof? or return nil
-      bol? or error "Not at start of line" # Implies line has been reset
+      bol? or error "Not at start of line" # Implies cached variables have been reset
       while (norm = line&.sub(/^\s*/, ""))&.empty?
         @index += 1
       end
@@ -138,9 +150,14 @@ module Prick::Lang
     end
 
     def dump
-      puts "#{compiler.file}"
-      indent {
+      puts "Tokenizer"
+      Kernel.indent {
+        puts "file: #{compiler.file}"
+        puts "eof?: #{eof?.inspect}"
+        puts "bol?: #{bol?.inspect}"
+        puts "eol?: #{eol?.inspect}"
         puts "index: #{@index.inspect}"
+        puts "line: #{line.inspect}"
         puts "indent: #{@indent.inspect}"
         puts "pos: #{@pos.inspect}"
         puts "token: #{@token.inspect}"
