@@ -20,14 +20,29 @@ module Prick::Lang
     # Indent of current line
 #   def indent() @indent ||= @lines[@index][/\A */].size end
 
-    def initialize(compiler)
+    def initialize(compiler, lines = nil)
+      constrain compiler, Compiler
+      constrain lines, [String], nil
       @compiler = compiler
-      @lines = IO.readlines(file).map(&:chomp)
+      @lines = lines || IO.readlines(file).map(&:chomp)
       @index = 0 # Current line
       @indent = nil # Indent level of current line
       @pos = 0 # Current character
       @token = nil # Current peek'ed token if present
     end
+
+    # Return true if at end of file
+    def eof?() @lines.size == @index end
+
+    # Return true if at end of line. #eol? is also when at end of file
+    def eol? = eof? || @pos == (@lines[@index]&.size || 0)
+
+    # Return true if at beginning of line. #bol? is also true when at end of
+    # file (FIXME)
+    def bol? = eof? || @pos == 0
+
+    # Set end of line
+    def eol!() @pos = @lines[@index]&.size || 0 end
 
     # Return next token to be extracted. Return nil if at end of file
     def peek(kinds = nil)
@@ -37,48 +52,40 @@ module Prick::Lang
 #     parse_token(kinds && Array(kinds))
     end
 
-    # Extract and return next token
+    # Extract and return next token. Advance to next line if this was the last
+    # token on the line
     def read(kind = nil)
       peek(kind) or return nil
       extract_token
     end
 
-    # Return the rest of the line as a TEXT token. Returns nil if at end of
-    # line
-    def readtext()
-#     puts "#readtext"
-#     puts "  index: #{@index}"
-#     puts "  pos: #{@pos}"
-#     puts "  eof?: #{eof?}"
-#     puts "  eol?: #{eol?}"
-      !eof? or return nil
-      !eol? or return nil
+    # Return the rest of the line as a TEXT token and advance to the next line.
+    # Returns nil if at end of line
+    def readtext
+      !eof? && !eol? or return nil
       token = Token.new(file, lineno, charno, @lines[@index][@pos..-1].lstrip, :TEXT)
+      eol!
       token
     end
 
-    # Extract and return next line as a LINE token. It is an error if any text
-    # remains on the current line
-    def readline()
+    # Return line as a LINE token and advance to the next line. It is an error
+    # if any text remains on the current line
+    def readline
       !eof? or return nil
-      !b? || bob? or error "Not at start of line"
+      !eol? or error "Not at start of line"
       token = Token.new(file, lineno, charno, @lines[@index], :LINE)
       eol!
-      reset_line
-      next_line
       token
+    end
+
+    # Return lines with same or higher indent than the first non-blank line
+    def readblock
+      !eof? or return nil
+      eol? or error "Not at end of line"
+      skip_blanks
     end
 
 # protected
-
-    # Return true if at end of file
-    def eof?() @lines.size == @index end
-
-    # Return true if at end of line. #eol? is also true when eof? or if the
-    # buffer has not been loaded yet
-    def eol? = eof? || @pos == (@lines[@index]&.size || 0)
-
-    def eol!() @pos = @lines[@index]&.size || 0 end
 
     def reset_line
       @indent = nil
@@ -86,21 +93,36 @@ module Prick::Lang
       @token = nil
     end
 
-    # NOTE: Does not reset line; it is the caller's responsibility
-    def next_line = eof? ? nil : @lines[@index+=1]
+    # Move to the next line. Returns nil
+    def next_line
+      eol? or erorr "Not at end of line"
+      @index += 1
+    end
 
-    def find_line 
-      puts "#find_line"
-      puts "  line: #{@lines[@index].inspect}"
-      puts "  index: #{@index}"
-      puts "  pos: #{@pos}"
-      puts "  eof?: #{eof?}"
-      puts "  eol?: #{eol?}"
+    # Read and ignore blank lines (incl. comments)
+    def skip_blanks
       !eof? or return nil
-      eol? or error "Not at end of line"
-      reset_line
-      while (line = next_line&.sub(/^\s*(?:#.*)$/, ""))&.empty? ; end
+      bol? or error "Not at start of line" # Implies line has been reset
+      while (line = @lines[@index]&.sub(/^\s*(?:#.*)?$/, ""))&.empty?
+        @index += 1
+      end
       line
+    end
+
+    def dump
+      puts "#{compiler.file}"
+      indent {
+        puts "index: #{@index.inspect}"
+        puts "indent: #{@indent.inspect}"
+        puts "pos: #{@pos.inspect}"
+        puts "token: #{@token.inspect}"
+        if !@lines.empty?
+          puts "lines:"
+          indent { puts @lines.map(&:inspect) }
+        else
+          puts "lines: []"
+        end
+      }
     end
   end
 end

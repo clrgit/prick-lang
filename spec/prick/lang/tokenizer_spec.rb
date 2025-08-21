@@ -1,16 +1,82 @@
 
-module Prick::Lang
-  class Tokenizer
-    # Read all lines. Used for testing
-    def readlines(raw: true)
-      r = []
-      while l = readline(raw: raw)
-        r << l
+describe "Prick::Lang" do
+  describe "Tokenizer" do
+    def make(lines)
+#     lines = lines.split "\n", -1
+#     allow(IO).to receive(:readlines).with('file.txt').and_return(lines)
+      c = Prick::Lang::Compiler.new('file.txt')
+      Prick::Lang::Tokenizer.new(c, lines)
+    end
+
+    describe "#skip_blanks" do
+      it "returns nil if eof" do
+        t = make []
+        expect(t.skip_blanks).to eq nil
       end
-      r
+
+      it "raises if not bol?" do
+        t = make ["a", "b"]
+        t.eol!
+        expect { t.skip_blanks }.to raise_error Prick::Lang::Error, /Not at start of line/
+      end
+
+      it "returns nil on single blank line" do
+        t = make [""]
+        expect(t.skip_blanks).to eq nil
+      end
+
+      it "returns nil on multiple blank lines" do
+        t = make ["", ""]
+        expect(t.skip_blanks).to eq nil
+      end
+
+      it "returns the first non-blank line" do
+        t = make ["a", "", "b"]
+        expect(t.skip_blanks).to eq "a"
+      end
+
+      it "skips initial blank line" do
+        t = make ["", "b"]
+        expect(t.skip_blanks).to eq "b"
+      end
+      it "skips initial blank lines" do
+        t = make ["", "", "b"]
+        expect(t.skip_blanks).to eq "b"
+      end
+
+      it "ignores leading comments" do
+        t = make ["# comment", "b"]
+        expect(t.skip_blanks).to eq "b"
+      end
+      it "ignores embedded comments comments in otherwise blank lines" do
+        t = make ["  # comment", "b"]
+        expect(t.skip_blanks).to eq "b"
+      end
     end
   end
 end
+
+
+#    lines = ["a\n", "\n", "b\n"]
+#     it "ignores singleton blank line"
+#     it "stops at the first non-blank lines"
+
+
+__END__
+
+
+#module Prick::Lang
+# class Tokenizer
+#   # Read all lines. Used for testing
+#   def readlines(raw: true)
+#     r = []
+#     while l = readline(raw: raw)
+#       r << l
+#     end
+#     r
+#   end
+# end
+#end
 
 #describe "Prick::Lang" do
 # describe "LineTokenizer" do
