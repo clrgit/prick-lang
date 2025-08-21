@@ -172,8 +172,97 @@ describe "Prick::Lang" do
         expect(t.charno).to eq 1
       end
     end
+
+    describe "#read" do
+      def call(kind = nil, lines) = make(lines).read(kind)
+      def kind(kind = nil, lines) = call(kind, lines)&.kind
+      def error_token(kind = nil, lines) = call(kind, lines).error_token
+
+      it "reads keyword tokens" do
+        l = ["exec", "eval"]
+        expect(kind l).to eq :EXEC
+      end
+
+      it "reads file tokens" do
+        l = ["t.sql"]
+        expect(kind l).to eq :FILE
+      end
+
+      it "moves the position" do
+        l = ["exec eval"]
+        t = make l
+        t.read
+        expect(t.lineno).to eq 1
+        expect(t.charno).to eq 6
+      end
+
+      it "moves to next line if end of line after match" do
+        l = ["exec", "eval"]
+        t = make l
+        t.read
+        expect(t.lineno).to eq 2
+        expect(t.charno).to eq 1
+      end
+
+      it "sets #error_token if unknown token" do
+        l = ["gryf"]
+        t = make l
+        expect(t.read).to eq nil
+        expect(t.error_token.text).to eq "gryf"
+      end
+
+      context "with a kinds argument" do
+        it "restricts the token to that kind" do
+          l = ["exec"]
+          expect(kind :EXEC, l).to eq :EXEC
+        end
+        context "when not the expected kind" do
+          it "returns nil" do
+            l = ["exec"]
+            expect(kind :IF, l).to eq nil
+          end
+          it "sets #error_token" do
+            l = ["exec"]
+            t = make l
+            t.read(:IF)
+            expect(t.error_token.text).to eq "exec"
+          end
+        end
+      end
+
+      context "when :peek is true" do
+        it "doesn't move the position" do
+          l = ["exec eval"]
+          t = make l
+          t.read(peek: true)
+          expect(t.lineno).to eq 1
+          expect(t.charno).to eq 1
+        end
+        it "returns a previous peek'ed token" do
+          l = ["exec eval"]
+          t = make l
+          tk1 = t.read(peek: true)
+          tk2 = t.read(peek: true)
+          expect(tk1.object_id).to eq tk2.object_id
+        end
+        context "when followed by a read w/o peek" do
+          it "returns a previous peek'ed token" do
+            l = ["exec eval"]
+            t = make l
+            tk1 = t.read(peek: true)
+            tk2 = t.read
+            expect(tk1.object_id).to eq tk2.object_id
+          end
+        end
+      end
+    end
   end
 end
+
+#token = peek(:PIPE) || read(:TEXT)
+#if token.nil? error "Unexpected end of line"
+
+
 
 
 #    lines = ["a\n", "\n", "b\n"]

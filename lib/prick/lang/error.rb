@@ -24,6 +24,10 @@ module Prick::Lang
       end
     end
 
+    def internal_error(*args)
+      pretty_error InternalError, "INTERNAL ERROR: #{args.join}"
+    end
+
   private
     def parse_args!(args) # Modifies 'args'
       case args.first
@@ -36,10 +40,6 @@ module Prick::Lang
             raise ArgumentError
           end
       end
-    end
-
-    def internal_error(*args)
-      pretty_error InternalError, "INTERNAL ERROR: #{args.join}"
     end
 
     def pretty_error(klass, msg)

@@ -28,7 +28,7 @@ module Prick::Lang
 
       BRACE_BEGIN: "{", # is not related to the BRACE token
       BRACE_END: "}",
-      MULTILINE: "|",
+      PIPE: "|", # TODO: Eliminate or make optional
 
       TEXT: nil,
       LINE: nil,
@@ -85,7 +85,7 @@ module Prick::Lang
 #   def self.kind(text)
 #     MAP[text] or (File.basename(text) =~ FILENAME_RE ? :FILE : :TEXT)
 #   end
-#
+
 #   def self.args(text)
 #     if kind = MAP[text]
 #       [kind]
