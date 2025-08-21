@@ -11,6 +11,9 @@ module Prick::Lang
     # Source file
     forward_to :compiler, :file
 
+    # Current line
+    def line = @lines[@index]
+
     # Current line number (one-based)
     def lineno = @index + 1
 
@@ -18,7 +21,7 @@ module Prick::Lang
     def charno = @pos + 1
 
     # Indent of current line
-#   def indent() @indent ||= @lines[@index][/\A */].size end
+#   def indent() @indent ||= line[/\A */].size end
 
     def initialize(compiler, lines = nil)
       constrain compiler, Compiler
@@ -35,14 +38,14 @@ module Prick::Lang
     def eof?() @lines.size == @index end
 
     # Return true if at end of line. #eol? is also when at end of file
-    def eol? = eof? || @pos == (@lines[@index]&.size || 0)
+    def eol? = eof? || @pos == (line&.size || 0)
 
     # Return true if at beginning of line. #bol? is also true when at end of
     # file (FIXME)
     def bol? = eof? || @pos == 0
 
     # Set end of line
-    def eol!() @pos = @lines[@index]&.size || 0 end
+    def eol!() @pos = line&.size || 0 end
 
     # Return next token to be extracted. Return nil if at end of file
     def peek(kinds = nil)
@@ -63,7 +66,7 @@ module Prick::Lang
     # Returns nil if at end of line
     def readtext
       !eof? && !eol? or return nil
-      token = Token.new(file, lineno, charno, @lines[@index][@pos..-1].lstrip, :TEXT)
+      token = Token.new(file, lineno, charno, line[@pos..-1].lstrip, :TEXT)
       next_line
       token
     end
@@ -73,16 +76,29 @@ module Prick::Lang
     def readline
       !eof? or return nil
       bol? or error "Not at start of line"
-      token = Token.new(file, lineno, charno, @lines[@index], :LINE)
+      token = Token.new(file, lineno, charno, line, :LINE)
       next_line
       token
     end
 
-    # Return lines with same or higher indent than the first non-blank line
-    def readblock
+    # Return a BLOCK token of lines with indent bigger than min_indent. Lines
+    # with a '#' in the first column are replaced with an empty string and then
+    # the block is aligned as a whole to the least indented line. Leading and
+    # traling blank lines are ignored (but counted)
+    def readblock(min_indent) # exclusive min value
       !eof? or return nil
-      eol? or error "Not at end of line"
-      skip_blanks
+      eol? or error "Not at start of line"
+      skip_empty or return nil
+      lines = []
+      if indent > indent_of_parent
+        lines << line
+      elsif line[0] == '#' || line == ""
+        lines << ""
+      else
+        true
+#       break
+      end
+
     end
 
 # protected
@@ -101,14 +117,24 @@ module Prick::Lang
       @token = nil
     end
 
+    # Read and ignore empty lines. Used by #readblock
+    def skip_empty
+      !eof? or return nil
+      bol? or error "Not at start of line" # Implies line has been reset
+      while (norm = line&.sub(/^\s*/, ""))&.empty?
+        @index += 1
+      end
+      norm
+    end
+
     # Read and ignore blank lines (incl. comments)
     def skip_blanks
       !eof? or return nil
       bol? or error "Not at start of line" # Implies line has been reset
-      while (line = @lines[@index]&.sub(/^\s*(?:#.*)?$/, ""))&.empty?
+      while (norm = line&.sub(/^\s*(?:#.*)?$/, ""))&.empty?
         @index += 1
       end
-      line
+      norm
     end
 
     def dump
@@ -138,7 +164,7 @@ __END__
 #   def eob? = @pos == @buffer&.size
 #
 #   # Set end of buffer
-#   def eob!() @pos = (@buffer ||= @lines[@index]).size end
+#   def eob!() @pos = (@buffer ||= line).size end
 #
 #   # Start of buffer
 #   def bob? = !b? || @pos == 0

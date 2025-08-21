@@ -11,9 +11,11 @@ describe "Prick::Lang" do
     end
 
     describe "#skip_blanks" do
+      def call(lines) = make(lines).skip_blanks
+
       it "returns nil if eof" do
-        t = make []
-        expect(t.skip_blanks).to eq nil
+        l = []
+        expect(call l).to eq nil
       end
 
       it "raises if not bol?" do
@@ -23,43 +25,52 @@ describe "Prick::Lang" do
       end
 
       it "returns nil on single blank line" do
-        t = make [""]
-        expect(t.skip_blanks).to eq nil
+        l = [""]
+        expect(call l).to eq nil
       end
 
       it "returns nil on multiple blank lines" do
-        t = make ["", ""]
-        expect(t.skip_blanks).to eq nil
+        l = ["", ""]
+        expect(call l).to eq nil
       end
 
       it "returns the first non-blank line" do
-        t = make ["a", "", "b"]
-        expect(t.skip_blanks).to eq "a"
+        l = ["a", "", "b"]
+        expect(call l).to eq "a"
+      end
+
+      it "advances to the first non-blank line" do
+        t = make ["", "b"]
+        expect(t.skip_blanks).to eq "b"
+        expect(t.lineno).to eq 2
+        expect(t.charno).to eq 1
       end
 
       it "skips initial blank line" do
-        t = make ["", "b"]
-        expect(t.skip_blanks).to eq "b"
+        l = ["", "b"]
+        expect(call l).to eq "b"
       end
       it "skips initial blank lines" do
-        t = make ["", "", "b"]
-        expect(t.skip_blanks).to eq "b"
+        l = ["", "", "b"]
+        expect(call l).to eq "b"
       end
 
       it "ignores leading comments" do
-        t = make ["# comment", "b"]
-        expect(t.skip_blanks).to eq "b"
+        l = ["# comment", "b"]
+        expect(call l).to eq "b"
       end
       it "ignores embedded comments comments in otherwise blank lines" do
-        t = make ["  # comment", "b"]
-        expect(t.skip_blanks).to eq "b"
+        l = ["  # comment", "b"]
+        expect(call l).to eq "b"
       end
     end
 
     describe "#readline" do
+      def call(lines) = make(lines).readline
+
       it "returns nil if eof?" do
-        t = make []
-        expect(t.readline).to eq nil
+        l = []
+        expect(call l).to eq nil
       end
 
       it "raises if not bol?" do
@@ -69,25 +80,62 @@ describe "Prick::Lang" do
       end
 
       it "returns a LINE token" do
-        t = make ["a", "b"]
-        expect(t.readline.kind).to eq :LINE
+        l = ["a", "b"]
+        expect(call(l).kind).to eq :LINE
       end
 
-      it "Sets token file/lineno/charno" do
-        t = make ["a", "b"]
-        tk = t.readline
+      it "sets token file/lineno/charno" do
+        l = ["a", "b"]
+        tk = call l
         expect(tk.file).to eq file
         expect(tk.lineno).to eq 1
         expect(tk.charno).to eq 1
       end
 
-      it "advance to the next line" do
-        t = make ["a", "b"]
+      it "advances to the next line" do
+        l = ["a", "b"]
+        t = make l
         t.readline
         expect(t.lineno).to eq 2
         expect(t.charno).to eq 1
       end
     end
+
+#   describe "#readblock" do
+#     def call(lines) = make(lines).readblock
+#
+#     it "returns nil if eof?" do
+#       l = []
+#       expect(call l).to eq nil
+#     end
+#
+#     it "raises if not bol?" do
+#       t = make ["a", "b"]
+#       t.eol!
+#       expect { t.readblock }.to raise_error Prick::Lang::Error, /Not at start of line/
+#     end
+#
+#     it "returns a LINE token" do
+#       l = ["a", "b"]
+#       expect(call(l).kind).to eq :BLOCK
+#     end
+#
+#     it "sets token file/lineno/charno" do
+#       l = ["a", "b"]
+#       tk = call l
+#       expect(tk.file).to eq file
+#       expect(tk.lineno).to eq 1
+#       expect(tk.charno).to eq 1
+#     end
+#
+#     it "advances to the next line" do
+#       l = ["a", "b"]
+#       t = make l
+#       t.readline
+#       expect(t.lineno).to eq 2
+#       expect(t.charno).to eq 1
+#     end
+#   end
   end
 end
 

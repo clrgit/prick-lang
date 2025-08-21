@@ -2,7 +2,7 @@
 module Prick::Lang
   class Token
     TOKENS = {
-      PROGRAM: nil,
+      PROGRAM: nil, # FIXME "program"
       SCHEMA: "schema",
       OPTION: "option",
       REQUIRE: "require",
@@ -21,7 +21,7 @@ module Prick::Lang
       EVAL: "eval",
       RUBY: "ruby",
       SQL: "sql",
-      FILE: nil,
+      FILE: nil, # FIXME "file"
       ENV: "env",
       CMD: "cmd",
       NOT: "not",
@@ -31,7 +31,8 @@ module Prick::Lang
       MULTILINE: "|",
 
       TEXT: nil,
-      LINE: nil
+      LINE: nil,
+      BLOCK: nil
     }
 
     # List of token kinds
