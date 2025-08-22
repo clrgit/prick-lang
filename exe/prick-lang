@@ -9,6 +9,10 @@ SPEC = %(
 
   -- FILE
 
+  -x,exception
+    Throw exceptions instead of using ShellOpts error message. Useful to
+    pinpoint the source of an error when developing
+
   Syntax
 
     SOURCE-FILE ::= STMT...
@@ -74,6 +78,8 @@ SPEC = %(
 )
 
 opts, args = ShellOpts.process(SPEC, ARGV)
+
+USE_EXCEPTION = opts.exception?
 
 file = args.expect(1)
 

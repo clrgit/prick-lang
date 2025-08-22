@@ -15,8 +15,7 @@ module Prick::Lang
     def error(*args)
       lineno, charno = parse_args!(args)
       msg = "#{file} #{lineno}:#{charno} #{args.join}"
-
-      if defined?(::RSpec)
+      if defined?(::RSpec) || USE_EXCEPTION
         pretty_error Error, msg
       else
         $stderr.puts msg
