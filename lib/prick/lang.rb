@@ -52,10 +52,16 @@ module Prick::Lang
 #         puts "#{@tokenizer.lineno} #{s}"
 #       end
 
-# FIXME FIXME FIXME
-p @tokenizer.read(:TEXT)
-        while token = @tokenizer.read(:TEXT)
+        @tokenizer.skip_blanks
+        @tokenizer.dump
+        while token = @tokenizer.read #(:TEXT)
           p token
+          @tokenizer.dump
+          if @tokenizer.eol?
+            @tokenizer.next_line
+            @tokenizer.skip_blanks
+          end
+
         end
 
 #       while !@tokenizer.eof?

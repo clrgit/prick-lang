@@ -43,7 +43,6 @@ module Prick::Lang
 
     # Regular expression matching a keyword. Note that this also matches
     # undefined words
-#   KEYWORD_RE = /\w+/
     KEYWORD_RE = /[\w.]+/
 
     # List of keyword strings
@@ -80,7 +79,7 @@ module Prick::Lang
     def group?(group) = Tokenizer::GRAMMAR_GROUPS[group].include?(kind)
 
     def to_s = @text
-    def inspect = "#<Token:#{kind} #{lineno} #{text.inspect}>"
+    def inspect = "#<Token:#{kind} #{lineno}:#{charno} #{text.inspect}>"
 
 #   def self.kind(text)
 #     MAP[text] or (File.basename(text) =~ FILENAME_RE ? :FILE : :TEXT)

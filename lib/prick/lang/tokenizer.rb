@@ -11,9 +11,19 @@ module Prick::Lang
     KEYWORDS = Token::TOKENS.compact.invert
 
     COMMENT_RE = /\s*(?:#.*)?/
-    WORD_RE = /(\s*)(#{Token::WORD_RE})#{COMMENT_RE}$/
+    WORD_RE = /(\s*)(#{Token::WORD_RE})#{COMMENT_RE}/
     EXT_RE = /(?:sql|psql|rb|fox|prick)/
     FILENAME_RE = /^([\w-]+)\.(#{EXT_RE}\b)$/
+
+    
+
+#re = /\Ghej/
+#
+#line = "..hej"
+#
+#p re.match(line, 2)
+
+
 
     attr_reader :compiler
 
@@ -30,7 +40,7 @@ module Prick::Lang
     def charno = @pos + 1
 
     # Indent of current line
-    def indent() = line[/\A */].size
+    def indent() = line && line[/\A */].size
 
     # Token of the last error
     attr_reader :error_token
@@ -70,8 +80,10 @@ module Prick::Lang
     # token on the line
     def read(kind = nil, peek: false)
       if peek && @peek_token
+        p 1
         @peek_token
       elsif @peek_token
+        p 2
         token = @peek_token
         @peek_token = nil
         kind.nil? || token.kind == kind or raise ArgumentError
@@ -79,20 +91,30 @@ module Prick::Lang
         next_line if eol?
         token
       else
+        p 3
+        p ">>> kind: #{kind.inspect}"
         case kind
-          when :TEXT; p 1; return readtext(peek: peek)
+          when :TEXT; return readtext(peek: peek)
           when :LINE; return readline(peek: peek)
           when :BLOCK; return readblock(peek: peek)
           else
+            p 4
             if token = parse_token
+              p 5
               if kind.nil? || kind == token.kind
+                p 6
+                puts ">>> peek: #{token.inspect}"
+                puts ">>> peek: #{peek.inspect}"
+                puts ">>> peek_match_length: #{@peek_match_length.inspect}"
                 @pos += @peek_match_length if !peek
               else
+                p 7
                 @error_token = token
                 return nil
               end
               next_line if !peek && eol?
             else
+              p 8
               @error_token = readtext(peek: true)
               return nil
             end
@@ -118,7 +140,7 @@ module Prick::Lang
     # if not at beginning of line
     def readline(peek: false)
       !eof? or return nil
-      bol? or error "Not at start of line"
+      bol? or error "Not at start of line 1"
       token = Token.new(file, lineno, charno, line, :LINE)
       next_line if !peek
       token
@@ -168,12 +190,13 @@ module Prick::Lang
         puts "eol?: #{eol?.inspect}"
         puts "index: #{@index.inspect}"
         puts "line: #{line.inspect}"
+        puts "rest: #{line[@pos..-1].inspect}"
         puts "indent: #{@indent.inspect}"
         puts "pos: #{@pos.inspect}"
         puts "token: #{@peek_token.inspect}"
         if !@lines.empty?
           puts "lines:"
-          indent { puts @lines.map(&:inspect) }
+          indent { puts @lines&.map(&:inspect) }
         else
           puts "lines: []"
         end
@@ -216,6 +239,14 @@ module Prick::Lang
     end
 
     def parse_token
+      puts "#parse_token"
+      Kernel.indent {
+        puts "WORD_RE: #{WORD_RE}"
+        puts "line: #{line.inspect}"
+        puts "@pos: #{@pos}"
+        puts "rest: #{line[@pos..-1].inspect}"
+      }
+
       if m = WORD_RE.match(line, @pos)
         indent = m.match_length(1)
         word = m.match(2)
@@ -230,6 +261,9 @@ module Prick::Lang
         else
           nil
         end
+      else
+        puts "NO MATCH"
+        nil
       end
     end
   end
