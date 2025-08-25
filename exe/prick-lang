@@ -20,13 +20,23 @@ SPEC = %(
     STMT ::=
         DECL_STMT
       | options TODO
-      | require SCHEMENAME|GROUPNAME
+      | require SCHEMANAME|GROUPREF
       | IF-STMT
       | CASE-STMT
       | PHASE-STMT
       | GROUP-STMT
       | COMMAND-STMT
       | FILE-STMT
+      | EXIT-STMT
+
+    DECL-STMT ::=
+      [schema | group] IDENT BLOCK-ARGS
+
+    OPTION_STMT ::=
+      # TODO
+
+    REQUIRE_STMT ::=
+      require SCHEMANAME|GROUPREF
 
     IF-STMT ::=
         if PRICK-EXPR|BLOCK then COMMAND... end
@@ -39,9 +49,6 @@ SPEC = %(
     WHEN-STMT ::=
         when PRICK-VALUE COMMAND...
 
-    DECL-STMT ::=
-      [schema | group] IDENT BLOCK-ARGS
-
     PHASE-STMT ::=
         [init | term | meta | seeds | auth] BLOCK-ARGS
 
@@ -51,7 +58,9 @@ SPEC = %(
       | ruby RUBY_SCRIPT ARGUMENTS...
       | sql SQL-EXPR
 
-    FILE-STMT ::= FILE...
+    FILE-STMT ::= PATH...
+
+    EXIT-STMT ::= exit INTEGER
 
     BLOCK-ARGS ::=
         COMMAND-STMT
@@ -70,10 +79,20 @@ SPEC = %(
 
     BASH-EXPR ::= '|' <indented lines>
 
+    PATH ::= <path>/FILE
     FILE ::= <*.sql> | <*.psql> | <*.fox> | <*.prick> | <*.rb>
+
+
     PRICK-EXPR-KIND ::= 'env' | 'cmd' | <more-to-come>
     PRICK-ENVIRONMENT ::= 'proc' | 'dev' | 'test' | <user-defined>
     PRICK-COMMAND ::= 'build' | 'rebuild' | 'make' | 'run' | <detected-dynamically>
+
+    SCHEMANAME ::= IDENT
+    GROUPNAME ::= IDENT
+    GROUPREF ::= REF
+
+    IDENT ::= /[\w.]+/
+    REF ::= /#{IDENT}(?:\.#{IDENT}+)/
 
 )
 

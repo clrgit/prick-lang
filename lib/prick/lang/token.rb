@@ -1,7 +1,9 @@
 
 module Prick::Lang
   class Token
+    # Tokens
     TOKENS = {
+      # Keywords
       PROGRAM: nil, # FIXME "program"
       SCHEMA: "schema",
       OPTION: "option",
@@ -21,62 +23,103 @@ module Prick::Lang
       EVAL: "eval",
       RUBY: "ruby",
       SQL: "sql",
-      FILE: nil, # FIXME "file"
       ENV: "env",
       CMD: "cmd",
       NOT: "not",
 
+      # Punctuation
       BRACE_BEGIN: "{", # is not related to the BRACE token
       BRACE_END: "}",
       PIPE: "|", # TODO: Eliminate or make optional
 
+      # Literals
+      FILE: nil,
+      DIR: nil,
+
+      # Identifiers
+      IDENT: nil,
+      REF: nil,
+
+      # Text
       TEXT: nil,
       LINE: nil,
-      BLOCK: nil
+      BLOCK: nil,
+
+      # Terminators
+      EOF: nil,
+      EOL: nil,
+
+      # Error
+      ERROR: nil
     }
 
-    # List of token kinds
+    # List of recognized file types
+    EXTS = %w(sql psql rb fox prick)
+
+    # Maps from keyword/punctuation character to kind. Inverse map of TOKENS
+    WORDS = TOKENS.select { _2.is_a? String }.invert
+
+    # List of kinds
     KINDS = TOKENS.keys
 
-    # List of keywords and punctuation characters
-    WORDS = TOKENS.values.compact
+    # List of keywords
+    KEYWORDS = WORDS.keys.select { _1 =~ /^\w+$/ }
 
-    # Regular expression matching a keyword. Note that this also matches
-    # undefined words
-    KEYWORD_RE = /[\w.]+/
+    # List of punctuation characters (strings are allowed by not used)
+    PUNCTS = WORDS.keys - KEYWORDS
 
-    # List of keyword strings
-    KEYWORDS = WORDS.select { _1 =~ KEYWORD_RE }
+    # List of textual tokens
+    TEXTS = [:TEXT, :LINE, :BLOCK]
 
-    # List of punctuation strings
-    PUNCTS = WORDS - KEYWORDS
+    # Finalizing tokens
+    FINALS = [:EOF, :EOL]
 
-    # Punctuation
-    PUNCT_RE = Regexp.union *PUNCTS
+    # *_PATTERN do not generate captures
+    WORD_PATTERN = Regexp.union WORDS.keys # keywords and punctuation
+    FILE_PATTERN = /[^\/\0*?"`'$<>|:\[\]]+/ # Any legal linux filename
+    EXT_PATTERN = Regexp.union(EXTS) # recognized file extensions
+    REL_PATTERN = /\.{1,2}\/|\// # initial '/', '../', or './'
+    DIR_PATTERN = /#{REL_PATTERN}?(?:#{FILE_PATTERN}\/)+/ # path ending in '/'
+    INT_PATTERN = /-?\d+/
+    IDENT_PATTERN = /[_a-zA-Z]\w*/ # language identifier
+    REF_PATTERN = /#{IDENT_PATTERN}(?:\.#{IDENT_PATTERN})*/
 
-    # A single non-space character
-    CHAR_RE = /\S/
+    # *_RE may generate captures
+    WORD_RE = /(?<word>#{WORD_PATTERN})/
+    DIR_RE = /(?<dir>#{DIR_PATTERN})/
+    FILE_RE = /(?<path>#{DIR_PATTERN})?(?<file>#{FILE_PATTERN}\.(?<ext>#{EXT_PATTERN}))/
+    INT_RE = /(?<int>-?\d+)/
+    IDENT_RE = /(?<ident>#{IDENT_PATTERN})/
+    REF_RE = /(?<ref>#{REF_PATTERN})/
+    ERROR_RE = /(?<error>\S*)/
 
-    WORD_RE = Regexp.union KEYWORD_RE, PUNCT_RE, CHAR_RE
+    # Matches line endings, ignoring comments. Only used by the tokenizer
+    COMMENT_RE = /\s*(?:#.*)?/
 
-    attr_accessor :file
-    attr_accessor :lineno
-    attr_accessor :charno
-    attr_accessor :kind # Symbol
-    attr_accessor :text # String
+    # TOKEN_RE matches words (keywords and punctuation), directories, files,
+    # integer, identifiers, and references in that order; text and terminator
+    # tokens are not matched. Sets $1 to the initial whitespace and $2 to the
+    # non-blank part of the match. The kind of the token can be inferred from
+    # the named captures: word, dir, path, file, ext, int, ident, ref
+    TOKEN_RE = /#{WORD_RE}|#{DIR_RE}|#{FILE_RE}|#{INT_RE}|#{IDENT_RE}|#{REF_RE}|#{ERROR_RE}/
 
-    # Only defined for :FILE tokens. TODO: Make into a general PrickPath object
-    attr_accessor :filename
-    attr_accessor :extname
+    # Matches as far as possible in the string. This is the same as TOKEN_RE
+    # except filesystem names that matches everything. ERROR_TOKEN_RE is only
+    # used in ErrorToken to pin-point the character that made TOKEN_RE to fail
+    ERROR_TOKEN_RE = /^(?:#{REF_PATTERN}|#{INT_PATTERN}|#{IDENT_PATTERN})(?<char>.)/
 
-    def initialize(file, lineno, charno, text, kind = nil, filename = nil, extname = nil)
-      @file, @lineno, @charno, @text, @kind, @filename, @extname =
-          file, lineno, charno, text, kind, filename, extname
-#     @kind, @filename, @extname = *(kind ? [kind, filename, extname] : Token.args(text))
+    attr_reader :file
+    attr_reader :lineno
+    attr_reader :charno
+    attr_reader :kind # Symbol
+    attr_reader :text # String
+
+    def initialize(file, lineno, charno, text, kind)
+      @file, @lineno, @charno, @text, @kind = file, lineno, charno, text, kind
     end
 
-    # Return true if token belongs to the given grammar group (see parse.rb)
-    def group?(group) = Tokenizer::GRAMMAR_GROUPS[group].include?(kind)
+#   # Return true if token belongs to the given grammar group (see parse.rb)
+#   def group?(group) = Tokenizer::GRAMMAR_GROUPS[group].include?(kind)
 
     def to_s = @text
     def inspect = "#<Token:#{kind} #{lineno}:#{charno} #{text.inspect}>"
@@ -95,5 +138,69 @@ module Prick::Lang
 #     end
 #   end
   end
+
+  class DirToken < Token
+    alias_method :path, :text
+
+    def initialize(*file_args, dirname)
+      @dirname = dirname
+      super(*file_args, dirname, :DIR)
+    end
+  end
+
+  class FileToken < Token
+    alias_method :path, :text
+    attr_reader :dirname
+    attr_reader :filename
+    attr_reader :extname
+
+    def initialize(*file_args, path, dirname, filename, extname)
+      super(*file_args, path, :FILE)
+      @dirname, @filename, @extname = dirname, filename, extname
+    end
+  end
+
+  class ErrorToken < Token
+    alias_method :error, :text
+
+  protected
+    def intialize(*file_args, error)
+      super(*file_args, error, :ERROR)
+    end
+  end
+
+  class TokenErrorToken < ErrorToken
+    attr_reader :token
+    forward_to :@token, :file, :lineno, :charno, :text
+    def initialize(token) @token = token end # No super!
+  end
+
+  class CharErrorToken < ErrorToken
+    # Lazy-eval
+    def charno = @charno || parse.first
+
+    # Error character or string
+    def error = @error || parse.last
+
+    # The error message is lazy-evaluated because we may create error tokens
+    # that will be ignored so we don't want to spend time in vain on the
+    # relatively expensive pin-pointing of the exact spot where the error
+    # occurred
+    def initialize(file, lineno, error_charno, text)
+      super(file, lineno, nil, text)
+      @error_charno = error_charno
+    end
+
+  protected
+    # Returns [charno, char] for convenience
+    def parse
+      if m = ERROR_TOKEN_RE.match(@text)
+        [ @charno = @error_charno + m.offset(:char).first, @error = m[:char] ]
+      else
+        [ @charno = @error_charno, @error = @text ]
+      end
+    end
+  end
+
 end
 
