@@ -71,19 +71,18 @@ module Prick::Lang
     end
 
     def parse_stmts
-      while !tokenizer.eof? && parse_stmt; end
+      while tokenizer.skiplines && parse_stmt?; end
       true
     end
 
-    def parse_stmt
-      puts "#parse_stmt"
-      Kernel.indent {
-        puts "eof?: #{tokenizer.eof?}"
-        puts "line: #{tokenizer.line.inspect}"
-      }
+    def parse_stmt?
+#     puts "#parse_stmt"
+#     Kernel.indent {
+#       puts "eof?: #{tokenizer.eof?}"
+#       puts "line: #{tokenizer.line.inspect}"
+#     }
       constrain tokenizer.bol?, true # FIXME doubtful
-      token = tokenizer.peek
-      case token.kind
+      case tokenizer.peek&.kind
         when :SCHEMA, :GROUP; parse_decl
         when :OPTIONS; parse_options
         when :REQUIRE; parse_require

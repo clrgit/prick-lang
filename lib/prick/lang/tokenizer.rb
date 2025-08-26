@@ -176,8 +176,9 @@ module Prick::Lang
 
       # Check if anything was found
       if non_blank_lines.size == 0
-        @index = start_index # Reset line
-        return nil
+#       @index = start_index # Reset line
+#       return nil
+        Token.new(file, token_lineno, token_charno, "", :BLOCK)
       end
 
       # Find least indented line (ignoring blanks) and outdent block to that
@@ -193,6 +194,16 @@ module Prick::Lang
       source = block.map { |l| l[min..-1] }.join("\n").sub(/\n+\Z/, "") # #sub remove trailing bland lines
 
       Token.new(file, token_lineno, token_charno, source, :BLOCK)
+    end
+
+    # Skip blank lines and also comment-only lines unless :comment is false.
+    # Returns nil on eof
+    def skiplines(comment: true)
+      re = (comment ? Token::COMMENT_RE : /^\s*/)
+      while line&.sub(re, "")&.empty?
+        @index += 1
+      end
+      @lines[@index]
     end
 
     def dump
@@ -223,14 +234,6 @@ module Prick::Lang
       @index += 1
       @pos = 0
       @peek_token = nil
-    end
-
-    # Skip blank lines and also comment-only lines unless :comment is false
-    def skiplines(comment: true)
-      re = (comment ? Token::COMMENT_RE : /^\s*/)
-      while line&.sub(re, "")&.empty?
-        @index += 1
-      end
     end
 
     def eof_token

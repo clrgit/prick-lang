@@ -50,9 +50,14 @@ describe "Prick::Lang" do
 
 
       context "it parses" do
-
         def sig(lines) = call(lines).children.first.sig
         def sigs(lines) = call(lines).children.map(&:sig)
+
+        context "phase blocks" do
+          it "with a file argument"
+          it "with a command argument"
+          it "with a block"
+        end
 
         context "file statements" do
           it "with a single argument" do
@@ -63,8 +68,6 @@ describe "Prick::Lang" do
             lines = %(a.sql b.sql c.sql)
             expect(sigs lines).to eq ["FILE a.sql", "FILE b.sql", "FILE c.sql"]
           end
-
-
         end
 
         context "commands" do
