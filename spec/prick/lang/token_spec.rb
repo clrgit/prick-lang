@@ -1,16 +1,18 @@
 
 describe "Prick::Lang" do
   # Token *_RE constants by name (symbol) so save a lot of typing
-  def re(re_symbol) = /^#{Prick::Lang::Token.const_get(re_symbol)}$/
+  def re(re_symbol, eol: true) = /^#{Prick::Lang::Token.const_get(re_symbol)}#{eol ? '$' : ''}/
 
   describe "Token" do
     # Lazy match check
-    def e(re_symbol, string)
-      expect(string).to match re re_symbol
+    def e(re_symbol, string, eol: true)
+      expect(string).to match re(re_symbol, eol: eol)
     end
 
     # Lazy capture check
-    def c(re_symbol, source, capture, text = source) = expect(re(re_symbol).match(source)[capture]).to eq text
+    def c(re_symbol, source, capture, text = source, eol: true)
+      expect(re(re_symbol, eol: eol).match(source)[capture]).to eq text
+    end
 
     describe "::WORD_RE" do
       it "matches keywords" do
@@ -60,6 +62,9 @@ describe "Prick::Lang" do
       end
       it "sets 'ext' capture" do
         c :FILE_RE, "dir/name/file.sql", :ext, "sql"
+      end
+      it "matches only one filename" do
+        c :FILE_RE, "a.sql b.sql", :file, "a.sql", eol: false
       end
     end
 
@@ -144,10 +149,10 @@ describe "Prick::Lang" do
       end
 
       context "scan" do
-        it "word" do e "word@", 7 end
-        it "int" do e "1234.", 7 end
-        it "ident" do e "ident@", 8 end
-        it "ref" do
+        it "words" do e "word@", 7 end
+        it "integers" do e "1234.", 7 end
+        it "identifiers" do e "ident@", 8 end
+        it "references" do
           s = "root.branch.leaf@error"
           e s, 3 + s.index('@')
         end

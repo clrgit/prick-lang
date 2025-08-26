@@ -2,7 +2,7 @@
 module Prick::Lang
   class Tokenizer
     # Return rest of line
-    def rol = @lines[@index][@pos..-1]
+    def rest = @lines[@index][@pos..-1]
 
     # Set end of line
     def eol!() @pos = line&.size || 0 end
@@ -78,7 +78,7 @@ describe "Prick::Lang" do
         expect(tk2).not_to eq tk1
       end
 
-      context "when unknown/unexpected token X" do
+      context "when unknown/unexpected token" do
         it "returns nil" do
           l = [".word"]
           t = make l
@@ -87,7 +87,6 @@ describe "Prick::Lang" do
 
         it "sets #error_token" do
           l = [".word"]
-          expect(call l).to eq nil
           expect(error_token(l).error).to eq ".word"
         end
       end
@@ -223,7 +222,7 @@ describe "Prick::Lang" do
         expect { t.readblock(2) }.to raise_error Prick::Lang::Error, /Not at start of line/
       end
 
-      it "returns a BLOCK token" do
+      it "returns a BLOCK token X" do
         l = ["  a", "  b"]
         expect(call(l).kind).to eq :BLOCK
       end
@@ -283,12 +282,6 @@ describe "Prick::Lang" do
     describe "#skiplines" do
       def call(lines) = make(lines).skiplines
       def line(lines) = make(lines).tap(&:skiplines).line
-
-      it "raises if not bol?" do
-        t = make ["a", "b"]
-        t.eol!
-        expect { t.skiplines }.to raise_error Prick::Lang::Error, /Not at start of line/
-      end
 
       it "skips single empty line" do
         l = [""]

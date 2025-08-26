@@ -31,10 +31,16 @@ module Prick::Lang
     def parse_args!(args) # Modifies 'args'
       case args.first
         when Integer; args.shift(2)
-        when Token; [args.first.lineno, args.first.charno]
+        when Token; a = args.shift; [a.lineno, a.charno]
         else
           case self
             when Tokenizer; [self.lineno, self.charno]
+            when Parser
+              if k = self.tokenizer&.error_token
+                [k.lineno, k.charno]
+              else
+                [curr.lineno, curr.charno]
+              end
           else
             raise ArgumentError
           end

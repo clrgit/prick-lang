@@ -52,17 +52,17 @@ module Prick::Lang
 #         puts "#{@tokenizer.lineno} #{s}"
 #       end
 
-        @tokenizer.skip_blanks
-        @tokenizer.dump
-        while token = @tokenizer.read #(:TEXT)
-          p token
-          @tokenizer.dump
-          if @tokenizer.eol?
-            @tokenizer.next_line
-            @tokenizer.skip_blanks
-          end
-
-        end
+#       @tokenizer.skip_blanks
+#       @tokenizer.dump
+#       while token = @tokenizer.read #(:TEXT)
+#         p token
+#         @tokenizer.dump
+#         if @tokenizer.eol?
+#           @tokenizer.next_line
+#           @tokenizer.skip_blanks
+#         end
+#
+#       end
 
 #       while !@tokenizer.eof?
 #         t = @tokenizer.readtext
@@ -92,11 +92,11 @@ end
 
 
 require_relative './lang/token.rb'
-#require_relative './lang/ast.rb'
+require_relative './lang/ast.rb'
 #require_relative './lang/idr.rb'
 
 require_relative './lang/tokenizer.rb'
-#require_relative './lang/parser.rb'
+require_relative './lang/parser.rb'
 #require_relative 'lang/analyzer.rb'
 #require_relative 'lang/generator.rb'
 

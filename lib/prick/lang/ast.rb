@@ -5,18 +5,87 @@ module Prick::Lang
       attr_reader :children # [Node]
       attr_reader :token
 
-      forward_to :token, :lineno, :charno
+      forward_to :token, :lineno, :charno, :kind
 
       def initialize(parent, token)
+        constrain parent, Node, nil
+        constrain token, Token
         @parent = parent and parent.children << self
         @children = []
         @token = token
       end
+
+      def inspect() = "#<#{self.class}>"
+
+      def dump_ident = puts sig_ident
+      def dump_attrs = nil
+
+      def dump
+        print "#{self.class.to_s.sub(/.*::/, "")} "
+        dump_ident
+        dump_attrs
+        indent { children.each &:dump }
+      end
+
+      def sig_ident = ""
+      def sig = sig_ident.empty? ? "#{token.kind}" : "#{token.kind} #{sig_ident}"
     end
 
     class Program < Node
       def initialize(file)
-        super(nil, Token.new(file, 1, 1, "", :PROGRAM)
+        super(nil, Token.new(file, 1, 1, "", :PROGRAM))
+      end
+    end
+
+    class Decl < Node
+      attr_accessor :name
+      attr_accessor :block
+
+      def initialize(parent, token, name)
+        constrain token.kind, *Parser::GRAMMAR_GROUPS[:decl]
+        constrain name, String
+        super parent, token
+        @name = name
+      end
+
+      def sig_ident = name.inspect
+    end
+
+    class Phase < Node
+      attr_accessor :block
+
+      def initialize(parent, token)
+        constrain token.kind, *Parser::GRAMMAR_GROUPS[:phase]
+        super parent, token
+      end
+
+      def sig_ident = kind
+    end
+
+    class Command < Node
+      def kind = token.kind
+      attr_accessor :source # Array of source lines. Assigned after initialization
+
+      def initialize(parent, token, source = nil)
+        constrain token.kind, *Parser::GRAMMAR_GROUPS[:command]
+        constrain source, Array, nil
+        super parent, token
+      end
+
+      # True iff source consists of multiple lines
+      def multiline? = @source =~ /\n/
+
+      def sig_ident
+        source.split("\n").join("; ")
+      end
+
+      def dump_ident
+        if multiline?
+          puts kind
+          indent { puts source }
+        else
+          puts sig_ident
+        end
       end
     end
 
@@ -25,17 +94,16 @@ module Prick::Lang
       alias_method :start_token, :token
       attr_accessor :stop_token, :token
       def initialize(parent, start_token, stop_token = start_token)
+        constrain stop_token, Token
         super(parent, start_token)
         @stop_token = stop_token
       end
     end
 
-#   class SchemaStmt < Block
-#     attr_reader :name
-#
-#
-#   end
-
+    class FileStmt < Node
+      forward_to :token, :filename, :extname
+      def sig_ident = filename
+    end
 
 
 
@@ -103,10 +171,6 @@ module Prick::Lang
     end
 
     class EvalStmt < CallStmt
-    end
-
-    class FileStmt < Node
-      forward_to :token, :filename, :extname
     end
 
     class SqlFileStmt < FileStmt

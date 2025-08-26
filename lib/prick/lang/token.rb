@@ -32,15 +32,16 @@ module Prick::Lang
       BRACE_END: "}",
       PIPE: "|", # TODO: Eliminate or make optional
 
-      # Literals
-      FILE: nil,
-      DIR: nil,
-
       # Identifiers
       IDENT: nil,
       REF: nil,
 
-      # Text
+      # Literals
+      FILE: nil,
+      DIR: nil,
+      INT: nil,
+
+      # Text literals
       TEXT: nil,
       LINE: nil,
       BLOCK: nil,
@@ -68,6 +69,12 @@ module Prick::Lang
     # List of punctuation characters (strings are allowed by not used)
     PUNCTS = WORDS.keys - KEYWORDS
 
+    # List if identifiers
+    IDENTS = [:IDENT, :REF]
+
+    # List of literals
+    LITERALS = [:FILE, :DIR, :INT]
+
     # List of textual tokens
     TEXTS = [:TEXT, :LINE, :BLOCK]
 
@@ -76,7 +83,7 @@ module Prick::Lang
 
     # *_PATTERN do not generate captures
     WORD_PATTERN = Regexp.union WORDS.keys # keywords and punctuation
-    FILE_PATTERN = /[^\/\0*?"`'$<>|:\[\]]+/ # Any legal linux filename
+    FILE_PATTERN = /[^\/\s\0*?"`'$<>|:\[\]]+/ # Any legal linux filename
     EXT_PATTERN = Regexp.union(EXTS) # recognized file extensions
     REL_PATTERN = /\.{1,2}\/|\// # initial '/', '../', or './'
     DIR_PATTERN = /#{REL_PATTERN}?(?:#{FILE_PATTERN}\/)+/ # path ending in '/'
@@ -111,8 +118,14 @@ module Prick::Lang
     attr_reader :file
     attr_reader :lineno
     attr_reader :charno
-    attr_reader :kind # Symbol
+    attr_accessor :kind # Symbol. Can mutate from keyword to ident
     attr_reader :text # String
+
+    def keyword? = KEYWORDS.include? kind
+    def punct? = PUNCTS.include? kind
+    def ident? = IDENTS.include? kind
+    def literal? = LITERALS.include? kind
+    def text? = TEXTS.include? kind
 
     def initialize(file, lineno, charno, text, kind)
       @file, @lineno, @charno, @text, @kind = file, lineno, charno, text, kind
@@ -162,19 +175,24 @@ module Prick::Lang
 
   class ErrorToken < Token
     alias_method :error, :text
+    def error = nil
 
   protected
-    def intialize(*file_args, error)
+    def initialize(*file_args, error)
       super(*file_args, error, :ERROR)
     end
   end
 
+  # Forwards everything to another token. Used when a token was parsed
+  # correctly but of the wrong kind
   class TokenErrorToken < ErrorToken
     attr_reader :token
     forward_to :@token, :file, :lineno, :charno, :text
+    alias_method :error, :text
     def initialize(token) @token = token end # No super!
   end
 
+  # Pin-points position where an unexpected character was found
   class CharErrorToken < ErrorToken
     # Lazy-eval
     def charno = @charno || parse.first
@@ -183,9 +201,9 @@ module Prick::Lang
     def error = @error || parse.last
 
     # The error message is lazy-evaluated because we may create error tokens
-    # that will be ignored so we don't want to spend time in vain on the
-    # relatively expensive pin-pointing of the exact spot where the error
-    # occurred
+    # that will be ignored later so we don't want to spend time in vain on the
+    # relatively expensive process of pin-pointing of the exact spot where the
+    # error occurred
     def initialize(file, lineno, error_charno, text)
       super(file, lineno, nil, text)
       @error_charno = error_charno
@@ -201,6 +219,5 @@ module Prick::Lang
       end
     end
   end
-
 end
 

@@ -39,3 +39,6 @@ end
 
 RSpec::Core::Formatters::DocumentationFormatter.prepend FormatterOverrides
 
+# Debug include
+require "string-text"
+
