@@ -18,45 +18,41 @@ describe "Prick::Lang" do
 
     describe "#parse" do
       it "returns an Ast::Program node" do
-        p = make %(
-          schema app_portal {
-            file.sql
-            file.psql
-            file.rb
-
-            init {
-              a.sql
-              b.sql
-            }
-
-            exec ls -l
-            eval |
-              ls -l
-#             asdf
-              echo 'hej
-              # inline comment
-              sed 's/#/not a comment/'
-
-            back.sql
-          }
-        )
-        expect(ast = p.parse).to be_a Prick::Lang::Ast::Program
-#       puts "--------------"
-#       ast.dump
-
-
+        lines = %(file.sql)
+        expect(call lines).to be_a Prick::Lang::Ast::Program
       end
-
-
 
       context "it parses" do
         def sig(lines) = call(lines).children.first.sig
         def sigs(lines) = call(lines).children.map(&:sig)
+        def blocksig(lines) = call(lines).children.first.children.first.children.map { |c| c.sig }
 
         context "phase blocks" do
-          it "with a file argument"
-          it "with a command argument"
-          it "with a block"
+          it "with a file argument" do
+            lines = %(init file.sql)
+            expect(blocksig lines).to eq ["FILE file.sql"]
+          end
+          it "with a command argument" do
+            lines = %(init exec ls -l)
+            expect(blocksig lines).to eq ["EXEC ls -l"]
+          end
+          it "with a command with a text block argument" do
+            lines = %(
+              init exec |
+                ls -l
+                echo
+            )
+            expect(blocksig lines).to eq ["EXEC ls -l; echo"]
+          end
+          it "with a block" do
+            lines = %(
+              init {
+                a.sql
+                b.sql
+              }
+            )
+            expect(blocksig lines).to eq ["FILE a.sql", "FILE b.sql"]
+          end
         end
 
         context "file statements" do

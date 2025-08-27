@@ -113,11 +113,12 @@ module Prick::Lang
     end
 
     def parse_command
+#     puts "#parse_command"
       token = tokenizer.read
       command = Ast::Command.new(curr, token, nil)
       if tokenizer.peek(:PIPE)
         tokenizer.read
-        command.source = tokenizer.readblock(token.charno).text
+        command.source = tokenizer.readblock(tokenizer.indent).text
       else
         command.source = tokenizer.readtext.text
       end

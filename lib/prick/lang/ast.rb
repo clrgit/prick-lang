@@ -59,7 +59,7 @@ module Prick::Lang
         super parent, token
       end
 
-      def sig_ident = kind
+      def sig_ident = ""
     end
 
     class Command < Node
