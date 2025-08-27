@@ -103,13 +103,13 @@ module Prick::Lang
       token = tokenizer.read # eat 'schema'/'group' keywords
       ident = parse_identifier
       decl = Ast::Decl.new(curr, token, ident.text)
-      with(decl) { parse_block }
+      with(decl) { parse_block_argument }
     end
 
     def parse_phase
       token = tokenizer.read
       phase = Ast::Phase.new(curr, token)
-      with(phase) { parse_block }
+      with(phase) { parse_block_argument }
     end
 
     def parse_command
@@ -118,10 +118,29 @@ module Prick::Lang
       command = Ast::Command.new(curr, token, nil)
       if tokenizer.peek(:PIPE)
         tokenizer.read
-        command.source = tokenizer.readblock(tokenizer.indent).text
+        command.source = tokenizer.readtext(tokenizer.indent).text
       else
-        command.source = tokenizer.readtext.text
+        command.source = tokenizer.readline.text
       end
+    end
+
+    def parse_if
+      token = tokenizer.read
+      expr = parse_expr
+
+      command = Ast::If.new(curr, token, expr)
+      with(command) {
+        command.then_ = Ast::Block.new(curr, token)
+        with(command.then_) { parse_stmts }
+
+        peek = tokenizer.peek
+        if peek.kind == :ELSE
+          tokenizer.read
+          command.else_ = Ast::Block.new(curr, token)
+          with(command.else_) { parse_stmts }
+        end
+      }
+      tokenizer.read(:END)
     end
 
 
@@ -131,7 +150,7 @@ module Prick::Lang
     #   FILE...
     #   COMMAND
     #
-    def parse_block
+    def parse_block_argument
       expect %w(block command file) do |token|
         block = Ast::Block.new(curr, token)
         if token.kind == :BRACE_BEGIN
@@ -156,6 +175,10 @@ module Prick::Lang
 
     def parse_identifier
       tokenizer.read(:IDENT) or expect_error "identifier"
+    end
+
+    def parse_expr
+      tokenizer.readline or expect_error "expression"
     end
 
     #
@@ -198,7 +221,7 @@ __END__
 #         when :SCHEMA, :OPTIONS; parse_global_options(token)
 #         when :IF; parse_if_stmt(token)
 #         when :CASE; parse_case_stmt(token)
-#         when :INIT, :TERM, :META, :SEEDS, :AUTH; parse_block(token)
+#         when :INIT, :TERM, :META, :SEEDS, :AUTH; parse_block_argument(token)
 #         when :EXEC, :EVAL, :RUBY, :FILE
 #
 #
@@ -209,7 +232,7 @@ __END__
 #     end
     end
 
-    def parse_block
+    def parse_block_argument
       expect_token '{'
       parse_stmts
       expect_token '}'

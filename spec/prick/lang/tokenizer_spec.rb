@@ -137,8 +137,8 @@ describe "Prick::Lang" do
       end
     end
 
-    describe "#readtext" do
-      def call(lines) = make(lines).readtext
+    describe "#readline" do
+      def call(lines) = make(lines).readline
 
       it "returns nil if eof?" do
         l = []
@@ -149,14 +149,14 @@ describe "Prick::Lang" do
         l = %w(exec)
         t = make l
         t.eol!
-        expect(t.readtext).to eq nil
+        expect(t.readline).to eq nil
       end
 
-      it "returns rest of line as a TEXT token" do
+      it "returns rest of line as a LINE token" do
         l = ["exec a b c"]
         t = make l
         t.read
-        expect(t.readtext.text).to eq "a b c"
+        expect(t.readline.text).to eq "a b c"
       end
 
       it "skips initial empty lines even when peeking"
@@ -169,46 +169,8 @@ describe "Prick::Lang" do
       end
     end
 
-    describe "#readline" do
-      def call(lines) = make(lines).readline
-
-      it "returns nil if eof?" do
-        l = []
-        expect(call l).to eq nil
-      end
-
-      it "raises if not bol?" do
-        t = make ["a", "b"]
-        t.eol!
-        expect { t.readline }.to raise_error Prick::Lang::Error, /Not at start of line/
-      end
-
-      it "returns a LINE token" do
-        l = ["a", "b"]
-        expect(call(l).kind).to eq :LINE
-      end
-
-      it "sets token file/lineno/charno" do
-        l = ["a", "b"]
-        tk = call l
-        expect(tk.file).to eq file
-        expect(tk.lineno).to eq 1
-        expect(tk.charno).to eq 1
-      end
-
-      it "skips initial empty lines even when peeking"
-
-      it "advances to the next line" do
-        l = ["a", "b"]
-        t = make l
-        t.readline
-        expect(t.lineno).to eq 2
-        expect(t.charno).to eq 1
-      end
-    end
-
-    describe "#readblock" do
-      def call(lines) = make(lines).readblock(2)
+    describe "#readtext" do
+      def call(lines) = make(lines).readtext(2)
       def text(lines) = call(lines).text
 
       it "returns nil if eof?" do
@@ -219,12 +181,12 @@ describe "Prick::Lang" do
       it "raises if not bol?" do
         t = make ["a", "b"]
         t.eol!
-        expect { t.readblock(2) }.to raise_error Prick::Lang::Error, /Not at start of line/
+        expect { t.readtext(2) }.to raise_error Prick::Lang::Error, /Not at start of line/
       end
 
-      it "returns a BLOCK token X" do
+      it "returns a TEXT token X" do
         l = ["  a", "  b"]
-        expect(call(l).kind).to eq :BLOCK
+        expect(call(l).kind).to eq :TEXT
       end
 
       it "sets token file/lineno/charno" do

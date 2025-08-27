@@ -86,7 +86,7 @@ module Prick::Lang
         token
       else # Compute new token
         # Skip blank lines if not expecting a block token
-        skiplines if bol? && kind != :BLOCK
+        skiplines if bol? && kind != :TEXT
 
         # Handle eof? after skipping blank lines
         if eof?
@@ -97,9 +97,8 @@ module Prick::Lang
 
         # Handle text tokens
         case kind
-          when :TEXT; return readtext(peek: peek)
           when :LINE; return readline(peek: peek)
-          when :BLOCK; return readblock(peek: peek)
+          when :TEXT; return readtext(peek: peek)
         end
 
         # Parse token. Set error_token and return nil if an error is found
@@ -123,33 +122,22 @@ module Prick::Lang
       end
     end
 
-    # Return the rest of the line as a TEXT token and advance to the next line.
+    # Return the rest of the line as a LINE token and advance to the next line.
     # Returns nil if at end of line
-    def readtext(peek: false)
-      !eof? && !eol? or return nil
-      token = Token.new(file, lineno, charno, line[@pos..-1].lstrip, :TEXT)
-      nextline if !peek
-      token
-    end
-
-    # Return current line as a LINE token and advance to the next line. Note
-    # that the line can be empty. It is an error if not at beginning of line
     def readline(peek: false)
-      skiplines if bol?
-      !eof? or return nil
-      bol? or error "Not at start of line 1"
-      token = Token.new(file, lineno, charno, line, :LINE)
+      !eof? && !eol? or return nil
+      token = Token.new(file, lineno, charno, line[@pos..-1].lstrip, :LINE)
       nextline if !peek
       token
     end
 
-    # Return a BLOCK token of lines with indent bigger or equal to min_indent.
+    # Return a TEXT token of lines with indent bigger or equal to min_indent.
     # Lines with a '#' in the first column are replaced with an empty string
     # and then the block is aligned as a whole to the least indented line.
     # Leading and traling blank lines are ignored (but counted). Note that
-    # #readblock will read the rest of the file if min_indent is 0
-    def readblock(min_indent, peek: false) # exclusive min value
-#     puts "#readblock"
+    # #readtext will read the rest of the file if min_indent is 0
+    def readtext(min_indent, peek: false) # exclusive min value
+#     puts "#readtext"
 
       !eof? or return nil
       bol? or error "Not at start of line" # Implies cached variables have been reset
@@ -178,7 +166,7 @@ module Prick::Lang
       if non_blank_lines.size == 0
 #       @index = start_index # Reset line
 #       return nil
-        Token.new(file, token_lineno, token_charno, "", :BLOCK)
+        Token.new(file, token_lineno, token_charno, "", :TEXT)
       end
 
       # Find least indented line (ignoring blanks) and outdent block to that
@@ -193,7 +181,7 @@ module Prick::Lang
       min = block.reject(&:empty?).map { |l| indent(l) }.min
       source = block.map { |l| l[min..-1] }.join("\n").sub(/\n+\Z/, "") # #sub remove trailing bland lines
 
-      Token.new(file, token_lineno, token_charno, source, :BLOCK)
+      Token.new(file, token_lineno, token_charno, source, :TEXT)
     end
 
     # Skip blank lines and also comment-only lines unless :comment is false.
@@ -279,125 +267,4 @@ module Prick::Lang
     end
   end
 end
-
-__END__
-    # [:IDENT, :SCHEMA] <- not legal
-    # [
-    # [:SCHEMA, :IDENT, :TEXT]
-    # [:TEXT, :BLOCK]
-#   def expect(*kinds)
-#     kinds = kinds.flatten
-#     !eof? or return (kind.include? :EOF ? EofToken.new : nil)
-#     !eol? or return (kind.include? :EOL ? EolToken.new : nil)
-#
-#     if token = peek
-#       return read if kinds.include? token.kind
-#       if kinds.include? :IDENT && token.keyword?
-#         token.kind = :IDENT
-#         return read
-#       end
-#     else
-#       if kinds.include? :TEXT && !eol?
-#         return readtext
-#       elsif kinds.include? :LINE && !eof?
-#         return readline
-#       elsif kinds.include? :BLOCK
-#         return readblock
-#       end
-#     end
-#   end
-
-    def make_rule
-    end
-
-    # Tokens are interpreted in this order
-    #   * Tokens with a string literal
-    #   * ident
-
-    # [:SCHEMA, :IDENT, :TEXT]
-    # [:TEXT, :BLOCK]
-    def expect(*kinds)
-      kinds = kinds.flatten
-      !eof? or return (kind.include? :EOF ? EofToken.new : nil)
-      !eol? or return (kind.include? :EOL ? EolToken.new : nil)
-
-      if token = peek
-
-
-
-
-      return read if kinds.include? token.kind
-
-      regular_kinds = [0...kinds.find_index {
-
-      return nil if !kinds.include? token
-
-
-      match_kinds = []
-
-      kind = kinds.shift
-
-      if kind == :KEYWORD
-        eat_other_keywords
-        return success
-
-
-      while kind = kinds.shift
-        case Tuple::TOKEN_KINDS[kind] ||
-          when :KEYWORD;
-          when :MATCH;
-          when :TERMINATOR; # never happens
-          when :TEXT
-            case kind
-
-      while Tuple::KEYWORD_TOKENS.key? kinds.first
-        kinds.shift
-      if Tuple::KEYWORD_TOKENS.key? kind
-
-        w
-
-
-
-
-      while
-
-      re = []
-
-      kinds.each { |kind|
-        keywords << kind if kind
-        if RE.key?
-        RE[kind]
-
-
-
-
-      kinds.each { |kind|
-        return
-          case kind
-            when :TEXT; readtext(peek: peek)
-            when :LINE; readline(peek: peek)
-            when :BLOCK; readblock(peek: peek)
-
-
-            when :IDENT; readident(peek: peek)
-
-            when :FILE;
-            else # keyword or file
-              if token = parse_token
-                if kind.nil? || kind == token.kind
-                  @pos += @peek_match_length if !peek
-                else
-                  @error_token = token
-                  nil
-                end
-                nextline if !peek && eol?
-              else
-                @error_token = readtext(peek: true)
-                nil
-              end
-
-          end
-      }
-
-    end
 

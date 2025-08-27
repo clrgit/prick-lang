@@ -107,6 +107,28 @@ module Prick::Lang
 
 
 
+    class If < Node
+      attr_reader :expr # Expr
+      attr_accessor :then_ # Block
+      attr_accessor :else_ # Block
+
+      def initialize(parent, token, expr, then_ = nil, else_ = nil)
+        super(parent, token)
+        @expr, @then_, @else_ = expr, then_, else_
+      end
+
+      def dump
+        puts "If #{expr}"
+        indent { then_.dump }
+        if else_
+          puts "else"
+          indent { else_.dump }
+        end
+      end
+
+      def analyze(parent) Idr::IfStmt.new(self, parent, expr, @then.analyze, @else.analyze) end
+    end
+
 
 
 
@@ -132,19 +154,6 @@ module Prick::Lang
     end
 
     class OptionStmt < Node
-    end
-
-    class IfStmt < Node
-      attr_reader :expr # Expr
-      attr_reader :then # Block
-      attr_reader :else # Block
-
-      def initialize(token, parent, expr, then_, else_)
-        super(token, parent)
-        @expr, @then, @else = expr, then_, else_
-      end
-
-      def analyze(parent) Idr::IfStmt.new(self, parent, expr, @then.analyze, @else.analyze) end
     end
 
     class CaseStmt < Node

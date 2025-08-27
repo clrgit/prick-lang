@@ -17,6 +17,7 @@ module Prick::Lang
       IF: "if",
       ELSE: "else",
       ELSIF: "elsif",
+      END: "end",
       CASE: "case",
       WHEN: "when",
       EXEC: "exec",
@@ -42,9 +43,8 @@ module Prick::Lang
       INT: nil,
 
       # Text literals
-      TEXT: nil,
       LINE: nil,
-      BLOCK: nil,
+      TEXT: nil,
 
       # Terminators
       EOF: nil,
@@ -76,7 +76,7 @@ module Prick::Lang
     LITERALS = [:FILE, :DIR, :INT]
 
     # List of textual tokens
-    TEXTS = [:TEXT, :LINE, :BLOCK]
+    TEXTS = [:LINE, :TEXT]
 
     # Finalizing tokens
     FINALS = [:EOF, :EOL]

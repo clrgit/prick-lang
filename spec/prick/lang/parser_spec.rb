@@ -71,13 +71,28 @@ describe "Prick::Lang" do
             lines = %(eval ls -l)
             expect(sig lines).to eq "EVAL ls -l"
           end
-          it "with a BLOCK argument" do
+          it "with a TEXT argument" do
             lines = %(
               eval |
                 ls -l
                 echo
             )
             expect(sig lines).to eq "EVAL ls -l; echo"
+          end
+        end
+
+        context "if statements" do
+          it "with only a then clause" do
+            lines = %(
+              if expr
+                a.sql
+                b.sql
+              else
+                c.sql
+              end
+            )
+            call(lines).dump
+            p sig(lines)
           end
         end
       end
