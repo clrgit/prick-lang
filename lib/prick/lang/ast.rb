@@ -105,21 +105,53 @@ module Prick::Lang
       def sig_ident = filename
     end
 
+#   class If < Node
+#     attr_reader :expr # Expr
+#     attr_accessor :then_ # Block
+#     attr_accessor :else_ # Block
+#
+#     def initialize(parent, token, expr, then_ = nil, else_ = nil)
+#       super(parent, token)
+#       @expr, @then_, @else_ = expr, then_, else_
+#     end
+#
+#     def dump
+#       puts "If #{expr}"
+#       indent { then_.dump }
+#       if else_
+#         puts "else"
+#         indent { else_.dump }
+#       end
+#     end
+#
+#     def analyze(parent) Idr::IfStmt.new(self, parent, expr, @then.analyze, @else.analyze) end
+#   end
 
 
     class If < Node
-      attr_reader :expr # Expr
-      attr_accessor :then_ # Block
+      attr_reader :if_thens
       attr_accessor :else_ # Block
 
-      def initialize(parent, token, expr, then_ = nil, else_ = nil)
+      def initialize(parent, token) #, expr, then_ = nil, else_ = nil)
         super(parent, token)
-        @expr, @then_, @else_ = expr, then_, else_
+        @if_thens = []
+         
+#       @expr, @then_, @else_ = expr, then_, else_
       end
 
       def dump
-        puts "If #{expr}"
-        indent { then_.dump }
+        keyword = "If"
+        p if_thens
+        p if_thens.first
+        p if_thens.first.expr
+        p if_thens.first.then_
+        puts "-------------------"
+
+        for if_then in if_thens
+          puts "#{keyword} #{if_then.expr}"
+          indent { if_then.then_.dump }
+          keyword = "Elsif"
+        end
         if else_
           puts "else"
           indent { else_.dump }
@@ -127,6 +159,17 @@ module Prick::Lang
       end
 
       def analyze(parent) Idr::IfStmt.new(self, parent, expr, @then.analyze, @else.analyze) end
+    end
+
+    class IfThen < Node
+      attr_reader :expr # Expr
+      alias_method :then_, :children
+      attr_accessor :then_ # Stmts
+
+      def initialize(parent, token, expr)
+        super(parent, token)
+        @expr = expr
+      end
     end
 
 

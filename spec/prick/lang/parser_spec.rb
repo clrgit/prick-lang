@@ -87,8 +87,32 @@ describe "Prick::Lang" do
               if expr
                 a.sql
                 b.sql
+              end
+            )
+            call(lines).dump
+            p sig(lines)
+          end
+          it "with a else clause" do
+            lines = %(
+              if expr
+                a.sql
+                b.sql
               else
                 c.sql
+              end
+            )
+            call(lines).dump
+            p sig(lines)
+          end
+          it "with multiple elsif clauses" do
+            lines = %(
+              if expr1
+                a.sql
+                b.sql
+              elsif expr2
+                c.sql
+              else
+                d.sql
               end
             )
             call(lines).dump

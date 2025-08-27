@@ -124,14 +124,39 @@ module Prick::Lang
       end
     end
 
+#   def parse_if
+#     token = tokenizer.read
+#     expr = parse_expr
+#
+#     command = Ast::If.new(curr, token, expr)
+#     with(command) {
+#       command.then_ = Ast::Block.new(curr, token)
+#       with(command.then_) { parse_stmts }
+#
+#       peek = tokenizer.peek
+#       if peek.kind == :ELSE
+#         tokenizer.read
+#         command.else_ = Ast::Block.new(curr, token)
+#         with(command.else_) { parse_stmts }
+#       end
+#     }
+#     tokenizer.read(:END)
+#   end
+#
+
     def parse_if
       token = tokenizer.read
-      expr = parse_expr
-
-      command = Ast::If.new(curr, token, expr)
+      command = Ast::If.new(curr, token)
       with(command) {
-        command.then_ = Ast::Block.new(curr, token)
-        with(command.then_) { parse_stmts }
+        loop do
+          expr = parse_expr
+          if_then = Ast::IfThen.new(curr, token, expr)
+          if_then.then_ = Ast::Block.new(curr, token)
+          command.if_thens << if_then
+          with(if_then.then_) { parse_stmts }
+          peek = tokenizer.peek
+          break if peek.kind != :ELSIF
+        end
 
         peek = tokenizer.peek
         if peek.kind == :ELSE
