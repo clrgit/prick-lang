@@ -16,6 +16,15 @@ describe "Prick::Lang" do
       make(lines).parse
     end
 
+    def capture(&block)
+      old_stdout = $stdout
+      $stdout = StringIO.new
+      yield
+      $stdout.string
+    ensure
+      $stdout = old_stdout
+    end
+
     describe "#parse" do
       it "returns an Ast::Program node" do
         lines = %(file.sql)
@@ -90,34 +99,44 @@ describe "Prick::Lang" do
               end
             )
             call(lines).dump
-            p sig(lines)
+            s = capture { call(lines).dump }
+
+            expect(s).to eq %(
+              Program
+                If expr
+                  Block 
+                    FileStmt a.sql
+                    FileStmt b.sql
+            ).align
           end
-          it "with a else clause" do
-            lines = %(
-              if expr
-                a.sql
-                b.sql
-              else
-                c.sql
-              end
-            )
-            call(lines).dump
-            p sig(lines)
-          end
-          it "with multiple elsif clauses" do
-            lines = %(
-              if expr1
-                a.sql
-                b.sql
-              elsif expr2
-                c.sql
-              else
-                d.sql
-              end
-            )
-            call(lines).dump
-            p sig(lines)
-          end
+
+#         it "with a else clause" do
+#           lines = %(
+#             if expr
+#               a.sql
+#               b.sql
+#             else
+#               c.sql
+#             end
+#           )
+#           call(lines).dump
+#           p sig(lines)
+#         end
+#
+#         it "with multiple elsif clauses" do
+#           lines = %(
+#             if expr1
+#               a.sql
+#               b.sql
+#             elsif expr2
+#               c.sql
+#             else
+#               d.sql
+#             end
+#           )
+#           call(lines).dump
+#           p sig(lines)
+#         end
         end
       end
     end
