@@ -15,22 +15,24 @@ module Prick::Lang
         @token = token
       end
 
+      # The node's informal name. This is the class name by default but eg.
+      # Command redefines it depending on the kind of command (exec/eval/...).
+      # Used in #dump and test
+      def dumpname = self.class.to_s.sub(/.*::/, "")
 
+      # The node's identifier (possibly nil). Used in #dump and test
+      def dumpident = nil
 
-      def dump_ident = puts sig_ident
-      def dump_attrs = nil
+      # Signature of a node (token-kind/class + ident). Used in #dump and test
+      def dumpsig = [dumpname, dumpident].compact.join(" ")
 
+      # Dump an Ast node hierarchically
       def dump
-        print "#{self.class.to_s.sub(/.*::/, "")} "
-        dump_ident
-        dump_attrs
+        puts dumpsig
         indent { children.each &:dump }
       end
 
-      def sig_ident = ""
-      def sig = sig_ident.empty? ? "#{token.kind}" : "#{token.kind} #{sig_ident}"
-
-      def inspect() = "#<#{self.class}>"
+      def inspect() = "#<#{sig}>"
     end
 
     class Program < Node
@@ -50,7 +52,7 @@ module Prick::Lang
         @name = name
       end
 
-      def sig_ident = name.inspect
+      def dumpident = name.inspect
     end
 
     class Phase < Node
@@ -60,35 +62,31 @@ module Prick::Lang
         constrain token.kind, *Parser::GRAMMAR_GROUPS[:phase]
         super parent, token
       end
-
-      def sig_ident = ""
     end
 
     class Command < Node
       def kind = token.kind
       attr_accessor :source # Array of source lines. Assigned after initialization
 
-      def initialize(parent, token, source = nil)
+      def initialize(parent, token)
         constrain token.kind, *Parser::GRAMMAR_GROUPS[:command]
-        constrain source, Array, nil
         super parent, token
       end
 
       # True iff source consists of multiple lines
       def multiline? = @source =~ /\n/
 
-      def sig_ident
-        source.split("\n").join("; ")
-      end
+      def dumpname = kind.capitalize
+      def dumpident = source.split("\n").join("; ")
 
-      def dump_ident
-        if multiline?
-          puts kind
-          indent { puts source }
-        else
-          puts sig_ident
-        end
-      end
+#     def dump_ident
+#       if multiline?
+#         puts kind
+#         indent { puts source }
+#       else
+#         puts sig_ident
+#       end
+#     end
     end
 
     class Block < Node
@@ -102,9 +100,9 @@ module Prick::Lang
       end
     end
 
-    class FileStmt < Node
+    class File < Node
       forward_to :token, :filename, :extname
-      def sig_ident = filename
+      def dumpident = filename
     end
 
     class If < Node
@@ -142,9 +140,6 @@ module Prick::Lang
         @expr = expr
       end
     end
-
-
-
 
     class InitBlock < Block
     end
@@ -193,23 +188,23 @@ module Prick::Lang
     class EvalStmt < CallStmt
     end
 
-    class SqlFileStmt < FileStmt
+    class SqlFile < File
     end
 
-    class PSqlFileStmt < FileStmt
+    class PSqlFile < File
     end
 
-    class FoxFileStmt < FileStmt
+    class FoxFile < File
     end
 
-    class RubyFileStmt < FileStmt # ?
+    class RubyFile < File # ?
       def analyze() CallStmt.new(self, filename, ruby: true) end
     end
 
-    class DirStmt < FileStmt
+    class DirStmt < File
     end
 
-    class PrickStmt < FileStmt
+    class PrickStmt < File
     end
 
     class InitBlock

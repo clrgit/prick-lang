@@ -115,7 +115,7 @@ module Prick::Lang
     def parse_command
 #     puts "#parse_command"
       token = tokenizer.read
-      command = Ast::Command.new(curr, token, nil)
+      command = Ast::Command.new(curr, token)
       if tokenizer.peek(:PIPE)
         tokenizer.read
         command.source = tokenizer.readtext(tokenizer.indent).text
@@ -174,7 +174,7 @@ module Prick::Lang
     #
     def parse_files
       while !tokenizer.eof? && (token = tokenizer.peek) && token.kind == :FILE
-        Ast::FileStmt.new(curr, tokenizer.read)
+        Ast::File.new(curr, tokenizer.read)
       end
     end
 

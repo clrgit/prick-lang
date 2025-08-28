@@ -20,7 +20,7 @@ describe "Prick::Lang" do
       old_stdout = $stdout
       $stdout = StringIO.new
       yield
-      $stdout.string
+      $stdout.string.sub(/^.*?\n/m, "").align
     ensure
       $stdout = old_stdout
     end
@@ -32,18 +32,18 @@ describe "Prick::Lang" do
       end
 
       context "it parses" do
-        def sig(lines) = call(lines).children.first.sig
-        def sigs(lines) = call(lines).children.map(&:sig)
-        def blocksig(lines) = call(lines).children.first.children.first.children.map { |c| c.sig }
+        def sig(lines) = call(lines).children.first.dumpsig
+        def sigs(lines) = call(lines).children.map(&:dumpsig)
+        def blocksig(lines) = call(lines).children.first.children.first.children.map { |c| c.dumpsig }
 
         context "phase blocks" do
           it "with a file argument" do
             lines = %(init file.sql)
-            expect(blocksig lines).to eq ["FILE file.sql"]
+            expect(blocksig lines).to eq ["File file.sql"]
           end
           it "with a command argument" do
             lines = %(init exec ls -l)
-            expect(blocksig lines).to eq ["EXEC ls -l"]
+            expect(blocksig lines).to eq ["Exec ls -l"]
           end
           it "with a command with a text block argument" do
             lines = %(
@@ -51,7 +51,7 @@ describe "Prick::Lang" do
                 ls -l
                 echo
             )
-            expect(blocksig lines).to eq ["EXEC ls -l; echo"]
+            expect(blocksig lines).to eq ["Exec ls -l; echo"]
           end
           it "with a block" do
             lines = %(
@@ -60,18 +60,18 @@ describe "Prick::Lang" do
                 b.sql
               }
             )
-            expect(blocksig lines).to eq ["FILE a.sql", "FILE b.sql"]
+            expect(blocksig lines).to eq ["File a.sql", "File b.sql"]
           end
         end
 
         context "file statements" do
           it "with a single argument" do
             lines = %(file.sql)
-            expect(sig lines).to eq "FILE file.sql"
+            expect(sig lines).to eq "File file.sql"
           end
           it "with multiple arguments" do
             lines = %(a.sql b.sql c.sql)
-            expect(sigs lines).to eq ["FILE a.sql", "FILE b.sql", "FILE c.sql"]
+            expect(sigs lines).to eq ["File a.sql", "File b.sql", "File c.sql"]
           end
         end
 
@@ -102,11 +102,10 @@ describe "Prick::Lang" do
             s = capture { call(lines).dump }
 
             expect(s).to eq %(
-              Program
-                If expr
-                  Block 
-                    FileStmt a.sql
-                    FileStmt b.sql
+              If expr
+                Block
+                  FileStmt a.sql
+                  FileStmt b.sql
             ).align
           end
 
