@@ -1,3 +1,19 @@
+
+# if a
+# elsif b
+# elsif c
+# else d
+
+# if a
+# else
+#   if b
+#   else
+#     if c
+#     else
+#       d
+#
+
+
 module Prick::Lang
   module Ast
     class Node
@@ -15,10 +31,16 @@ module Prick::Lang
         @token = token
       end
 
+      def classname = "#{self.class}"
+
       # The node's informal name. This is the class name by default but eg.
       # Command redefines it depending on the kind of command (exec/eval/...).
       # Used in #dump and test
-      def dumpname = self.class.to_s.sub(/.*::/, "")
+      #
+      # Note: Using implicit string conversion instead of #to_s because
+      # otherwise encoding would be US-ASCII instead of the application default
+      # (usually UTF-8)
+      def dumpname = "#{self.class}".sub(/.*::/, "")
 
       # The node's identifier (possibly nil). Used in #dump and test
       def dumpident = nil
@@ -32,7 +54,7 @@ module Prick::Lang
         indent { children.each &:dump }
       end
 
-      def inspect() = "#<#{sig}>"
+      def inspect() = "#<#{dumpsig}>"
     end
 
     class Program < Node
@@ -76,7 +98,8 @@ module Prick::Lang
       # True iff source consists of multiple lines
       def multiline? = @source =~ /\n/
 
-      def dumpname = kind.capitalize
+      def dumpname = "#{kind}".capitalize
+
       def dumpident = source.split("\n").join("; ")
 
 #     def dump_ident
@@ -106,7 +129,7 @@ module Prick::Lang
     end
 
     class If < Node
-      attr_reader :if_thens
+      attr_reader :if_thens # List of IfThen nodes
       attr_accessor :else_ # Block
 
       def initialize(parent, token) #, expr, then_ = nil, else_ = nil)
@@ -118,11 +141,11 @@ module Prick::Lang
         keyword = "If"
         for if_then in if_thens
           puts "#{keyword} #{if_then.expr}"
-          indent { if_then.then_.dump }
           keyword = "Elsif"
+          indent { if_then.then_.dump }
         end
         if else_
-          puts "else"
+          puts "Else"
           indent { else_.dump }
         end
       end
@@ -132,7 +155,7 @@ module Prick::Lang
 
     class IfThen < Node
       attr_reader :expr # Expr
-      alias_method :then_, :children
+#     alias_method :then_, :children
       attr_accessor :then_ # Stmts
 
       def initialize(parent, token, expr)

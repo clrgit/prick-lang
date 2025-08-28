@@ -131,11 +131,14 @@ module Prick::Lang
         loop do
           expr = parse_expr
           if_then = Ast::IfThen.new(curr, token, expr)
-          if_then.then_ = Ast::Block.new(curr, token)
           command.if_thens << if_then
+
+          if_then.then_ = Ast::Block.new(if_then, token)
           with(if_then.then_) { parse_stmts }
+
           peek = tokenizer.peek
           break if peek.kind != :ELSIF
+          tokenizer.read
         end
 
         peek = tokenizer.peek

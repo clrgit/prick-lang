@@ -1,3 +1,5 @@
+# encoding: utf-8
+
 describe "Prick::Lang" do
   using String::Text
 
@@ -16,14 +18,39 @@ describe "Prick::Lang" do
       make(lines).parse
     end
 
-    def capture(&block)
-      old_stdout = $stdout
-      $stdout = StringIO.new
-      yield
-      $stdout.string.sub(/^.*?\n/m, "").align
-    ensure
-      $stdout = old_stdout
+    def capture(stream = :stdout) # ChatGPT
+      begin
+        stream = stream.to_s
+        old = eval("$#{stream}")
+        eval("$#{stream} = StringIO.new")
+        yield
+        eval("$#{stream}").string
+      ensure
+        eval("$#{stream} = old")
+      end
     end
+
+    def dump(lines)
+      capture { call(lines).dump }.sub(/^Program\n/m, "").align
+    end
+
+#   def dump(lines)
+#     old_stdout = $stdout
+#     $stdout = StringIO.new
+#     call lines
+#     $stdout.string.sub(/^.*?\n/m, "").align
+#   ensure
+#     $stdout = old_stdout
+#   end
+
+#   def capture(&block)
+#     old_stdout = $stdout
+#     $stdout = StringIO.new
+#     yield
+#     $stdout.string.sub(/^.*?\n/m, "").align
+#   ensure
+#     $stdout = old_stdout
+#   end
 
     describe "#parse" do
       it "returns an Ast::Program node" do
@@ -75,10 +102,12 @@ describe "Prick::Lang" do
           end
         end
 
+        def d(t, s) = puts "#{t} #{s}: #{s.encoding}"
+
         context "commands" do
           it "with a LINE argument" do
             lines = %(eval ls -l)
-            expect(sig lines).to eq "EVAL ls -l"
+            expect(sig lines).to eq "Eval ls -l"
           end
           it "with a TEXT argument" do
             lines = %(
@@ -86,7 +115,7 @@ describe "Prick::Lang" do
                 ls -l
                 echo
             )
-            expect(sig lines).to eq "EVAL ls -l; echo"
+            expect(sig lines).to eq "Eval ls -l; echo"
           end
         end
 
@@ -98,44 +127,59 @@ describe "Prick::Lang" do
                 b.sql
               end
             )
-            call(lines).dump
-            s = capture { call(lines).dump }
 
-            expect(s).to eq %(
+            expect(dump lines).to eq %(
               If expr
                 Block
-                  FileStmt a.sql
-                  FileStmt b.sql
+                  File a.sql
+                  File b.sql
             ).align
           end
 
-#         it "with a else clause" do
-#           lines = %(
-#             if expr
-#               a.sql
-#               b.sql
-#             else
-#               c.sql
-#             end
-#           )
-#           call(lines).dump
-#           p sig(lines)
-#         end
-#
-#         it "with multiple elsif clauses" do
-#           lines = %(
-#             if expr1
-#               a.sql
-#               b.sql
-#             elsif expr2
-#               c.sql
-#             else
-#               d.sql
-#             end
-#           )
-#           call(lines).dump
-#           p sig(lines)
-#         end
+          it "with a else clause" do
+            lines = %(
+              if expr
+                a.sql
+                b.sql
+              else
+                c.sql
+              end
+            )
+            expect(dump lines).to eq %(
+              If expr
+                Block
+                  File a.sql
+                  File b.sql
+              Else
+                Block
+                  File c.sql
+            ).align
+          end
+
+          it "with multiple elsif clauses" do
+            lines = %(
+              if expr1
+                a.sql
+                b.sql
+              elsif expr2
+                c.sql
+              else
+                d.sql
+              end
+            )
+            expect(dump lines).to eq %(
+              If expr1
+                Block
+                  File a.sql
+                  File b.sql
+              Elsif expr2
+                Block
+                  File c.sql
+              Else
+                Block
+                  File d.sql
+            ).align
+          end
         end
       end
     end
