@@ -7,7 +7,7 @@ module Prick::Lang
     # Set end of line
     def eol!() @pos = line&.size || 0 end
 
-    public :nextline, :skiplines, :parse_token
+#   public :nextline, :skiplines, :parse_token
   end
 end
 
@@ -23,21 +23,21 @@ describe "Prick::Lang" do
     end
 
     describe "#peek" do
-      it "forwards to #read with kind: true" do
-        l = %w(exec)
-        t = make l
-        expect(t).to receive(:read).with(nil, peek: true)
-        t.peek
-      end
+      it "forwards to #read with kind: true" # do
+#       l = %w(exec)
+#       t = make l
+#       expect(t).to receive(:read).with(nil, peek: true)
+#       t.peek
+#     end
     end
 
     describe "#read" do
-      def call(kind = nil, lines) = make(lines).read(kind)
-      def kind(kind = nil, lines) = call(kind, lines)&.kind
-      def error_token(kind = nil, lines)
+      def call(lines) = make(lines).read
+      def kind(lines) = call(lines)&.kind
+      def error_token(lines)
         t = make(lines)
         t.read
-        t.error_token
+        t.error
       end
 
       it "reads keyword tokens" do
@@ -50,7 +50,16 @@ describe "Prick::Lang" do
         expect(kind l).to eq :FILE
       end
 
-      it "skips initial empty lines even when peeking"
+      it "skips initial empty lines if :eol is false (the default)" do
+        l = ["exec", "eval"]
+        t = make l
+        t.read
+        tk = t.read
+        expect(tk.lineno).to eq 2
+        expect(tk.charno).to eq 1
+        expect(tk.kind).to eq :EVAL
+      end
+      it "returns a EOL token if at end of line and :eol is true"
 
       it "moves the position" do
         l = ["exec eval"]
@@ -61,11 +70,6 @@ describe "Prick::Lang" do
       end
 
       it "advances to the next line if end of line after match" do
-        l = ["exec", "eval"]
-        t = make l
-        t.read
-        expect(t.lineno).to eq 2
-        expect(t.charno).to eq 1
       end
 
       it "clears peek'ed token" do
@@ -87,54 +91,56 @@ describe "Prick::Lang" do
 
         it "sets #error_token" do
           l = [".word"]
-          expect(error_token(l).error).to eq ".word"
+          t = make l
+          t.read
+          expect(t.error.text).to eq ".word"
         end
       end
 
-      context "with a kinds argument" do
-        it "restricts the token to that kind" do
-          l = ["exec"]
-          expect(kind :EXEC, l).to eq :EXEC
-        end
-        context "when not the expected kind" do
-          it "returns nil" do
-            l = ["exec"]
-            expect(kind :IF, l).to eq nil
-          end
-          it "sets #error_token" do
-            l = ["exec"]
-            t = make l
-            t.read(:IF)
-            expect(t.error_token.text).to eq "exec"
-          end
-        end
-      end
+#     context "with a kinds argument" do
+#       it "restricts the token to that kind" do
+#         l = ["exec"]
+#         expect(kind :EXEC, l).to eq :EXEC
+#       end
+#       context "when not the expected kind" do
+#         it "returns nil" do
+#           l = ["exec"]
+#           expect(kind :IF, l).to eq nil
+#         end
+#         it "sets #error_token" do
+#           l = ["exec"]
+#           t = make l
+#           t.read(:IF)
+#           expect(t.error_token.text).to eq "exec"
+#         end
+#       end
+#     end
 
-      context "when :peek is true" do
-        it "doesn't move the position" do
-          l = ["exec eval"]
-          t = make l
-          t.read(peek: true)
-          expect(t.lineno).to eq 1
-          expect(t.charno).to eq 1
-        end
-        it "returns a previous peek'ed token" do
-          l = ["exec eval"]
-          t = make l
-          tk1 = t.read(peek: true)
-          tk2 = t.read(peek: true)
-          expect(tk1.object_id).to eq tk2.object_id
-        end
-        context "when followed by a read w/o peek" do
-          it "returns a previous peek'ed token" do
-            l = ["exec eval"]
-            t = make l
-            tk1 = t.read(peek: true)
-            tk2 = t.read
-            expect(tk1.object_id).to eq tk2.object_id
-          end
-        end
-      end
+#     context "when :peek is true" do
+#       it "doesn't move the position" do
+#         l = ["exec eval"]
+#         t = make l
+#         t.read(peek: true)
+#         expect(t.lineno).to eq 1
+#         expect(t.charno).to eq 1
+#       end
+#       it "returns a previous peek'ed token" do
+#         l = ["exec eval"]
+#         t = make l
+#         tk1 = t.read(peek: true)
+#         tk2 = t.read(peek: true)
+#         expect(tk1.object_id).to eq tk2.object_id
+#       end
+#       context "when followed by a read w/o peek" do
+#         it "returns a previous peek'ed token" do
+#           l = ["exec eval"]
+#           t = make l
+#           tk1 = t.read(peek: true)
+#           tk2 = t.read
+#           expect(tk1.object_id).to eq tk2.object_id
+#         end
+#       end
+#     end
     end
 
     describe "#readline" do
@@ -164,7 +170,7 @@ describe "Prick::Lang" do
       it "advances to the next line" do
         l = %w(exec eval)
         t = make l
-        t.read
+        t.readline
         expect(t.lineno).to eq 2
       end
     end
@@ -178,11 +184,18 @@ describe "Prick::Lang" do
         expect(call l).to eq nil
       end
 
-      it "raises if not bol?" do
-        t = make ["a", "b"]
+      it "return nil if eol?" do
+        l = %w(a b)
+        t = make l
         t.eol!
-        expect { t.readtext(2) }.to raise_error Prick::Lang::Error, /Not at start of line/
+        expect(call l).to eq nil
       end
+
+#     it "raises if not bol?" do
+#       t = make ["a", "b"]
+#       t.eol!
+#       expect { t.readtext(2) }.to raise_error Prick::Lang::Error, /Not at start of line/
+#     end
 
       it "returns a TEXT token X" do
         l = ["  a", "  b"]

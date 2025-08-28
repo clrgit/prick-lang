@@ -29,7 +29,7 @@ module Prick::Lang
       NOT: "not",
 
       # Punctuation
-      BRACE_BEGIN: "{", # is not related to the BRACE token
+      BRACE_BEGIN: "{",
       BRACE_END: "}",
       PIPE: "|", # TODO: Eliminate or make optional
 
@@ -43,12 +43,13 @@ module Prick::Lang
       INT: nil,
 
       # Text literals
-      LINE: nil,
-      TEXT: nil,
+      LINE: nil, # Line of text
+      TEXT: nil, # Multiple lines
 
-      # Terminators
-      EOF: nil,
+      # Terminators. They are positioned one-beyond the end of line/block/file
       EOL: nil,
+      EOB: nil, # End-of-block
+      EOF: nil,
 
       # Error
       ERROR: nil
@@ -102,6 +103,9 @@ module Prick::Lang
 
     # Matches line endings, ignoring comments. Only used by the tokenizer
     COMMENT_RE = /\s*(?:#.*)?/
+
+    BLANK_LINE_RE = /^\s*$/
+    COMMENT_LINE_RE = /^#{COMMENT_RE}$/
 
     # TOKEN_RE matches words (keywords and punctuation), directories, files,
     # integer, identifiers, and references in that order; text and terminator
