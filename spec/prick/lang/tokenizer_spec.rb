@@ -46,6 +46,7 @@ describe "Prick::Lang" do
         expect(kind l).to eq :EXEC
       end
 
+
       it "reads file tokens" do
         l = ["t.sql"]
         expect(kind l).to eq :FILE
@@ -60,7 +61,6 @@ describe "Prick::Lang" do
         expect(tk.charno).to eq 1
         expect(tk.kind).to eq :EVAL
       end
-      it "returns a EOL token if at end of line and :eol is true"
 
       it "moves the position" do
         l = ["exec eval"]
@@ -71,6 +71,12 @@ describe "Prick::Lang" do
       end
 
       it "advances to the next line if end of line after match" do
+        l = %w(exec eval)
+        t = make l
+        t.read
+        expect(t.lineno).to eq 1
+        t.read
+        expect(t.lineno).to eq 2
       end
 
       it "clears peek'ed token" do
@@ -98,50 +104,7 @@ describe "Prick::Lang" do
         end
       end
 
-#     context "with a kinds argument" do
-#       it "restricts the token to that kind" do
-#         l = ["exec"]
-#         expect(kind :EXEC, l).to eq :EXEC
-#       end
-#       context "when not the expected kind" do
-#         it "returns nil" do
-#           l = ["exec"]
-#           expect(kind :IF, l).to eq nil
-#         end
-#         it "sets #error_token" do
-#           l = ["exec"]
-#           t = make l
-#           t.read(:IF)
-#           expect(t.error_token.text).to eq "exec"
-#         end
-#       end
-#     end
-
-#     context "when :peek is true" do
-#       it "doesn't move the position" do
-#         l = ["exec eval"]
-#         t = make l
-#         t.read(peek: true)
-#         expect(t.lineno).to eq 1
-#         expect(t.charno).to eq 1
-#       end
-#       it "returns a previous peek'ed token" do
-#         l = ["exec eval"]
-#         t = make l
-#         tk1 = t.read(peek: true)
-#         tk2 = t.read(peek: true)
-#         expect(tk1.object_id).to eq tk2.object_id
-#       end
-#       context "when followed by a read w/o peek" do
-#         it "returns a previous peek'ed token" do
-#           l = ["exec eval"]
-#           t = make l
-#           tk1 = t.read(peek: true)
-#           tk2 = t.read
-#           expect(tk1.object_id).to eq tk2.object_id
-#         end
-#       end
-#     end
+      it "returns a EOL token if at end of line and :eol is true"
     end
 
     describe "#readline" do

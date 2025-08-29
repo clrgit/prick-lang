@@ -1,4 +1,3 @@
-# encoding: utf-8
 
 describe "Prick::Lang" do
   using String::Text
@@ -34,29 +33,16 @@ describe "Prick::Lang" do
       capture { call(lines).dump }.sub(/^Program\n/m, "").align
     end
 
-#   def dump(lines)
-#     old_stdout = $stdout
-#     $stdout = StringIO.new
-#     call lines
-#     $stdout.string.sub(/^.*?\n/m, "").align
-#   ensure
-#     $stdout = old_stdout
-#   end
-
-#   def capture(&block)
-#     old_stdout = $stdout
-#     $stdout = StringIO.new
-#     yield
-#     $stdout.string.sub(/^.*?\n/m, "").align
-#   ensure
-#     $stdout = old_stdout
-#   end
-
     describe "#parse" do
       it "returns an Ast::Program node" do
         lines = %(file.sql)
         expect(call lines).to be_a Prick::Lang::Ast::Program
       end
+    end
+  end
+end
+
+__END__
 
       context "it parses" do
         def sig(lines) = call(lines).children.first.dumpsig
@@ -185,5 +171,23 @@ describe "Prick::Lang" do
     end
   end
 end
+
+#   def dump(lines)
+#     old_stdout = $stdout
+#     $stdout = StringIO.new
+#     call lines
+#     $stdout.string.sub(/^.*?\n/m, "").align
+#   ensure
+#     $stdout = old_stdout
+#   end
+
+#   def capture(&block)
+#     old_stdout = $stdout
+#     $stdout = StringIO.new
+#     yield
+#     $stdout.string.sub(/^.*?\n/m, "").align
+#   ensure
+#     $stdout = old_stdout
+#   end
 
 

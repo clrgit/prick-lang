@@ -66,22 +66,29 @@ module Prick::Lang
 
   protected
     def parse_program
+      puts "#parse_program"
       ast = Ast::Program.new(file)
       with(ast) { parse_stmts }
     end
 
     def parse_stmts
-      while tokenizer.skiplines && parse_stmt?; end
+      puts "#parse_stmts"
+      while parse_stmt?; end
       true
     end
 
     def parse_stmt?
-#     puts "#parse_stmt"
-#     Kernel.indent {
-#       puts "eof?: #{tokenizer.eof?}"
-#       puts "line: #{tokenizer.line.inspect}"
-#     }
-      constrain tokenizer.bol?, true # FIXME doubtful
+      puts "#parse_stmt?"
+      Kernel.indent {
+        puts "eof?: #{tokenizer.eof?}"
+        puts "eol?: #{tokenizer.eol?}"
+        puts "line: #{tokenizer.line.inspect}"
+        kind = tokenizer.peek&.kind # Problem if at end of line+file
+        puts "kind: #{kind}"
+      }
+
+
+#     constrain tokenizer.bol?, true # FIXME doubtful
       case tokenizer.peek&.kind
         when :SCHEMA, :GROUP; parse_decl
         when :OPTIONS; parse_options
@@ -96,10 +103,17 @@ module Prick::Lang
       else
         return nil
       end
+      Kernel.indent {
+        puts "-"
+        puts "eof?: #{tokenizer.eof?}"
+        puts "eol?: #{tokenizer.eol?}"
+        puts "line: #{tokenizer.line.inspect}"
+      }
       true
     end
 
     def parse_decl
+      puts "parse_decl"
       token = tokenizer.read # eat 'schema'/'group' keywords
       ident = parse_identifier
       decl = Ast::Decl.new(curr, token, ident.text)
@@ -107,13 +121,14 @@ module Prick::Lang
     end
 
     def parse_phase
+      puts "parse_phase"
       token = tokenizer.read
       phase = Ast::Phase.new(curr, token)
       with(phase) { parse_block_argument }
     end
 
     def parse_command
-#     puts "#parse_command"
+      puts "#parse_command"
       token = tokenizer.read
       command = Ast::Command.new(curr, token)
       if tokenizer.peek(:PIPE)
@@ -125,6 +140,7 @@ module Prick::Lang
     end
 
     def parse_if
+      puts "#parse_if"
       token = tokenizer.read
       command = Ast::If.new(curr, token)
       with(command) {
@@ -159,6 +175,7 @@ module Prick::Lang
     #   COMMAND
     #
     def parse_block_argument
+      puts "#parse_block_argument"
       expect %w(block command file) do |token|
         block = Ast::Block.new(curr, token)
         if token.kind == :BRACE_BEGIN
@@ -176,16 +193,25 @@ module Prick::Lang
     # Parse a list of files
     #
     def parse_files
+      puts "#parse_files"
+      puts "  tokenizer.lineno: #{tokenizer.lineno}"
+      puts "  tokenizer.charno: #{tokenizer.charno}"
+      puts "  tokenizer.eol?: #{tokenizer.eol?}"
       while !tokenizer.eof? && (token = tokenizer.peek) && token.kind == :FILE
         Ast::File.new(curr, tokenizer.read)
+        puts "  tokenizer.lineno: #{tokenizer.lineno}"
+        puts "  tokenizer.charno: #{tokenizer.charno}"
+        puts "  tokenizer.eol?: #{tokenizer.eol?}"
       end
     end
 
     def parse_identifier
+      puts "#parse_identifier"
       tokenizer.read(:IDENT) or expect_error "identifier"
     end
 
     def parse_expr
+      puts "#parse_expr"
       tokenizer.readline or expect_error "expression"
     end
 
