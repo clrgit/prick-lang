@@ -74,8 +74,9 @@ module Prick::Lang
 #   # Indent of peek'ed line
 #   def peek_indent(l = @lines[@peek_index]) = l && l[/\A */].size
 
-    # Return EolToken at end of line if :eol is true
-    def peek(eol: false)
+    # Return nil if no regular token was found but return EolToken/EofToken if
+    # :eol/:eof is true and at the end of line/file
+    def peek(eol: false, eof: false)
 #     puts "#peek(eol: #{eol})"
 #     puts "  index, peek_index: #{@index}, #{@peek_index}"
 #     puts "  @lines: #{@lines.inspect}"
@@ -84,14 +85,11 @@ module Prick::Lang
 
       # Handle initial EOF state
       if eof?
-        return eof_token
+        return @peek_token = handle_eof(eof)
 
-      # Handle eol initial EOL state
+      # Handle initial EOL state
       elsif eol?
-        if eol # return EolToken
-          @error_token = nil
-          return @peek_token = eol_token(@peek_index, @peek_pos)
-        end
+        !eol or return @peek_token = handle_eol(eol)
 
         # Ignore EOL
         @peek_index += 1
@@ -101,13 +99,11 @@ module Prick::Lang
         @peek_index = scanlines(@peek_index)
 
         # Handle after-scan EOF state
-        if @peek_index == @lines.size
-          @error_token = nil
-          return @peek_token = eof_token(@peek_index+1)
-        end
+        @peek_index < @lines.size or return @peek_token = handle_eof(eof)
       end
 
-      # Read token
+      # Read token. Different token types are matched by different capture
+      # groups
       m = TOKEN_RE.match(@lines[@peek_index], @peek_pos) # Match always
       match = m.match(:token) # matching string
       match_charno = m.offset(:token).first + 1
@@ -145,11 +141,10 @@ module Prick::Lang
       @token
     end
 
-    # Return the rest of the line as a LINE token and advance to the next line.
-    # Returns nil if at end of line
-    def readline(eol: false)
-      !eof? or return eof_error
-      !eol? or return eol_error
+    # Return the rest of the line as a LINE token and advance to the next line
+    def readline(eol: false, eof: false)
+      !eof? or return handle_eof(eof)
+      !eol? or return handle_eol(eol)
       @error = nil
       @token = Token.new(file, lineno, charno, @lines[@index][@pos..-1].lstrip, :LINE)
       nextline # also updates peek_*
@@ -161,10 +156,9 @@ module Prick::Lang
     # and then the block is aligned as a whole to the least indented line.
     # Leading and traling blank lines are ignored (but counted). Note that
     # #readtext will read the rest of the file if min_indent is 0
-    def readtext(min_indent)
-      !eof? or return eof_error
-      !eol? or return eol_error
-      bol? or raise InternalError
+    def readtext(min_indent, eof: false)
+      !eof? or return handle_eof(eof)
+      bol? or raise InternalError # We have to be at the beginning of line
 
       @error = nil
 
@@ -249,6 +243,28 @@ module Prick::Lang
 
     def eof_error() @error_token = eof_token; @token = nil end
     def eol_error() @error_token = eol_token; @token = nil end
+
+    def handle_eof(eof) 
+      token = eof_token(@peek_index+1)
+      if eof
+        @error_token = nil
+        return token
+      else
+        @error_token = token
+        return nil
+      end
+    end
+
+    def handle_eol(eol) 
+      token = eol_token(@peek_index+1)
+      if eol
+        @error_token = nil
+        return token
+      else
+        @error_token = token
+        return nil
+      end
+    end
 
     def reset_peek
       @peek_index = @index

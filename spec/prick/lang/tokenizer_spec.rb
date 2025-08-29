@@ -144,19 +144,7 @@ describe "Prick::Lang" do
     end
 
     describe "#readline" do
-      def call(lines) = make(lines).readline
-
-      it "returns nil if eof?" do
-        l = []
-        expect(call l).to eq nil
-      end
-
-      it "returns nil if eol?" do
-        l = %w(exec)
-        t = make l
-        t.eol!
-        expect(t.readline).to eq nil
-      end
+      def call(lines, **opts) = make(lines).readline(**opts)
 
       it "returns rest of line as a LINE token" do
         l = ["exec a b c"]
@@ -173,10 +161,38 @@ describe "Prick::Lang" do
         t.readline
         expect(t.lineno).to eq 2
       end
+
+      it "returns nil if eof?" do
+        l = []
+        expect(call l).to eq nil
+      end
+
+      it "returns nil if eol?" do
+        l = %w(exec)
+        t = make l
+        t.eol!
+        expect(t.readline).to eq nil
+      end
+
+      context "when :eol is true" do
+        it "returns a EolToken at EOL" do
+          l = %w(exec)
+          t = make l
+          t.eol!
+          expect(t.readline(eol: true).kind).to eq :EOL
+        end
+      end
+
+      context "when :eof is true" do
+        it "returns a EolToken at EOF" do
+          l = []
+          expect(call(l, eof: true).kind).to eq :EOF
+        end
+      end
     end
 
     describe "#readtext" do
-      def call(lines) = make(lines).readtext(2)
+      def call(lines, **opts) = make(lines).readtext(2, **opts)
       def text(lines) = call(lines).text
 
       it "returns nil if eof?" do
@@ -207,7 +223,7 @@ describe "Prick::Lang" do
         tk = call l
         expect(tk.file).to eq file
         expect(tk.lineno).to eq 1
-        expect(tk.charno).to eq 1
+        expect(tk.charno).to eq 3
       end
 
       it "sets token text to the concanation of lines" do
@@ -251,6 +267,13 @@ describe "Prick::Lang" do
         t.readline
         expect(t.lineno).to eq 2
         expect(t.charno).to eq 1
+      end
+
+      context "when :eof is true" do
+        it "returns a EolToken at EOF" do
+          l = []
+          expect(call(l, eof: true).kind).to eq :EOF
+        end
       end
     end
 
