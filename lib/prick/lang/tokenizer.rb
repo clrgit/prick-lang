@@ -132,8 +132,8 @@ module Prick::Lang
           end
     end
 
-    def read
-      peek
+    def read(eol: false, eof: false)
+      peek(eol: eol, eof: eof)
       @index = @peek_index
       @pos = @peek_pos
       @token = @peek_token; @peek_token = nil
@@ -244,7 +244,7 @@ module Prick::Lang
     def eof_error() @error_token = eof_token; @token = nil end
     def eol_error() @error_token = eol_token; @token = nil end
 
-    def handle_eof(eof) 
+    def handle_eof(eof)
       token = eof_token(@peek_index+1)
       if eof
         @error_token = nil
@@ -255,7 +255,7 @@ module Prick::Lang
       end
     end
 
-    def handle_eol(eol) 
+    def handle_eol(eol)
       token = eol_token(@peek_index+1)
       if eol
         @error_token = nil
