@@ -273,16 +273,11 @@ module Prick::Lang
       @peek_error = nil
     end
 
-    # Return index of first non blank line including the current line.  Ignore
-    # comment-only lines unless :comment is false.  Returns lines.size on eof
+    # Return index of first non blank line including the current line. Ignore
+    # comment-only lines unless :comment is true.  Returns lines.size on eof
     def scanlines(index = @index, comment: false)
-      re = (comment ? Token::COMMENT_LINE_RE : Token::BLANK_LINE_RE)
-
+      re = (!comment ? Token::COMMENT_LINE_RE : Token::BLANK_LINE_RE)
       offset = @lines[index..-1].find_index { |l| !re.match(l) }
-#     puts "scanlines:"
-#     puts "  match: #{re.match("eval").inspect}"
-#     puts "  @lines[index..-1]: #{@lines[index..-1].inspect}"
-#     puts "  offset: #{offset.inspect}"
       (offset ? index + offset : @lines.size)
     end
   end

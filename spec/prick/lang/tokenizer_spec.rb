@@ -6,7 +6,8 @@ module Prick::Lang
 
     # Set end of line
     def eol!() @pos = line&.size || 0 end
-
+  
+    public :scanlines
 #   public :nextline, :skiplines, :parse_token
   end
 end
@@ -195,25 +196,13 @@ describe "Prick::Lang" do
       def call(lines, **opts) = make(lines).readtext(2, **opts)
       def text(lines) = call(lines).text
 
-      it "returns nil if eof?" do
-        l = []
-        expect(call l).to eq nil
-      end
-
-      it "return nil if eol?" do
-        l = %w(a b)
-        t = make l
+      it "raises if not bol?" do
+        t = make ["a", "b"]
         t.eol!
-        expect(call l).to eq nil
+        expect { t.readtext(2) }.to raise_error Prick::Lang::InternalError
       end
 
-#     it "raises if not bol?" do
-#       t = make ["a", "b"]
-#       t.eol!
-#       expect { t.readtext(2) }.to raise_error Prick::Lang::Error, /Not at start of line/
-#     end
-
-      it "returns a TEXT token X" do
+      it "returns a TEXT token" do
         l = ["  a", "  b"]
         expect(call(l).kind).to eq :TEXT
       end
@@ -269,6 +258,18 @@ describe "Prick::Lang" do
         expect(t.charno).to eq 1
       end
 
+      it "return nil if eol?" do
+        l = %w(a b)
+        t = make l
+        t.eol!
+        expect(call l).to eq nil
+      end
+
+      it "returns nil if eof?" do
+        l = []
+        expect(call l).to eq nil
+      end
+
       context "when :eof is true" do
         it "returns a EolToken at EOF" do
           l = []
@@ -277,57 +278,48 @@ describe "Prick::Lang" do
       end
     end
 
-    describe "#skiplines" do
-      def call(lines) = make(lines).skiplines
-      def line(lines) = make(lines).tap(&:skiplines).line
+    describe "#scanlines" do
+      def call(lines) = make(lines).scanlines
+#     def line(lines) = make(lines).tap(&:scanlines).line
 
       it "skips single empty line" do
         l = [""]
-        expect(line l).to eq nil
+        expect(call l).to eq 1
       end
 
       it "skips multiple empty lines" do
         l = ["", ""]
-        expect(line l).to eq nil
+        expect(call l).to eq 2
       end
 
-      it "returns the first non-empty line" do
+      it "returns the index of the first non-empty line" do
         l = ["", "", "a", "", "b"]
-        expect(line l).to eq "a"
+        expect(call l).to eq 2
       end
 
-      it "advances to the first non-empty line" do
-        t = make ["", "b"]
-        t.skiplines
-        expect(t.line).to eq "b"
-        expect(t.lineno).to eq 2
-        expect(t.charno).to eq 1
-      end
-
-      context "when :comment is true (default)" do
+      context "when :comment is false (the default) X" do
         it "ignores leading comments" do
           l = ["# comment", "b"]
-          expect(line l).to eq "b"
+          expect(call l).to eq 1
         end
 
         it "ignores embedded comments in otherwise blank lines" do
           l = ["  # comment", "b"]
-          expect(line l).to eq "b"
+          expect(call l).to eq 1
         end
       end
 
-      context "when :comment is false" do
-        def call(lines) = make(lines).skiplines(comment: false)
-        def line(lines) = make(lines).tap { _1.skiplines(comment: false) }.line
+      context "when :comment is true" do
+        def call(lines) = make(lines).scanlines(comment: true)
 
         it "does not ignore leading comments" do
-          l = ["# comment", "b"]
-          expect(line l).to eq "# comment"
+          l = ["", "# comment", "b"]
+          expect(call l).to eq 1
         end
 
         it "does not ignore embedded comments in otherwise blank lines" do
-          l = ["  # comment", "b"]
-          expect(line l).to eq "  # comment"
+          l = ["", "  # comment", "b"]
+          expect(call l).to eq 1
         end
       end
     end
