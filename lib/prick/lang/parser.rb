@@ -64,29 +64,34 @@ module Prick::Lang
       }
     end
 
+    # FIXME YT
+    def func(name, &block)
+      puts name; indent { yield }
+    end
+
   protected
     def parse_program
-      puts "#parse_program"
+#     puts "#parse_program"
       ast = Ast::Program.new(file)
       with(ast) { parse_stmts }
     end
 
     def parse_stmts
-      puts "#parse_stmts"
-      while parse_stmt?; end
+#     puts "#parse_stmts"
+      while parse_stmt; end
       true
     end
 
-    def parse_stmt?
-      puts "#parse_stmt?"
-      Kernel.indent {
-        puts "eof?: #{tokenizer.eof?}"
-        puts "eol?: #{tokenizer.eol?}"
-        puts "line: #{tokenizer.line.inspect}"
-        kind = tokenizer.peek&.kind # Problem if at end of line+file
-        puts "kind: #{kind}"
-      }
-
+    def parse_stmt
+#     func "#parse_stmt" do
+#     puts "eof?: #{tokenizer.eof?}"
+#     puts "eol?: #{tokenizer.eol?}"
+#     puts "lineno: #{tokenizer.lineno}"
+#     puts "charno: #{tokenizer.charno}"
+#     puts "line: #{tokenizer.line.inspect}"
+#     puts "rest: #{tokenizer.line[tokenizer.charno-1..-1].inspect}"
+      kind = tokenizer.peek&.kind # Problem if at end of line+file
+#     puts "kind: #{kind.inspect}"
 
 #     constrain tokenizer.bol?, true # FIXME doubtful
       case tokenizer.peek&.kind
@@ -103,17 +108,17 @@ module Prick::Lang
       else
         return nil
       end
-      Kernel.indent {
-        puts "-"
-        puts "eof?: #{tokenizer.eof?}"
-        puts "eol?: #{tokenizer.eol?}"
-        puts "line: #{tokenizer.line.inspect}"
-      }
+
+#     puts "-"
+#     puts "eof?: #{tokenizer.eof?}"
+#     puts "eol?: #{tokenizer.eol?}"
+#     puts "line: #{tokenizer.line.inspect}"
       true
+#     end
     end
 
     def parse_decl
-      puts "parse_decl"
+#     puts "parse_decl"
       token = tokenizer.read # eat 'schema'/'group' keywords
       ident = parse_identifier
       decl = Ast::Decl.new(curr, token, ident.text)
@@ -121,17 +126,17 @@ module Prick::Lang
     end
 
     def parse_phase
-      puts "parse_phase"
+#     puts "parse_phase"
       token = tokenizer.read
       phase = Ast::Phase.new(curr, token)
       with(phase) { parse_block_argument }
     end
 
     def parse_command
-      puts "#parse_command"
+#     puts "#parse_command"
       token = tokenizer.read
       command = Ast::Command.new(curr, token)
-      if tokenizer.peek(:PIPE)
+      if tokenizer.peek.kind == :PIPE
         tokenizer.read
         command.source = tokenizer.readtext(tokenizer.indent).text
       else
@@ -140,7 +145,7 @@ module Prick::Lang
     end
 
     def parse_if
-      puts "#parse_if"
+#     puts "#parse_if"
       token = tokenizer.read
       command = Ast::If.new(curr, token)
       with(command) {
@@ -164,7 +169,7 @@ module Prick::Lang
           with(command.else_) { parse_stmts }
         end
       }
-      tokenizer.read(:END)
+      expect(:END)
     end
 
 
@@ -175,44 +180,47 @@ module Prick::Lang
     #   COMMAND
     #
     def parse_block_argument
-      puts "#parse_block_argument"
-      expect %w(block command file) do |token|
+#     func "#parse_block_argument" do
+      check %w(block command file) do |token|
         block = Ast::Block.new(curr, token)
         if token.kind == :BRACE_BEGIN
           tokenizer.read # skip token
           with(block) { parse_stmts }
-          block.stop_token = tokenizer.read(:BRACE_END) or expect_error "}"
+          block.stop_token = tokenizer.read(:BRACE_END) or check_error "}"
         elsif token.kind == :FILE
           with(block) { parse_files }
         elsif token.group? :command
           with(block) { parse_command }
         end
       end
+#     end
     end
 
     # Parse a list of files
     #
     def parse_files
-      puts "#parse_files"
-      puts "  tokenizer.lineno: #{tokenizer.lineno}"
-      puts "  tokenizer.charno: #{tokenizer.charno}"
-      puts "  tokenizer.eol?: #{tokenizer.eol?}"
+#     func "#parse_files" do
+#     puts "* tokenizer.lineno: #{tokenizer.lineno}"
+#     puts "  tokenizer.charno: #{tokenizer.charno}"
+#     puts "  tokenizer.eol?: #{tokenizer.eol?}"
+#     p tokenizer.instance_eval "@peek_index"
       while !tokenizer.eof? && (token = tokenizer.peek) && token.kind == :FILE
         Ast::File.new(curr, tokenizer.read)
-        puts "  tokenizer.lineno: #{tokenizer.lineno}"
-        puts "  tokenizer.charno: #{tokenizer.charno}"
-        puts "  tokenizer.eol?: #{tokenizer.eol?}"
+#       puts "* tokenizer.lineno: #{tokenizer.lineno}"
+#       puts "  tokenizer.charno: #{tokenizer.charno}"
+#       puts "  tokenizer.eol?: #{tokenizer.eol?}"
       end
+#     end
     end
 
     def parse_identifier
-      puts "#parse_identifier"
-      tokenizer.read(:IDENT) or expect_error "identifier"
+#     puts "#parse_identifier"
+      tokenizer.read(:IDENT) or check_error "identifier"
     end
 
     def parse_expr
-      puts "#parse_expr"
-      tokenizer.readline or expect_error "expression"
+#     puts "#parse_expr"
+      tokenizer.readline or check_error "expression"
     end
 
     #
@@ -229,9 +237,16 @@ module Prick::Lang
     end
 
     # :call-seq:
-    #   expect_error(token = tokenizer.error_token || curr, *words)
+    #   check_error(token = tokenizer.error_token || curr, *words)
     #
-    def expect_error(*args)
+    # Raise an error with the message format
+    #
+    #   Expected KIND, ..., or KIND, got KIND
+    #
+    # The error will be located at the given token (default
+    # the tokenizer error token or the current object
+    #
+    def check_error(*args)
       token = args.first.is_a?(Token) ? args.shift : (tokenizer.error_token || curr)
       words = seq Array(*args).flatten
       source = token.respond_to?(:error) && token.error || token.text
@@ -240,8 +255,14 @@ module Prick::Lang
       error token, message
     end
 
-    def expect(words, &block)
-      token = tokenizer.peek and yield(token) or expect_error token, words
+    def check(words, &block)
+      token = tokenizer.peek and yield(token) or check_error token, words
+    end
+
+    def expect(kind)
+      token = tokenizer.read
+      token&.kind == kind or check_error kind
+      token
     end
   end
 
@@ -267,9 +288,9 @@ __END__
     end
 
     def parse_block_argument
-      expect_token '{'
+      check_token '{'
       parse_stmts
-      expect_token '}'
+      check_token '}'
     end
 
     def parse_stmts

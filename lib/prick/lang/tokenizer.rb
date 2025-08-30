@@ -43,7 +43,8 @@ module Prick::Lang
       constrain compiler, Compiler
       constrain lines, [String], nil
       @compiler = compiler
-      @lines = lines || IO.readlines(file).map(&:rstrip)
+      @lines = (lines || IO.readlines(file)).map(&:rstrip)
+#     @lines = lines || IO.readlines(file).map(&:rstrip)
 
       # Current state
       @index = 0 # current line index
@@ -91,20 +92,22 @@ module Prick::Lang
       elsif eol?
         !eol or return @peek_token = handle_eol(eol)
 
-        # Ignore EOL
+        # Move to next line
         @peek_index += 1
         @peek_pos = 0
-
-        # Scan blank lines
-        @peek_index = scanlines(@peek_index)
-
-        # Handle after-scan EOF
-        @peek_index < @lines.size or return @peek_token = handle_eof(eof)
       end
+
+      # Scan blank lines
+      @peek_index = scanlines(@peek_index)
+
+      # Handle after-scan EOF
+      @peek_index < @lines.size or return @peek_token = handle_eof(eof)
 
       # Read token. Different token types are matched by different capture
       # groups
-      m = TOKEN_RE.match(@lines[@peek_index], @peek_pos) # Match always
+#     $stderr.puts @peek_index
+#     dump($stderr)
+      m = TOKEN_RE.match(@lines[@peek_index], @peek_pos) or raise InternalError # Match always
       match = m.match(:token) # matching string
       match_charno = m.offset(:token).first + 1
       @peek_pos += m.match_length(0)
@@ -175,14 +178,13 @@ module Prick::Lang
       bol? or raise InternalError # We have to be at the beginning of line
 
       @error = nil
-
       error_index = @index # Index to use if not found
       @index = scanlines(@index, comment: true) # Ignore initial blank lines
 
       token_lineno = lineno # Line number of first non-blank line
 
-      # Scan indented lines and blank-out column-one comment lines. Also
-      # compute minimal text indent
+      # Scan indented lines; column-one column lines are blanked-out. It
+      # includes trailing blank lines that are removed later
       block = []
       non_blank_lines = []
       indents = []
@@ -217,7 +219,11 @@ module Prick::Lang
 
       # Format block as an aligned text string
       min = indents.min || 0
+      p :BING
       source = block.map { |l| l[min..-1] }.join("\n").sub(/\n+\Z/, "") # #sub remove trailing blank lines
+
+      dump($stderr)
+
 
       Token.new(file, token_lineno, token_charno, source, :TEXT)
     end
@@ -228,26 +234,24 @@ module Prick::Lang
       reset_peek
     end
 
-    def dump
-      puts "Tokenizer"
-      Kernel.indent {
-        puts "file: #{compiler.file}"
-        puts "eof?: #{eof?.inspect}"
-        puts "bol?: #{bol?.inspect}"
-        puts "eol?: #{eol?.inspect}"
-        puts "index: #{@index.inspect}"
-        puts "pos: #{@pos.inspect}"
-        puts "line: #{line.inspect}"
-        puts "rest: #{line&.[](@pos..-1)&.inspect}"
-        puts "indent: #{@indent.inspect}"
-#       puts "token: #{@peek_token.inspect}"
+    def dump(file = $stdout)
+      file.puts "Tokenizer"
+      file.puts "  file: #{compiler.file}"
+      file.puts "  eof?: #{eof?.inspect}"
+      file.puts "  bol?: #{bol?.inspect}"
+      file.puts "  eol?: #{eol?.inspect}"
+      file.puts "  index: #{@index.inspect}"
+      file.puts "  pos: #{@pos.inspect}"
+      file.puts "  line: #{line.inspect}"
+      file.puts "  rest: #{line&.[](@pos..-1)&.inspect}"
+      file.puts "  indent: #{@indent.inspect}"
+#       file.puts "token: #{@peek_token.inspect}"
 #       if !@lines.empty?
-#         puts "lines:"
+#         file.puts "lines:"
 #         Kernel.indent { puts @lines.map(&:inspect) }
 #       else
 #         puts "lines: []"
 #       end
-      }
     end
 
   protected

@@ -25,8 +25,40 @@ describe "Prick::Lang" do
       Prick::Lang::Tokenizer.new(c, lines)
     end
 
+    describe "#initialize X" do
+      it "strips source file lines"
+      it "strips the lines argument" do
+        l = ["a", "  "]
+        t = make l
+        expect(t.instance_eval("@lines")[1]).to eq ""
+      end
+    end
+
     describe "#peek" do
       def call(lines) = make(lines).peek
+
+      it "ignores initial empty lines" do
+        l = ["", "exec"]
+        expect(call(l).kind).to eq :EXEC
+      end
+
+      it "ignores initial blank lines" do
+        l = ["   ", "exec"]
+        expect(call(l).kind).to eq :EXEC
+      end
+
+      it "ignores initial comment-only lines" do
+        l = [" # not exec", "exec"]
+        expect(call(l).kind).to eq :EXEC
+      end
+
+      it "returns the same object on repeated calls" do
+        l = %w(exec)
+        t = make l
+        tk1 = t.peek
+        tk2 = t.peek
+        expect(tk1).to eq tk2
+      end
 
       it "advances to the next line if end of line after match" do
         l = %w(exec eval)

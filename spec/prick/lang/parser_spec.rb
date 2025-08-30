@@ -17,9 +17,10 @@ describe "Prick::Lang" do
       make(lines).parse
     end
 
-    def capture(stream = :stdout) # ChatGPT
+    # TODO: Library
+    def capture(stream = :stdout, &block) # ChatGPT
+      constrain stream, :stdout, :stderr
       begin
-        stream = stream.to_s
         old = eval("$#{stream}")
         eval("$#{stream} = StringIO.new")
         yield
@@ -35,86 +36,58 @@ describe "Prick::Lang" do
 
     describe "#parse" do
       it "returns an Ast::Program node" do
-        lines = %(file.sql)
-        expect(call lines).to be_a Prick::Lang::Ast::Program
+        l = %(file.sql)
+        expect(call l).to be_a Prick::Lang::Ast::Program
       end
-    end
-  end
-end
-
-__END__
 
       context "it parses" do
-        def sig(lines) = call(lines).children.first.dumpsig
-        def sigs(lines) = call(lines).children.map(&:dumpsig)
-        def blocksig(lines) = call(lines).children.first.children.first.children.map { |c| c.dumpsig }
-
-        context "phase blocks" do
-          it "with a file argument" do
-            lines = %(init file.sql)
-            expect(blocksig lines).to eq ["File file.sql"]
-          end
-          it "with a command argument" do
-            lines = %(init exec ls -l)
-            expect(blocksig lines).to eq ["Exec ls -l"]
-          end
-          it "with a command with a text block argument" do
-            lines = %(
-              init exec |
-                ls -l
-                echo
-            )
-            expect(blocksig lines).to eq ["Exec ls -l; echo"]
-          end
-          it "with a block" do
-            lines = %(
-              init {
-                a.sql
-                b.sql
-              }
-            )
-            expect(blocksig lines).to eq ["File a.sql", "File b.sql"]
-          end
-        end
-
         context "file statements" do
-          it "with a single argument" do
-            lines = %(file.sql)
-            expect(sig lines).to eq "File file.sql"
+          it "with one file" do
+            l = %(file.sql)
+            expect(dump l).to eq "File file.sql"
           end
-          it "with multiple arguments" do
-            lines = %(a.sql b.sql c.sql)
-            expect(sigs lines).to eq ["File a.sql", "File b.sql", "File c.sql"]
+          it "with multiple files" do
+            l = %(a.sql b.sql)
+            expect(dump l).to eq %(
+              File a.sql
+              File b.sql
+            ).align
           end
         end
 
-        def d(t, s) = puts "#{t} #{s}: #{s.encoding}"
+        context "exec statement" do
+          it "with an inline argument" do
+            l = %(exec ls -l)
+            expect(dump l).to eq "Exec ls -l"
+          end
+          it "with a block"
+        end
 
         context "commands" do
           it "with a LINE argument" do
-            lines = %(eval ls -l)
-            expect(sig lines).to eq "Eval ls -l"
+            l = %(eval ls -l)
+            expect(dump l).to eq "Eval ls -l"
           end
           it "with a TEXT argument" do
-            lines = %(
+            l = %(
               eval |
                 ls -l
                 echo
             )
-            expect(sig lines).to eq "Eval ls -l; echo"
+            expect(dump l).to eq "Eval ls -l; echo"
           end
         end
 
         context "if statements" do
           it "with only a then clause" do
-            lines = %(
+            l = %(
               if expr
                 a.sql
                 b.sql
               end
             )
 
-            expect(dump lines).to eq %(
+            expect(dump l).to eq %(
               If expr
                 Block
                   File a.sql
@@ -123,7 +96,7 @@ __END__
           end
 
           it "with a else clause" do
-            lines = %(
+            l = %(
               if expr
                 a.sql
                 b.sql
@@ -131,7 +104,7 @@ __END__
                 c.sql
               end
             )
-            expect(dump lines).to eq %(
+            expect(dump l).to eq %(
               If expr
                 Block
                   File a.sql
@@ -143,7 +116,7 @@ __END__
           end
 
           it "with multiple elsif clauses" do
-            lines = %(
+            l = %(
               if expr1
                 a.sql
                 b.sql
@@ -153,7 +126,7 @@ __END__
                 d.sql
               end
             )
-            expect(dump lines).to eq %(
+            expect(dump l).to eq %(
               If expr1
                 Block
                   File a.sql
@@ -172,10 +145,140 @@ __END__
   end
 end
 
-#   def dump(lines)
+__END__
+
+      context "it parses" do
+        def sig(l) = call(l).children.first.dumpsig
+        def sigs(l) = call(l).children.map(&:dumpsig)
+        def blocksig(l) = call(l).children.first.children.first.children.map { |c| c.dumpsig }
+
+        context "phase blocks" do
+          it "with a file argument" do
+            l = %(init file.sql)
+            expect(blocksig l).to eq ["File file.sql"]
+          end
+          it "with a command argument" do
+            l = %(init exec ls -l)
+            expect(blocksig l).to eq ["Exec ls -l"]
+          end
+          it "with a command with a text block argument" do
+            l = %(
+              init exec |
+                ls -l
+                echo
+            )
+            expect(blocksig l).to eq ["Exec ls -l; echo"]
+          end
+          it "with a block" do
+            l = %(
+              init {
+                a.sql
+                b.sql
+              }
+            )
+            expect(blocksig l).to eq ["File a.sql", "File b.sql"]
+          end
+        end
+
+        context "file statements" do
+          it "with a single argument" do
+            l = %(file.sql)
+            expect(sig l).to eq "File file.sql"
+          end
+          it "with multiple arguments" do
+            l = %(a.sql b.sql c.sql)
+            expect(sigs l).to eq ["File a.sql", "File b.sql", "File c.sql"]
+          end
+        end
+
+        def d(t, s) = puts "#{t} #{s}: #{s.encoding}"
+
+        context "commands" do
+          it "with a LINE argument" do
+            l = %(eval ls -l)
+            expect(sig l).to eq "Eval ls -l"
+          end
+          it "with a TEXT argument" do
+            l = %(
+              eval |
+                ls -l
+                echo
+            )
+            expect(sig l).to eq "Eval ls -l; echo"
+          end
+        end
+
+        context "if statements" do
+          it "with only a then clause" do
+            l = %(
+              if expr
+                a.sql
+                b.sql
+              end
+            )
+
+            expect(dump l).to eq %(
+              If expr
+                Block
+                  File a.sql
+                  File b.sql
+            ).align
+          end
+
+          it "with a else clause" do
+            l = %(
+              if expr
+                a.sql
+                b.sql
+              else
+                c.sql
+              end
+            )
+            expect(dump l).to eq %(
+              If expr
+                Block
+                  File a.sql
+                  File b.sql
+              Else
+                Block
+                  File c.sql
+            ).align
+          end
+
+          it "with multiple elsif clauses" do
+            l = %(
+              if expr1
+                a.sql
+                b.sql
+              elsif expr2
+                c.sql
+              else
+                d.sql
+              end
+            )
+            expect(dump l).to eq %(
+              If expr1
+                Block
+                  File a.sql
+                  File b.sql
+              Elsif expr2
+                Block
+                  File c.sql
+              Else
+                Block
+                  File d.sql
+            ).align
+          end
+        end
+      end
+    end
+  end
+end
+
+#   def dump(l)
 #     old_stdout = $stdout
 #     $stdout = StringIO.new
-#     call lines
+#     call l
 #     $stdout.string.sub(/^.*?\n/m, "").align
 #   ensure
 #     $stdout = old_stdout
