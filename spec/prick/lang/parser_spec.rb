@@ -5,18 +5,6 @@ describe "Prick::Lang" do
   describe "Parser" do
     def file = "file.txt" # Considered a constant
 
-    def make(lines)
-      lines = lines.split "\n", -1
-#     allow(IO).to receive(:readlines).with('file.txt').and_return(lines)
-      c = Prick::Lang::Compiler.new(file)
-      t = Prick::Lang::Tokenizer.new(c, lines)
-      Prick::Lang::Parser.new(t)
-    end
-
-    def call(lines)
-      make(lines).parse
-    end
-
     # TODO: Library
     def capture(stream = :stdout, &block) # ChatGPT
       constrain stream, :stdout, :stderr
@@ -28,6 +16,18 @@ describe "Prick::Lang" do
       ensure
         eval("$#{stream} = old")
       end
+    end
+
+    def make(lines)
+      lines = lines.split "\n", -1
+#     allow(IO).to receive(:readlines).with('file.txt').and_return(lines)
+      c = Prick::Lang::Compiler.new(file)
+      t = Prick::Lang::Tokenizer.new(c, lines)
+      Prick::Lang::Parser.new(t)
+    end
+
+    def call(lines)
+      make(lines).parse
     end
 
     def dump(lines)
@@ -79,13 +79,18 @@ describe "Prick::Lang" do
         end
 
         context "if statements" do
-          it "with only a then clause" do
+          it "with only a then clause X" do
             l = %(
               if expr
                 a.sql
                 b.sql
               end
             )
+            a = make l
+            a.dump
+            a.tokenizer.dump
+            a.parse
+            puts "------------------"
 
             expect(dump l).to eq %(
               If expr

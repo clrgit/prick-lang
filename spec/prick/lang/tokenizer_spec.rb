@@ -25,7 +25,7 @@ describe "Prick::Lang" do
       Prick::Lang::Tokenizer.new(c, lines)
     end
 
-    describe "#initialize X" do
+    describe "#initialize" do
       it "strips source file lines"
       it "strips the lines argument" do
         l = ["a", "  "]

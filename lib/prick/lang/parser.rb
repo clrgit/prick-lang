@@ -90,7 +90,12 @@ module Prick::Lang
 #     puts "charno: #{tokenizer.charno}"
 #     puts "line: #{tokenizer.line.inspect}"
 #     puts "rest: #{tokenizer.line[tokenizer.charno-1..-1].inspect}"
+$stderr.puts "---------------------------------"
+#tokenizer.dump
+$stderr.puts tokenizer.instance_eval("@peek_index").inspect
       kind = tokenizer.peek&.kind # Problem if at end of line+file
+$stderr.puts tokenizer.instance_eval("@peek_index").inspect
+#tokenizer.dump
 #     puts "kind: #{kind.inspect}"
 
 #     constrain tokenizer.bol?, true # FIXME doubtful
@@ -106,8 +111,15 @@ module Prick::Lang
         when :SQL; parse_sql
         when :FILE; parse_files
       else
+
+$stderr.puts "NIL"
+$stderr.puts tokenizer.instance_eval("@peek_index").inspect
+#tokenizer.dump
         return nil
       end
+$stderr.puts tokenizer.instance_eval("@peek_index").inspect
+#tokenizer.dump
+$stderr.puts
 
 #     puts "-"
 #     puts "eof?: #{tokenizer.eof?}"
