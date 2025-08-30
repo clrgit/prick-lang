@@ -83,22 +83,7 @@ module Prick::Lang
     end
 
     def parse_stmt
-#     func "#parse_stmt" do
-#     puts "eof?: #{tokenizer.eof?}"
-#     puts "eol?: #{tokenizer.eol?}"
-#     puts "lineno: #{tokenizer.lineno}"
-#     puts "charno: #{tokenizer.charno}"
-#     puts "line: #{tokenizer.line.inspect}"
-#     puts "rest: #{tokenizer.line[tokenizer.charno-1..-1].inspect}"
-$stderr.puts "---------------------------------"
-#tokenizer.dump
-$stderr.puts tokenizer.instance_eval("@peek_index").inspect
-      kind = tokenizer.peek&.kind # Problem if at end of line+file
-$stderr.puts tokenizer.instance_eval("@peek_index").inspect
-#tokenizer.dump
-#     puts "kind: #{kind.inspect}"
-
-#     constrain tokenizer.bol?, true # FIXME doubtful
+#     puts "#parse_stmt"
       case tokenizer.peek&.kind
         when :SCHEMA, :GROUP; parse_decl
         when :OPTIONS; parse_options
@@ -111,22 +96,9 @@ $stderr.puts tokenizer.instance_eval("@peek_index").inspect
         when :SQL; parse_sql
         when :FILE; parse_files
       else
-
-$stderr.puts "NIL"
-$stderr.puts tokenizer.instance_eval("@peek_index").inspect
-#tokenizer.dump
         return nil
       end
-$stderr.puts tokenizer.instance_eval("@peek_index").inspect
-#tokenizer.dump
-$stderr.puts
-
-#     puts "-"
-#     puts "eof?: #{tokenizer.eof?}"
-#     puts "eol?: #{tokenizer.eol?}"
-#     puts "line: #{tokenizer.line.inspect}"
       true
-#     end
     end
 
     def parse_decl

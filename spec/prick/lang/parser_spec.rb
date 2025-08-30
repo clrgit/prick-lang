@@ -86,12 +86,6 @@ describe "Prick::Lang" do
                 b.sql
               end
             )
-            a = make l
-            a.dump
-            a.tokenizer.dump
-            a.parse
-            puts "------------------"
-
             expect(dump l).to eq %(
               If expr
                 Block
