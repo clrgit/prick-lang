@@ -25,6 +25,17 @@ describe "Prick::Lang" do
       Prick::Lang::Tokenizer.new(c, lines)
     end
 
+    describe "#peek" do
+      def call(lines) = make(lines).peek
+
+      it "advances to the next line if end of line after match" do
+        l = %w(exec eval)
+        t = make l
+        t.peek
+        expect(t.instance_eval "@peek_index").to eq 1
+      end
+    end
+
     describe "#read" do
       def call(lines) = make(lines).read
       def kind(lines) = call(lines)&.kind
@@ -51,9 +62,9 @@ describe "Prick::Lang" do
         l = %w(exec eval)
         t = make l
         t.read
-        expect(t.lineno).to eq 1
-        t.read
         expect(t.lineno).to eq 2
+        t.read
+        expect(t.lineno).to eq 3
       end
 
       it "clears the read-ahead token" do
@@ -178,6 +189,13 @@ describe "Prick::Lang" do
       end
 
       context "when at EOF" do
+        # context ":eof is false (the default)" do
+        #   it "returns nil" do
+        #     # test default :eof
+        #     # test explicit :eof
+        #   end
+        #   it "sets #error to EofToken"
+        # end
         it "returns nil" do
           l = %w(exec)
           t = make l
@@ -190,6 +208,7 @@ describe "Prick::Lang" do
           t.eof!
           expect(t.readline(eof: false)).to eq nil
         end
+        it "sets #error to EofToken (when nil)"
         it "returns a EofToken if :eof is true" do
           l = %w(exec)
           t = make l
@@ -295,6 +314,7 @@ describe "Prick::Lang" do
           t.eof!
           expect(t.readtext(2, eof: false)).to eq nil
         end
+        it "sets #error to EofToken"
         it "returns a EofToken if :eof is true" do
           l = %w(exec)
           t = make l

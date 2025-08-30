@@ -68,7 +68,7 @@ module Prick::Lang
     # file (FIXME)
     def bol? = eof? || @pos == 0
 
-    # True if we have a peek'ed token. Note that error token is not considered
+    # True if we have a peek'ed token
     def peek? = !@peek_token.nil? #&& !@peek_error.nil?
 
 #   # Indent of peek'ed line
@@ -77,17 +77,17 @@ module Prick::Lang
     # Return nil if no regular token was found but return EolToken/EofToken if
     # :eol/:eof is true and at the end of line/file
     def peek(eol: false, eof: false)
-#     puts "#peek(eol: #{eol})"
-#     puts "  index, peek_index: #{@index}, #{@peek_index}"
-#     puts "  @lines: #{@lines.inspect}"
-
       return @peek_token if peek?
 
-      # Handle initial EOF state
+#     puts "#peek(eol: #{eol})"; Kernel.indent {
+#     puts "index, peek_index: #{@index}, #{@peek_index}"
+#     puts "pos, peek_pos: #{@pos}, #{@peek_pos}"
+
+      # Handle initial EOF
       if eof?
         return @peek_token = handle_eof(eof)
 
-      # Handle initial EOL state
+      # Handle initial EOL
       elsif eol?
         !eol or return @peek_token = handle_eol(eol)
 
@@ -98,7 +98,7 @@ module Prick::Lang
         # Scan blank lines
         @peek_index = scanlines(@peek_index)
 
-        # Handle after-scan EOF state
+        # Handle after-scan EOF
         @peek_index < @lines.size or return @peek_token = handle_eof(eof)
       end
 
@@ -110,6 +110,15 @@ module Prick::Lang
       @peek_pos += m.match_length(0)
       @peek_error = nil
       args = [file, @peek_index + 1, match_charno] # First three Token#new arguments
+
+      # Handle after-match EOL
+      if @peek_pos == @lines[@peek_index].size
+        @peek_index += 1
+        @peek_pos = 0
+      end
+
+#     puts "index, peek_index: #{@index}, #{@peek_index}"
+#     puts "pos, peek_pos: #{@pos}, #{@peek_pos}"
 
       @peek_token =
           if capture = m[:word]
@@ -130,10 +139,15 @@ module Prick::Lang
           else
             raise InternalError
           end
+#     }
     end
 
     def read(eol: false, eof: false)
-      peek(eol: eol, eof: eof)
+#     puts "#read"
+#     puts "  peek?: #{peek?}"
+#     puts "  index, peek_index: #{@index}, #{@peek_index}"
+#     puts "  pos, peek_pos: #{@pos}, #{@peek_pos}"
+      peek(eol: eol, eof: eof) if !peek?
       @index = @peek_index
       @pos = @peek_pos
       @token = @peek_token; @peek_token = nil
