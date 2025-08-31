@@ -1,19 +1,4 @@
 
-# if a
-# elsif b
-# elsif c
-# else d
-
-# if a
-# else
-#   if b
-#   else
-#     if c
-#     else
-#       d
-#
-
-
 module Prick::Lang
   module Ast
     class Node
@@ -127,6 +112,25 @@ module Prick::Lang
       def source = @token.text
       def dump = puts source
     end
+#
+#   # @token is the operator in expression objects
+#   class UnExpr < Expr
+#     def oper = @token.kind
+#     attr_reader :expr
+#     def initialize(parent, token)
+#     end
+#   end
+#
+#   class BinExpr < Expr
+#     attr_reader :oper
+#     attr_reader :lexpr
+#     attr_reader :rexpr
+#   end
+#
+#   class ListExpr < Expr
+#     attr_reader :oper
+#     attr_reader :list
+#   end
 
     class If < Node
       attr_reader :if_thens # List of IfThen nodes
@@ -157,13 +161,13 @@ module Prick::Lang
     end
 
     class IfThen < Node
-      attr_reader :expr # Expr
+      attr_accessor :expr # Expr
 #     alias_method :then_, :children
       attr_accessor :then_ # Stmts
 
       def initialize(parent, token, expr)
         super(parent, token)
-        constrain expr, Expr
+        constrain expr, Expr, nil
         @expr = expr
       end
     end
