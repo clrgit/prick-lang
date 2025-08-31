@@ -31,6 +31,8 @@ module Prick::Lang
       # Punctuation
       BRACE_BEGIN: "{",
       BRACE_END: "}",
+      PAREN_BEGIN: "(",
+      PAREN_END: ")",
       PIPE: "|", # TODO: Eliminate or make optional
 
       # Identifiers
