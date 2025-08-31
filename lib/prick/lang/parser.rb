@@ -63,7 +63,7 @@ module Prick::Lang
 
     def parse_stmt(parent)
 #     puts "#parse_stmt"
-      case peek?&.kind
+      case peek.kind
         when :SCHEMA, :GROUP; parse_decl parent
         when :OPTIONS; parse_options parent
         when :REQUIRE; parse_require parent
@@ -119,10 +119,10 @@ module Prick::Lang
         if_then.then_ = Ast::Block.new(if_then, token)
         parse_stmts(if_then.then_)
 
-        break if peek(eof: true).kind != :ELSIF
+        break if peek.kind != :ELSIF
         read
       end
-      if peek(eof: true).kind == :ELSE
+      if peek.kind == :ELSE
         read
         command.else_ = Ast::Block.new(command, token)
         parse_stmts command.else_
@@ -139,8 +139,6 @@ module Prick::Lang
     #
     def parse_block_argument(parent)
       check %w(block command file) do |token|
-        $stderr.puts "  token: #{token.inspect}"
-        $stderr.puts "  token.kind: #{token.kind.inspect}"
         block = Ast::Block.new(parent, token)
         if token.kind == :BRACE_BEGIN
           read # skip token
@@ -159,7 +157,6 @@ module Prick::Lang
     def parse_files(parent)
       r = nil
       while !@tokenizer.eof? && (token = peek) && token.kind == :FILE
-        $stderr.puts token.inspect
         r = Ast::File.new(parent, read)
       end
       r
@@ -176,14 +173,15 @@ module Prick::Lang
     #
 
     # Functions from tokenizer with error handling
-    def peek(**opts) = @tokenizer.peek(**{ eof: true }.merge(opts)) or error(@tokenizer.error_token)
+    # TODO: Check if **opts is actually used
+    def peek(**opts) = @tokenizer.peek(**opts) or error(@tokenizer.error_token)
     def read(**opts) = @tokenizer.read(**opts) or error(@tokenizer.error_token)
     def readline(**opts) = @tokenizer.readline(**opts) or error(@tokenizer.error_token)
     def readtext(indent, **opts) = @tokenizer.readtext(indent, **opts) or error(@tokenizer.error_token)
 
     # Functions from tokenizer that accepts a nil return. FIXME this sacrifices
     # run-time performance for code clarity
-    def peek?(**opts) = @tokenizer.peek(**{ eof: true }.merge(opts))
+    def peek?(**opts) = @tokenizer.peek(**opts)
     def read?(**opts) = @tokenizer.read(**opts)
     def readline?(**opts) = @tokenizer.readline(**opts)
     def readtext?(indent, **opts) = @tokenizer.readtext(indent, **opts)
@@ -212,8 +210,6 @@ module Prick::Lang
     #
     def unexpected_token_error(*args)
       token = args.first.is_a?(Token) ? args.shift : tokenizer.error || token
-      $stderr.puts "unexpected_token_error #{token.inspect}"
-      $stderr.puts "            #{args.inspect}"
       words = seq Array(*args).flatten
       source = token.respond_to?(:error) && token.error || token.text
       got = (source.empty? ? "" : ", got '#{source}'")
@@ -238,7 +234,6 @@ module Prick::Lang
         else words[0..-2].join(", ") + ", or " + words.last
       end
     end
-
   end
 end
 

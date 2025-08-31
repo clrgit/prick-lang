@@ -79,7 +79,9 @@ module Prick::Lang
 
     # Return nil if no regular token was found but return EolToken/EofToken if
     # :eol/:eof is true and at the end of line/file
-    def peek(eol: false, eof: false)
+    #
+    # Note that #peek has eof default true but #read has it default false
+    def peek(eol: false, eof: true)
       return @peek_token if peek?
 
       # Handle initial EOF
