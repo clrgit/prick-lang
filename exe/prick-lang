@@ -30,7 +30,8 @@ SPEC = %(
       | EXIT-STMT
 
     DECL-STMT ::=
-      [schema | group] IDENT BLOCK-ARGS
+        schema SCHEMA_NAME BLOCK-ARGS
+      | gruop SCHEMA_NAME BLOCK-ARGS
 
     OPTION_STMT ::=
       # TODO
@@ -43,8 +44,31 @@ SPEC = %(
       | if PRICK-EXPR|BLOCK then COMMAND... else COMMAND... end
       | if PRICK-EXPR|BLOCK then COMMAND... elsif PRICK-EXPR... end
 
+    EXPR ::=
+        SIMPLE-EXPR
+      | ! EXPR
+      | EXPR && EXPR
+      | EXPR || EXPR
+      | '(' EXPR ')'
+
+    SIMPLE-EXPR ::=
+        env ENVIRONMENT+
+      | cmd COMMAND+
+      | version VERSION_OP VERSION
+      | schema SCHEMANAME
+      | object OBJECTREF
+      | group GROUPREF
+
+    VAR-EXPR ::= env | cmd | version | schema | object | group
+
+    VAL-EXPR ::=
+        IDENT
+      | OBJECTREF
+      | GROUPREF
+      | VERSION
+
     CASE-STMT ::=
-        case PRICK-EXPR-KIND WHEN-STMT... [ else COMMAND... ] end
+        case VAR-EXPR WHEN-STMT... [ else COMMAND... ] end
 
     WHEN-STMT ::=
         when PRICK-VALUE COMMAND...
@@ -88,12 +112,13 @@ SPEC = %(
     PRICK-COMMAND ::= 'build' | 'rebuild' | 'make' | 'run' | <detected-dynamically>
 
     SCHEMANAME ::= IDENT
+    OBJECTNAME ::= IDENT
+    OBJECTREF ::= SCHEMA_NAME.OBJECT_NAME
     GROUPNAME ::= IDENT
-    GROUPREF ::= REF
+    GROUPREF ::= SCHEMA_NAME(::GROUP_NAME)+
 
     IDENT ::= /[\w.]+/
-    REF ::= /#{IDENT}(?:\.#{IDENT}+)/
-
+    REF ::=
 )
 
 opts, args = ShellOpts.process(SPEC, ARGV)

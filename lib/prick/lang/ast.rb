@@ -64,17 +64,21 @@ module Prick::Lang
     end
 
     class Decl < Node
-      attr_accessor :name
+      forward_to :token, :kind
+      attr_accessor :ident_token
       attr_accessor :block
 
-      def initialize(parent, token, name)
+      def name = @ident_token.text
+
+      def initialize(parent, token, ident_token)
         constrain token.kind, *Parser::GRAMMAR_GROUPS[:decl]
-        constrain name, String
+        constrain ident_token, Token
+        constrain ident_token.kind, :IDENT
         super parent, token
-        @name = name
+        @ident_token = ident_token
       end
 
-      def dumpident = name.inspect
+      def dumpident = "#{Token::TOKENS[kind]} #{name.inspect}"
     end
 
     class Phase < Node
@@ -84,6 +88,7 @@ module Prick::Lang
         constrain token.kind, *Parser::GRAMMAR_GROUPS[:phase]
         super parent, token
       end
+      def dumpident = Token::TOKENS[kind]
     end
 
     class Command < Node
@@ -99,17 +104,7 @@ module Prick::Lang
       def multiline? = @source =~ /\n/
 
       def dumpname = "#{kind}".capitalize
-
       def dumpident = source.split("\n").join("; ")
-
-#     def dump_ident
-#       if multiline?
-#         puts kind
-#         indent { puts source }
-#       else
-#         puts sig_ident
-#       end
-#     end
     end
 
     class Block < Node
@@ -128,6 +123,11 @@ module Prick::Lang
       def dumpident = filename
     end
 
+    class Expr < Node # Placeholder implementation
+      def source = @token.text
+      def dump = puts source
+    end
+
     class If < Node
       attr_reader :if_thens # List of IfThen nodes
       attr_accessor :else_ # Block
@@ -140,7 +140,10 @@ module Prick::Lang
       def dump
         keyword = "If"
         for if_then in if_thens
-          puts "#{keyword} #{if_then.expr}"
+#         if keyword == "Elsif"
+#           puts "<<<#{if_then.expr}>>>"
+#         end
+          puts "#{keyword} #{if_then.expr.source}"
           keyword = "Elsif"
           indent { if_then.then_.dump }
         end
@@ -160,9 +163,16 @@ module Prick::Lang
 
       def initialize(parent, token, expr)
         super(parent, token)
+        constrain expr, Expr
         @expr = expr
       end
     end
+  end
+end
+
+__END__
+
+
 
     class InitBlock < Block
     end

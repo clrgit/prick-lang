@@ -20,6 +20,7 @@ module Prick::Lang
         file: [:FILE],
         punct: [:BEGIN_BLOCK, :END_BLOCK, :MULTILINE]
       }
+      # FIXME what?
       groups.merge!({
         unit: groups[:command] + groups[:require] + groups[:file]
       })
@@ -104,8 +105,8 @@ module Prick::Lang
     def parse_decl
 #     puts "parse_decl"
       token = tokenizer.read # eat 'schema'/'group' keywords
-      ident = parse_identifier
-      decl = Ast::Decl.new(curr, token, ident.text)
+      ident = expect(:IDENT)
+      decl = Ast::Decl.new(curr, token, ident)
       with(decl) { parse_block_argument }
     end
 
@@ -170,7 +171,7 @@ module Prick::Lang
         if token.kind == :BRACE_BEGIN
           tokenizer.read # skip token
           with(block) { parse_stmts }
-          block.stop_token = tokenizer.read(:BRACE_END) or check_error "}"
+          block.stop_token = expect(:BRACE_END) or check_error "}"
         elsif token.kind == :FILE
           with(block) { parse_files }
         elsif token.group? :command
@@ -183,28 +184,16 @@ module Prick::Lang
     # Parse a list of files
     #
     def parse_files
-#     func "#parse_files" do
-#     puts "* tokenizer.lineno: #{tokenizer.lineno}"
-#     puts "  tokenizer.charno: #{tokenizer.charno}"
-#     puts "  tokenizer.eol?: #{tokenizer.eol?}"
-#     p tokenizer.instance_eval "@peek_index"
+#     func "#parse_files"
       while !tokenizer.eof? && (token = tokenizer.peek) && token.kind == :FILE
         Ast::File.new(curr, tokenizer.read)
-#       puts "* tokenizer.lineno: #{tokenizer.lineno}"
-#       puts "  tokenizer.charno: #{tokenizer.charno}"
-#       puts "  tokenizer.eol?: #{tokenizer.eol?}"
       end
-#     end
-    end
-
-    def parse_identifier
-#     puts "#parse_identifier"
-      tokenizer.read(:IDENT) or check_error "identifier"
     end
 
     def parse_expr
 #     puts "#parse_expr"
-      tokenizer.readline or check_error "expression"
+      token = tokenizer.readline or check_error "expression"
+      Ast::Expr.new curr, token
     end
 
     #
@@ -231,7 +220,7 @@ module Prick::Lang
     # the tokenizer error token or the current object
     #
     def check_error(*args)
-      token = args.first.is_a?(Token) ? args.shift : (tokenizer.error_token || curr)
+      token = args.first.is_a?(Token) ? args.shift : tokenizer.error || tokenizer.token
       words = seq Array(*args).flatten
       source = token.respond_to?(:error) && token.error || token.text
       got = (source.empty? ? "" : ", got '#{source}'")

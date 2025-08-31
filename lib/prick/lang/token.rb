@@ -35,12 +35,13 @@ module Prick::Lang
 
       # Identifiers
       IDENT: nil,
-      REF: nil,
+      GRPREF: nil,
+      OBJREF: nil,
 
       # Literals
       FILE: nil,
       DIR: nil,
-      INT: nil,
+      VERSION: nil,
 
       # Text literals
       LINE: nil, # Line of text
@@ -88,17 +89,20 @@ module Prick::Lang
     EXT_PATTERN = Regexp.union(EXTS) # recognized file extensions
     REL_PATTERN = /\.{1,2}\/|\// # initial '/', '../', or './'
     DIR_PATTERN = /#{REL_PATTERN}?(?:#{FILE_PATTERN}\/)+/ # path ending in '/'
-    INT_PATTERN = /-?\d+/
     IDENT_PATTERN = /[_a-zA-Z]\w*/ # language identifier
-    REF_PATTERN = /#{IDENT_PATTERN}(?:\.#{IDENT_PATTERN})*/
+    OBJREF_PATTERN = /#{IDENT_PATTERN}(?:\.#{IDENT_PATTERN})+/
+    GRPREF_PATTERN = /#{IDENT_PATTERN}(?:::#{IDENT_PATTERN})+/
+    VERSION_PATTERN = /\d+(?:\.(\d+)(?:\.(\d+))?)?/
 
     # *_RE may generate captures
     WORD_RE = /(?<word>#{WORD_PATTERN})/
-    DIR_RE = /(?<dir>#{DIR_PATTERN})/
     FILE_RE = /(?<path>#{DIR_PATTERN})?(?<file>#{FILE_PATTERN}\.(?<ext>#{EXT_PATTERN}))/
-    INT_RE = /(?<int>-?\d+)/
+    DIR_RE = /(?<dir>#{DIR_PATTERN})/
     IDENT_RE = /(?<ident>#{IDENT_PATTERN})/
-    REF_RE = /(?<ref>#{REF_PATTERN})/
+    OBJREF_RE = /(?<objref>#{OBJREF_PATTERN})/
+    GRPREF_RE = /(?<grpref>#{GRPREF_PATTERN})/
+    VERSION_RE = /(?<version>#{VERSION_PATTERN})/
+
     ERROR_RE = /(?<error>\S*)/
 
     # Matches line endings, ignoring comments. Only used by the tokenizer
@@ -112,12 +116,12 @@ module Prick::Lang
     # tokens are not matched. Sets $1 to the initial whitespace and $2 to the
     # non-blank part of the match. The kind of the token can be inferred from
     # the named captures: word, dir, path, file, ext, int, ident, ref
-    TOKEN_RE = /#{WORD_RE}|#{DIR_RE}|#{FILE_RE}|#{INT_RE}|#{IDENT_RE}|#{REF_RE}|#{ERROR_RE}/
+    TOKEN_RE = /#{WORD_RE}|#{DIR_RE}|#{FILE_RE}|#{OBJREF_RE}|#{GRPREF_RE}|#{IDENT_RE}|#{VERSION_RE}|#{ERROR_RE}/
 
     # Matches as far as possible in the string. This is the same as TOKEN_RE
-    # except filesystem names that matches everything. ERROR_TOKEN_RE is only
-    # used in ErrorToken to pin-point the character that made TOKEN_RE to fail
-    ERROR_TOKEN_RE = /^(?:#{REF_PATTERN}|#{INT_PATTERN}|#{IDENT_PATTERN})(?<char>.)/
+    # except filesystem names that matches nearly everything. ERROR_TOKEN_RE is
+    # to pin-point the character that made TOKEN_RE to fail
+    ERROR_TOKEN_RE = /^(?:#{OBJREF_PATTERN}|#{GRPREF_PATTERN}|#{VERSION_PATTERN}|#{IDENT_PATTERN})(?<char>.)/
 
     attr_reader :file
     attr_reader :lineno
@@ -125,6 +129,7 @@ module Prick::Lang
     attr_accessor :kind # Symbol. Can mutate from keyword to ident
     attr_reader :text # String
 
+    # FIXME Unused?
     def keyword? = KEYWORDS.include? kind
     def punct? = PUNCTS.include? kind
     def ident? = IDENTS.include? kind
@@ -135,25 +140,8 @@ module Prick::Lang
       @file, @lineno, @charno, @text, @kind = file, lineno, charno, text, kind
     end
 
-#   # Return true if token belongs to the given grammar group (see parse.rb)
-#   def group?(group) = Tokenizer::GRAMMAR_GROUPS[group].include?(kind)
-
     def to_s = @text
     def inspect = "#<Token:#{kind} #{lineno}:#{charno} #{text.inspect}>"
-
-#   def self.kind(text)
-#     MAP[text] or (File.basename(text) =~ FILENAME_RE ? :FILE : :TEXT)
-#   end
-
-#   def self.args(text)
-#     if kind = MAP[text]
-#       [kind]
-#     elsif File.basename(text) =~ FILENAME_RE
-#       [:FILE, $1, $2]
-#     else
-#       [:TEXT]
-#     end
-#   end
   end
 
   class DirToken < Token

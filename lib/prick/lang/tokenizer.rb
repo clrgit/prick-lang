@@ -33,6 +33,9 @@ module Prick::Lang
     # Indent of current or given line
     def indent(l = line) = l && l[/\A */].size
 
+    # Last read token
+    attr_reader :token
+
     # Token of the last read error
     attr_reader :error
 
@@ -120,12 +123,14 @@ module Prick::Lang
             DirToken.new *args, match
           elsif m[:file]
             FileToken.new(*args, match, m[:path], m[:file], m[:ext])
-          elsif m[:int]
-            Token.new(*args, match, :INT)
           elsif m[:ident]
             Token.new(*args, match, :IDENT)
-          elsif m[:ref]
-            Token.new(*args, match, :REF)
+          elsif m[:objref]
+            Token.new(*args, match, :OBJREF)
+          elsif m[:grpref]
+            Token.new(*args, match, :GRPREF)
+          elsif m[:version]
+            Token.new(*args, match, :VERSION)
           elsif capture = m[:error]
             @peek_error = CharErrorToken.new(*args, capture)
             nil

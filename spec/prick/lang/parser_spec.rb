@@ -41,7 +41,7 @@ describe "Prick::Lang" do
       end
 
       context "it parses" do
-        context "file statements" do
+        context "files" do
           it "with one file" do
             l = %(file.sql)
             expect(dump l).to eq "File file.sql"
@@ -53,14 +53,6 @@ describe "Prick::Lang" do
               File b.sql
             ).align
           end
-        end
-
-        context "exec statement" do
-          it "with an inline argument" do
-            l = %(exec ls -l)
-            expect(dump l).to eq "Exec ls -l"
-          end
-          it "with a block"
         end
 
         context "commands" do
@@ -78,8 +70,68 @@ describe "Prick::Lang" do
           end
         end
 
+        context "declarations" do
+          it "with a name argument" do
+            l = %(
+              schema app {
+                file.sql
+              }
+            )
+            expect(dump l).to eq %(
+              Decl schema "app"
+                Block
+                  File file.sql
+            ).align
+          end
+        end
+
+        context "phase blocks" do
+          it "with a file argument" do
+            l = %(init file.sql)
+            expect(dump l).to eq %(
+              Phase init
+                Block
+                  File file.sql
+            ).align
+          end
+          it "with a command argument" do
+            l = %(init exec ls -l)
+            expect(dump l).to eq %(
+              Phase init
+                Block
+                  Exec ls -l
+            ).align
+          end
+          it "with a command with a text block argument" do
+            l = %(
+              init exec |
+                ls -l
+                echo
+            )
+            expect(dump l).to eq %(
+              Phase init
+                Block
+                  Exec ls -l; echo
+            ).align
+          end
+          it "with a block" do
+            l = %(
+              init {
+                a.sql
+                b.sql
+              }
+            )
+            expect(dump l).to eq %(
+              Phase init
+                Block
+                  File a.sql
+                  File b.sql
+            ).align
+          end
+        end
+
         context "if statements" do
-          it "with only a then clause X" do
+          it "with only a then clause" do
             l = %(
               if expr
                 a.sql
@@ -139,6 +191,8 @@ describe "Prick::Lang" do
             ).align
           end
         end
+
+
       end
     end
   end
@@ -150,34 +204,6 @@ __END__
         def sig(l) = call(l).children.first.dumpsig
         def sigs(l) = call(l).children.map(&:dumpsig)
         def blocksig(l) = call(l).children.first.children.first.children.map { |c| c.dumpsig }
-
-        context "phase blocks" do
-          it "with a file argument" do
-            l = %(init file.sql)
-            expect(blocksig l).to eq ["File file.sql"]
-          end
-          it "with a command argument" do
-            l = %(init exec ls -l)
-            expect(blocksig l).to eq ["Exec ls -l"]
-          end
-          it "with a command with a text block argument" do
-            l = %(
-              init exec |
-                ls -l
-                echo
-            )
-            expect(blocksig l).to eq ["Exec ls -l; echo"]
-          end
-          it "with a block" do
-            l = %(
-              init {
-                a.sql
-                b.sql
-              }
-            )
-            expect(blocksig l).to eq ["File a.sql", "File b.sql"]
-          end
-        end
 
         context "file statements" do
           it "with a single argument" do

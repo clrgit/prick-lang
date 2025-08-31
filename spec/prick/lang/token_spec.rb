@@ -68,15 +68,6 @@ describe "Prick::Lang" do
       end
     end
 
-    describe "::INT_RE" do
-      it "matches integers" do
-        e :INT_RE, "1234"
-      end
-      it "sets 'int' capture" do
-        c :INT_RE, "1234", :int
-      end
-    end
-
     describe "::IDENT_RE" do
       it "matches identifiers" do
         e :IDENT_RE, "id"
@@ -88,18 +79,30 @@ describe "Prick::Lang" do
       end
     end
 
-    describe "::REF_RE" do
-      it "matches references" do
-        e :REF_RE, "root.branch.leaf"
+    describe "::OBJREF_RE" do
+      it "matches object references" do
+        e :OBJREF_RE, "root.branch.leaf"
       end
-      it "sets the 'ref' capture" do
-        c :REF_RE, "root.branch.leaf", :ref
+      it "sets the 'objref' capture" do
+        c :OBJREF_RE, "root.branch.leaf", :objref
       end
     end
 
-    describe "::ERROR_RE" do
-      it "matches a group of non-space characters" do
-        e :ERROR_RE, "error"
+    describe "::GRPREF_RE" do
+      it "matches group references" do
+        e :GRPREF_RE, "root::branch::leaf"
+      end
+      it "sets the 'grpref' capture" do
+        c :GRPREF_RE, "root::branch::leaf", :grpref
+      end
+    end
+
+    describe "::VERSION_RE" do
+      it "matches versions" do
+        e :VERSION_RE, "1.2.3"
+      end
+      it "sets the 'version' capture" do
+        c :VERSION_RE, "1.2.3", :version
       end
     end
 
@@ -122,8 +125,20 @@ describe "Prick::Lang" do
       it "sets 'ident' capture" do
         c :TOKEN_RE, "id", :ident
       end
-      it "sets the 'ref' capture" do
-        c :TOKEN_RE, "root.branch.leaf", :ref
+      it "sets the 'objref' capture" do
+        c :TOKEN_RE, "root.branch.leaf", :objref
+      end
+      it "sets the 'grpref' capture" do
+        c :TOKEN_RE, "root::branch::leaf", :grpref
+      end
+      it "sets the 'version' capture" do
+        c :TOKEN_RE, "1.2.3", :version
+      end
+    end
+
+    describe "::ERROR_RE" do
+      it "matches a group of non-space characters" do
+        e :ERROR_RE, "error"
       end
     end
 
