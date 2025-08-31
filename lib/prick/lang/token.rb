@@ -26,13 +26,22 @@ module Prick::Lang
       SQL: "sql",
       ENV: "env",
       CMD: "cmd",
-      NOT: "not",
 
       # Punctuation
       BRACE_BEGIN: "{",
       BRACE_END: "}",
       PAREN_BEGIN: "(",
       PAREN_END: ")",
+      ANDAND: "&&",
+      OROR: "||",
+      LT: "<",
+      LE: "<=",
+      EQ: "==",
+      NE: "!=",
+      GE: ">=",
+      GT: ">",
+      TIGT: "~>", # 'TI' for tilde
+      EXCLAIM: "!",
       PIPE: "|", # TODO: Eliminate or make optional
 
       # Identifiers
