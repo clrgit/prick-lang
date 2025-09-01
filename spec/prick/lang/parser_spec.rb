@@ -31,7 +31,8 @@ describe "Prick::Lang" do
     end
 
     def dump(lines)
-      capture { call(lines).dump }.sub(/^Program\n/m, "").align
+      ast = make(lines).parse
+      capture { ast.dump }.sub(/^Program\n/m, "").align
     end
 
     describe "#parse" do

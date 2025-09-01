@@ -113,7 +113,7 @@ module Prick::Lang
                 when 1
                   e = UnExpr.new(parent, token)
                   arg = stack.pop
-                  e.expr = # SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS
+#                 e.expr = # SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS
     #             a = stack.pop
     #             stack.push([token.to_sym, a])
                 when 2
@@ -123,11 +123,14 @@ module Prick::Lang
               else
                 raise
               end
-        else
-          case token.kind
-            when :VERSION
+            else
+              true ################################################
+            end
+#       else
+#         case token.kind
+#           when :VERSION
 
-          stack.push(token)
+#         stack.push(token)
         end
       }
       stack.first
@@ -210,14 +213,12 @@ module Prick::Lang
 
     def parse_stmts(parent)
 #     puts "#parse_stmts"
-      while stmt = parse_stmt(parent)
-        parent.attach stmt
-      end
-      r
+      true until parse_stmt(parent).nil?
     end
 
     def parse_stmt(parent)
-#     puts "#parse_stmt"
+#     puts "#parse_stmt"; indent {
+#     puts "parent.children.size: #{parent.children.size}"
       case peek.kind
         when :SCHEMA, :GROUP; parse_decl parent
         when :OPTIONS; parse_options parent
@@ -230,16 +231,18 @@ module Prick::Lang
         when :SQL; parse_sql parent
         when :FILE; parse_files parent
       else
+#       puts "parent.children.size: #{parent.children.size}"
         return nil
       end
+#     }
     end
 
     def parse_decl(parent)
 #     puts "parse_decl"
       token = read # eat schema/group keyword
-      ident = expect(:IDENT)
-      decl = Ast::Decl.new(parent, token, ident)
-      parse_block_argument(decl)
+      ident = Ast::Ident.new(nil, expect(:IDENT))
+      block = parse_block_argument(nil)
+      Ast::Decl.new(parent, token, ident, block)
     end
 
     def parse_phase(parent)
@@ -294,27 +297,34 @@ module Prick::Lang
     #
     def parse_block_argument(parent)
       check %w(block command file) do |token|
-        block = Ast::Block.new(parent, token)
+        block = Ast::Block.new(parent, token, nil, nil)
         if token.kind == :BRACE_BEGIN
           read # skip token
           parse_stmts block
           block.stop_token = expect(:BRACE_END) or unexpected_token_error "}"
         elsif token.kind == :FILE
           parse_files block
+          block.stop_token = block.start_token
         elsif token.group? :command
           parse_command block
+          block.stop_token = block.start_token
         end
+        block
       end
     end
 
     # Parse a list of files
     #
     def parse_files(parent)
+#     puts "#parse_files"; indent {
+#     puts "parent.children.size: #{parent.children.size}"
       r = nil
       while !@tokenizer.eof? && (token = peek) && token.kind == :FILE
         r = Ast::File.new(parent, read)
       end
+#     puts "parent.children.size: #{parent.children.size}"
       r
+#     }
     end
 
     def parse_expr(parent)

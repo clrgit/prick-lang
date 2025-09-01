@@ -8,8 +8,9 @@ module Prick::Lang
 
       forward_to :token, :lineno, :charno, :kind
 
-      def initialize(token)
+      def initialize(parent, token)
         constrain token, Token
+        parent&.attach(self)
         @children = []
         @token = token
       end
@@ -17,7 +18,7 @@ module Prick::Lang
       def attach(child)
         return nil if child.nil?
         @children << child
-        @child.parent = self
+        child.instance_variable_set(:@parent, self)
         child
       end
 
@@ -55,7 +56,7 @@ module Prick::Lang
     class Program < Node
       alias_method :stmts, :children
       def initialize(file)
-        super Token.new(file, 1, 1, "", :PROGRAM)
+        super nil, Token.new(file, 1, 1, "", :PROGRAM)
       end
     end
 
@@ -66,10 +67,10 @@ module Prick::Lang
 
       def name = @ident_token.text
 
-      def initialize(token, ident, block)
+      def initialize(parent, token, ident = nil, block = nil)
         constrain ident, Ident
         constrain block, Block
-        super token
+        super parent, token
         @ident = attach ident
         @block = attach block
       end
@@ -79,9 +80,9 @@ module Prick::Lang
 
     class Phase < Node
       attr_reader :block
-      def initialize(token, block)
+      def initialize(parent, token, block)
         constrain block, Block
-        super token
+        super parent, token
         @block = attach block
       end
 
@@ -90,7 +91,7 @@ module Prick::Lang
 
     class Command < Node
       def kind = token.kind
-      attr_reader :source # Array of source lines. Assigned after initialization
+      attr_accessor :source # Array of source lines. Assigned after initialization
 
       # True iff source consists of multiple lines
       def multiline? = @source =~ /\n/
@@ -104,10 +105,10 @@ module Prick::Lang
       alias_method :start_token, :token
       attr_reader :stop_token, :token
       attr_reader :stmts
-      def initialize(start_token, stop_token = start_token, stmts)
+      def initialize(parent, start_token, stop_token = start_token, stmts)
         constrain stop_token, Token
         constraint stmts, Array
-        super start_token
+        super parent, start_token
         @stop_token = stop_token
         @stmts = attachs stmts
       end
@@ -117,10 +118,10 @@ module Prick::Lang
       attr_reader :if_thens # List of IfThen nodes
       attr_reader :else_ # Block
 
-      def initialize(token, if_thens, else_)
+      def initialize(parent, token, if_thens, else_)
         constrain if_thens, [IfThen]
         constrain else_, Block, nil
-        super token
+        super parent, token
         @if_thens = attachs if_thens
         @else_ = attach else_
       end
@@ -145,10 +146,10 @@ module Prick::Lang
       attr_reader :expr # Expr
       attr_reader :then_ # Stmts
 
-      def initialize(token, expr, then_)
+      def initialize(parent, token, expr, then_)
         constrain expr, Expr
         constrain then_ Block
-        super token
+        super parent, token
         @expr = attach expr
         @then_ = attach then_
       end
@@ -165,9 +166,9 @@ module Prick::Lang
     # @token is the operator in expression objects
     class UnExpr < Expr
       attr_reader :expr
-      def initialize(token, expr)
+      def initialize(parent, token, expr)
         constrain expr, Expr
-        super token
+        super parent, token
         @expr = attach(expr)
       end
 
@@ -177,10 +178,10 @@ module Prick::Lang
     class BinExpr < Expr
       attr_reader :lexpr
       attr_reader :rexpr
-      def initialize(token, lexpr, rexpr)
+      def initialize(parent, token, lexpr, rexpr)
         constrain lexpr, Expr
         constrain rexpr, Expr
-        super token
+        super parent, token
         @lexpr = attach lexpr
         @rexpr = attach rexpr
       end
@@ -191,9 +192,9 @@ module Prick::Lang
     class ListExpr < Expr
       def name = @token.name
       attr_reader :idents # List of Idents
-      def initialize(token, idents)
+      def initialize(parent, token, idents)
         contrain ident, [Idents]
-        super token
+        super parent, token
         @list = attachs idents
       end
 
@@ -202,9 +203,9 @@ module Prick::Lang
 
     class VersionExpr < Expr # Token is the 'version' keyword
       attr_reader :exprs
-      def initialize(token, exprs)
+      def initialize(parent, token, exprs)
         constrain exprs, [VersionCompareExpr]
-        super token
+        super parent, token
         @exprs = attachs exprs
       end
     end
@@ -212,9 +213,9 @@ module Prick::Lang
     class VersionCompareExpr
       def operator = @token.kind
       attr_reader :version
-      def initialize(token, version)
+      def initialize(parent, token, version)
         constrain version, Ver
-        super token
+        super parent, token
         @version = attach version
       end
     end
