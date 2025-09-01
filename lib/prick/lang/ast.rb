@@ -4,12 +4,29 @@ module Prick::Lang
     class Node
       attr_reader :parent # Node or nil
       attr_reader :children # [Node]
-      attr_reader :token
 
-      forward_to :token, :lineno, :charno, :kind
+      forward_to :@children, :empty?
+
+      # All nodes have a start and stop token (they can be the same). The start token is equal to #token by default
+
+      # All nodes have an eigen token and a start/stop token. The three tokens
+      # is often identical but eg. binary operators have three different
+      # tokens: '1 + 2' yields '1' as the start token, '2' as the stop token,
+      # and '+' as the binary node token
+      attr_accessor :token
+
+      # Start token defaults recursively to the start token of the first child
+      def start_token() @start_token ||= @children.first&.start_token || @token end
+      attr_writer :start_token
+
+      # Stop token defaults recursively to the stop token of the last child
+      def stop_token() @stop_token ||= @children.last&.stop_token || @token end
+      attr_writer :stop_token
+
+      forward_to :@token, :lineno, :charno, :kind
 
       def initialize(parent, token)
-        constrain token, Token
+        constrain token, Token, nil
         parent&.attach(self)
         @children = []
         @token = token
@@ -45,46 +62,42 @@ module Prick::Lang
       def dumpsig = [dumpname, dumpident].compact.join(" ")
 
       # Dump an Ast node hierarchically
-      def dump
+      def dump(nodes = children)
         puts dumpsig
-        indent { children.each &:dump }
+        indent { nodes.each &:dump }
       end
 
       def inspect() = "#<#{dumpsig}>"
     end
 
     class Program < Node
-      alias_method :stmts, :children
+      attr_accessor :block
       def initialize(file)
         super nil, Token.new(file, 1, 1, "", :PROGRAM)
       end
     end
 
+    # Block allows the token to be nil. It defaults to #start_token
+    class Block < Node
+      def name = @token.text
+      attr_accessor :block
+      alias_method :stmts, :children
+    end
+
     class Decl < Node
       forward_to :token, :kind
-      attr_reader :ident
-      attr_reader :block
+      attr_accessor :ident
+      attr_accessor :block
 
-      def name = @ident_token.text
-
-      def initialize(parent, token, ident = nil, block = nil)
-        constrain ident, Ident
-        constrain block, Block
-        super parent, token
-        @ident = attach ident
-        @block = attach block
-      end
+      forward_to :ident, :name
 
       def dumpident = "#{Token::TOKENS[kind]} #{name.inspect}"
+      def dump = super([block])
+
     end
 
     class Phase < Node
-      attr_reader :block
-      def initialize(parent, token, block)
-        constrain block, Block
-        super parent, token
-        @block = attach block
-      end
+      attr_accessor :block
 
       def dumpident = Token::TOKENS[kind]
     end
@@ -97,34 +110,12 @@ module Prick::Lang
       def multiline? = @source =~ /\n/
 
       def dumpname = "#{kind}".capitalize
-      def dumpident = source.split("\n").join("; ")
-    end
-
-    class Block < Node
-      def name = @token.text
-      alias_method :start_token, :token
-      attr_reader :stop_token, :token
-      attr_reader :stmts
-      def initialize(parent, start_token, stop_token = start_token, stmts)
-        constrain stop_token, Token
-        constraint stmts, Array
-        super parent, start_token
-        @stop_token = stop_token
-        @stmts = attachs stmts
-      end
+      def dumpident = source ? source.split("\n").join("; ") : ""
     end
 
     class If < Node
-      attr_reader :if_thens # List of IfThen nodes
-      attr_reader :else_ # Block
-
-      def initialize(parent, token, if_thens, else_)
-        constrain if_thens, [IfThen]
-        constrain else_, Block, nil
-        super parent, token
-        @if_thens = attachs if_thens
-        @else_ = attach else_
-      end
+      attr_accessor :if_thens # [IfThen]
+      attr_accessor :else_ # Block
 
       def dump
         keyword = "If"
@@ -143,21 +134,12 @@ module Prick::Lang
     end
 
     class IfThen < Node
-      attr_reader :expr # Expr
-      attr_reader :then_ # Stmts
-
-      def initialize(parent, token, expr, then_)
-        constrain expr, Expr
-        constrain then_ Block
-        super parent, token
-        @expr = attach expr
-        @then_ = attach then_
-      end
+      attr_accessor :expr # Expr
+      attr_accessor :then_ # [Stmt]
     end
 
     class Expr < Node
       def oper = @token.text
-
       def source = oper
       def dump = puts source
     end
@@ -165,78 +147,45 @@ module Prick::Lang
 
     # @token is the operator in expression objects
     class UnExpr < Expr
-      attr_reader :expr
-      def initialize(parent, token, expr)
-        constrain expr, Expr
-        super parent, token
-        @expr = attach(expr)
-      end
-
+      attr_accessor :expr
       def source = "#{oper} #{expr.source}"
     end
 
     class BinExpr < Expr
-      attr_reader :lexpr
-      attr_reader :rexpr
-      def initialize(parent, token, lexpr, rexpr)
-        constrain lexpr, Expr
-        constrain rexpr, Expr
-        super parent, token
-        @lexpr = attach lexpr
-        @rexpr = attach rexpr
-      end
-
+      attr_accessor :lexpr
+      attr_accessor :rexpr
       def source = "#{lexpr.source} #{oper} #{rexpr.source}"
     end
 
     class ListExpr < Expr
-      def name = @token.name
-      attr_reader :idents # List of Idents
-      def initialize(parent, token, idents)
-        contrain ident, [Idents]
-        super parent, token
-        @list = attachs idents
-      end
-
+      forward_to :@token, :name
+      attr_accessor :idents # List of Idents
       def source = "#{oper} #{list.join(" ")}"
     end
 
     class VersionExpr < Expr # Token is the 'version' keyword
-      attr_reader :exprs
-      def initialize(parent, token, exprs)
-        constrain exprs, [VersionCompareExpr]
-        super parent, token
-        @exprs = attachs exprs
-      end
+      attr_accessor :exprs
     end
 
     class VersionCompareExpr
       def operator = @token.kind
-      attr_reader :version
-      def initialize(parent, token, version)
-        constrain version, Ver
-        super parent, token
-        @version = attach version
-      end
+      attr_accessor :version
     end
 
     class File < Node
       forward_to :token, :filename, :extname
       def dumpident = filename
-#     def initialize(parent = nil, token)
-#       super(parent, token)
-#     end
     end
 
     class Ident < Node
       def name = token.text
+      def dumpsig = name
     end
 
     class Ver < Node
       def source = token.text
       def version = source # For now
     end
-
   end
 end
 

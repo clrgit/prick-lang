@@ -170,6 +170,8 @@ module Prick::Lang
     # Leading and traling blank lines are ignored (but counted). Note that
     # #readtext will read the rest of the file if min_indent is 0
     def readtext(min_indent, eof: false)
+#     puts "#readtext(#{min_indent}, eof: #{eof})"
+
       !eof? or return handle_eox(:EOF, eof)
       bol? or raise InternalError # We have to be at the beginning of line
 
@@ -238,6 +240,9 @@ module Prick::Lang
         puts "  line: #{line.inspect}"
         puts "  rest: #{line&.[](@pos..-1).inspect}"
         puts "  indent: #{@indent.inspect}"
+        puts "  token: #{token.inspect}"
+        puts "  error: #{error.inspect}"
+        puts "  peek_error: #{peek.inspect}"
       }
     end
 

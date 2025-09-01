@@ -207,14 +207,13 @@ module Prick::Lang
     def parse_program
 #     puts "#parse_program"
       @ast = Ast::Program.new(file)
-      parse_stmts(@ast)
+      parse_block(@ast)
       @ast
     end
 
-    def parse_stmts(parent)
 #     puts "#parse_stmts"
-      true until parse_stmt(parent).nil?
-    end
+#     true until parse_stmt(parent).nil?
+#   end
 
     def parse_stmt(parent)
 #     puts "#parse_stmt"; indent {
@@ -237,56 +236,26 @@ module Prick::Lang
 #     }
     end
 
-    def parse_decl(parent)
-#     puts "parse_decl"
-      token = read # eat schema/group keyword
-      ident = Ast::Ident.new(nil, expect(:IDENT))
-      block = parse_block_argument(nil)
-      Ast::Decl.new(parent, token, ident, block)
-    end
-
-    def parse_phase(parent)
-#     puts "parse_phase"
-      token = read
-      phase = Ast::Phase.new(parent, token)
-      parse_block_argument(phase)
-    end
-
-    def parse_command(parent)
-#     puts "#parse_command"
-      token = read
-      command = Ast::Command.new(parent, token)
-      if peek.kind == :PIPE
-        read
-        command.source = readtext(tokenizer.indent).text
-      else
-        command.source = readline.text
+    # Parse a statement block (a list of statements). Checks for non-empty when
+    # :check is true (the default)
+    #
+    def parse_block(parent, token = nil, check: true)
+      check_expected "block" do
+        block = Ast::Block.new(parent, token) # Note that token may be nil
+        true until parse_stmt(block).nil?
+        next nil if block.empty? && check
+        block.token ||= block.start_token # Default token to start token
+        block
       end
-      command
     end
 
-    def parse_if(parent)
-#     puts "#parse_if"
-      token = read
-      command = Ast::If.new(parent, token)
-      loop do
-        if_then = Ast::IfThen.new(command, token, nil)
-        if_then.expr = parse_expr(if_then)
-        command.if_thens << if_then
-
-        if_then.then_ = Ast::Block.new(if_then, token)
-        parse_stmts(if_then.then_)
-
-        break if peek.kind != :ELSIF
-        read
-      end
-      if peek.kind == :ELSE
-        read
-        command.else_ = Ast::Block.new(command, token)
-        parse_stmts command.else_
-      end
-      expect(:END)
-    end
+#   def parse_stmts(parent)
+#     stmts = []
+#     while stmt = parse_stmt(parent)
+#       stmts << stmt
+#     end
+#     stmts.empty? ? nil : stmts
+#   end
 
 
     # Parse a block expression
@@ -296,45 +265,98 @@ module Prick::Lang
     #   COMMAND
     #
     def parse_block_argument(parent)
-      check %w(block command file) do |token|
-        block = Ast::Block.new(parent, token, nil, nil)
+      check_expected %w(block command file) do |token|
         if token.kind == :BRACE_BEGIN
-          read # skip token
-          parse_stmts block
+          block = parse_block(parent, read, check: false)
           block.stop_token = expect(:BRACE_END) or unexpected_token_error "}"
-        elsif token.kind == :FILE
-          parse_files block
-          block.stop_token = block.start_token
-        elsif token.group? :command
-          parse_command block
-          block.stop_token = block.start_token
+        else
+          block = Ast::Block.new(parent, token)
+          if token.kind == :FILE
+            parse_files block
+          elsif token.group? :command
+            parse_command block
+          else
+            nil
+          end
         end
         block
       end
     end
 
-    # Parse a list of files
-    #
-    def parse_files(parent)
-#     puts "#parse_files"; indent {
-#     puts "parent.children.size: #{parent.children.size}"
-      r = nil
-      while !@tokenizer.eof? && (token = peek) && token.kind == :FILE
-        r = Ast::File.new(parent, read)
+    def parse_decl(parent)
+#     puts "parse_decl"
+      decl = Ast::Decl.new(parent, read)
+      decl.ident = parse_ident(decl)
+      decl.block = parse_block_argument(decl)
+      decl
+    end
+
+    def parse_phase(parent)
+#     puts "parse_phase"
+      phase = Ast::Phase.new(parent, read)
+      phase.block = parse_block_argument(phase)
+      phase
+    end
+
+    def parse_command(parent)
+#     puts "#parse_command"
+      command = Ast::Command.new(parent, token = read)
+      if peek.kind == :PIPE
+        min_indent = tokenizer.indent + 1
+        read
+        command.source = readtext(min_indent)&.text
+      else
+        command.source = readline&.text
+      end or unexpected_token_error peek, "command"
+      command
+    end
+
+    def parse_if(parent)
+#     puts "#parse_if"
+      if_ = Ast::If.new(parent, token = read)
+      if_.if_thens = []
+      loop do
+        if_then = Ast::IfThen.new(if_, token)
+        if_.if_thens << if_then
+        if_then.expr = parse_expr(if_then)
+        if_then.then_ = parse_block(if_then)
+        break if peek.kind != :ELSIF
+        read
       end
-#     puts "parent.children.size: #{parent.children.size}"
-      r
-#     }
+      if peek.kind == :ELSE
+        read
+        if_.else_ = parse_block(if_)
+      end
+      expect(:END)
+      if_
     end
 
     def parse_expr(parent)
 #     puts "#parse_expr"
       token = readline or unexpected_token_error "expression"
-      Ast::Expr.new parent, token
+      expr = Ast::Expr.new parent, token
+      expr
     end
 
     def parse_expr2(parent)
 
+    end
+
+    def parse_ident(parent) = Ast::Ident.new(parent, expect(:IDENT))
+
+    # Parse a list of files. Return array of File objects. Raise an error if
+    # the array is empty and :check is true
+    #
+    def parse_files(parent, check: true)
+#     puts "#parse_files"
+      check_expected "files" do
+        r = []
+        while !@tokenizer.eof? && (token = peek) && token.kind == :FILE
+          r << Ast::File.new(parent, read)
+        end
+        next nil if r.empty?
+        r
+      end
     end
 
     #
@@ -367,18 +389,18 @@ module Prick::Lang
     #
 
     # :call-seq:
-    #   unexpected_token_error(token = error_token || curr, *words)
+    #   unexpected_token_error(token = tokenizer.error_token || tokenizer.token, *words)
     #
-    # Raise an error with the message format. It does not check for an error,
-    # it only displays it
+    # Raise an error with the message format
     #
     #   Expected KIND, ..., or KIND, got KIND
     #
-    # The error will be located at the given token (default
-    # the tokenizer error token or the current object
+    # The error will be located at the given token (default tokenizer #error or
+    # #token). Note that it does not check for an error, it only displays it
     #
     def unexpected_token_error(*args)
-      token = args.first.is_a?(Token) ? args.shift : tokenizer.error || token
+      token = args.first.is_a?(Token) ? args.shift : tokenizer.error || tokenizer.peek_error || tokenizer.token
+      token or raise ArgumentError
       words = seq Array(*args).flatten
       source = token.respond_to?(:error) && token.error || token.text
       got = (source.empty? ? "" : ", got '#{source}'")
@@ -386,7 +408,7 @@ module Prick::Lang
       error token, message
     end
 
-    def check(words, &block)
+    def check_expected(words, &block)
       token = peek and r = yield(token) or unexpected_token_error token, words
       r
     end
