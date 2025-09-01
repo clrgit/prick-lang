@@ -2,6 +2,8 @@
 
 require_relative "lang/version"
 
+require 'set'
+
 require 'constrain'
 require 'forward_to'
 require 'indented_io'

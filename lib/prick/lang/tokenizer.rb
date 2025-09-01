@@ -120,7 +120,7 @@ module Prick::Lang
 
       @peek_token =
           if capture = m[:word]
-            Token.new *args, match, Token::WORDS[match] #Token::WORDS[capture]
+            Token.new *args, match, Token::WORDS[match] #Token::WORDS[capture] FIXME
           elsif m[:dir]
             DirToken.new *args, match
           elsif m[:file]

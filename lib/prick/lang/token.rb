@@ -26,10 +26,13 @@ module Prick::Lang
       SQL: "sql",
       ENV: "env",
       CMD: "cmd",
+      VERSION: "version", # Version keyword
 
       # Punctuation
       BRACE_BEGIN: "{",
       BRACE_END: "}",
+
+      # Operators
       PAREN_BEGIN: "(",
       PAREN_END: ")",
       ANDAND: "&&",
@@ -46,13 +49,13 @@ module Prick::Lang
 
       # Identifiers
       IDENT: nil,
-      GRPREF: nil,
       OBJREF: nil,
+      GRPREF: nil,
 
       # Literals
       FILE: nil,
       DIR: nil,
-      VERSION: nil,
+      VER: nil, # Version number
 
       # Text literals
       LINE: nil, # Line of text
@@ -139,11 +142,17 @@ module Prick::Lang
     attr_reader :charno
     attr_accessor :kind # Symbol. Can mutate from keyword to ident
     attr_reader :text # String
+    attr_accessor :value # Value of token. Used by env and cmd to store list of matches
 
     # FIXME Unused?
-    def keyword? = KEYWORDS.include? kind
     def punct? = PUNCTS.include? kind
+
+    # Return true if the token can be interpreted as the given kind
+    def keyword? = KEYWORDS.include? kind
     def ident? = IDENTS.include? kind
+    def objref? = ident? || kind == :OBJREF
+    def grpref? = ident? || kind == :GRPREF
+
     def literal? = LITERALS.include? kind
     def text? = TEXTS.include? kind
 

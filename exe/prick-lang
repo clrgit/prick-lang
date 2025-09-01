@@ -63,9 +63,9 @@ SPEC = %(
 
     VAL-EXPR ::=
         IDENT
-      | OBJECTREF
-      | GROUPREF
-      | VERSION
+      | OBJREF
+      | GRPREF
+      | VER
 
     CASE-STMT ::=
         case VAR-EXPR WHEN-STMT... [ else COMMAND... ] end

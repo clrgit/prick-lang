@@ -26,6 +26,159 @@ module Prick::Lang
       })
     end
 
+    # Map from operator token kind to tuple of priority, associtivity (:left
+    # or :right), and arity
+    OPERATORS = {
+      ANDAND: [0, :left, 2],
+      OROR: [0, :left, 2],
+      LT: [1, :left, 2],
+      LE: [1, :left, 2],
+      EQ: [1, :left, 2],
+      NE: [1, :left, 2],
+      GE: [1, :left, 2],
+      GT: [1, :left, 2],
+      EXCLAIM: [2, :right, 1],
+#     TIGT: [2, :left, 2]
+#     ENV: [2, :right, 1]
+#     VERSION: [2, :right, 1]
+    }.map { |k,v| [k, { prior: v[0], assoc: v[1], arity: v[2] }
+
+    # Operators for comparing versions
+    VERSION_OPERATORS = Set[:LT, :LE, :EQ, :NE, :GE, :GT, :TIGT]
+
+    def shunt_expr
+      stack = []
+      output = []
+      token_args = {} # Map from list operators 'env' and 'cmd' to array of arguments
+
+      while token = peek
+        case token.kind
+          when :PAREN_BEGIN; stack.push(read)
+          when :PAREN_END
+            read
+            while op = stack.pop and op != :PAREN_BEGIN
+              output << op
+            end
+          when :ENV, :CMD
+            read
+            token.value = []
+            while peek?&.ident?
+              token.value << read
+            end
+            !token.value.empty? or unexpected_token_error(peek, "identifier")
+            output << token
+
+          when :VERSION
+            read
+            token.value = []
+            while VERSION_OPERATORS.include?(peek.kind)
+              op = read
+              token.value << [op, expect(:VER)]
+            end
+            !token.value.empty? or unexpected_token_error(peek, "version")
+            output << token
+
+          else
+            if oper = OPERATORS[token]
+              while top = OPERATORS[stack.last]
+                break if oper[:prior] > top[:prior]
+                break if oper[:prior] == top[:prior] && oper[:assoc] == :right
+                output << stack.pop
+              end
+              stack.push token
+            else
+              break
+            end
+        end
+      end
+
+      output + stack.reverse
+    end
+
+    def parse_expr
+      stack = []
+      shunt_expr.each { |token|
+        case token.kind
+          when :VERSION
+            expr = VersionExpr.new(parent, token)
+            for oper, version in token.value
+              compare_expr = VersionCompareExpr.new(expr, oper)
+              compare_expr.version = Version.new(compare_expr, version)
+              expr.exprs << compare_expr
+            end
+            stack.push expr
+          else
+            if oper = OPERATORS[token.to_s]
+              case oper[:arity]
+                when 1
+                  e = UnExpr.new(parent, token)
+                  arg = stack.pop
+                  e.expr =
+    #             a = stack.pop
+    #             stack.push([token.to_sym, a])
+                when 2
+                  b = stack.pop
+                  a = stack.pop
+                  stack.push([token.to_sym, a, b])
+              else
+                raise
+              end
+        else
+          case token.kind
+            when :VERSION
+
+          stack.push(token)
+        end
+      }
+      stack.first
+    end
+
+
+# i = -1
+# i_end = tokens.size
+# while token = tokens[i+=1]
+#   puts "token:  #{token.inspect}"
+#   case token
+#     when :PAREN_BEGIN; stack.push(token)
+#     when :PAREN_END
+#       while op = stack.pop and op != :PAREN_BEGIN
+#         output << op
+#       end
+#     when :ENV
+#       while i < i_end && !OPERATORS.key?(tokens[i+1])
+#         puts "EAT #{tokens[i+1]}"
+#         i += 1
+#       end
+#       output << token
+#     when :VERSION;
+#     when Integer; output << token
+#     when :IDENT, :OBJREF, :GRPREF, :VER; stack.push(token)
+#   else
+#     if oper = OPERATORS[token]
+#       while top = OPERATORS[stack.last]
+#         break if oper[:precedence] > top[:precedence]
+#         break if oper[:precedence] == top[:precedence] && oper[:assoc] == :right
+#         output << stack.pop
+#         puts "  stack:  #{stack.inspect}"
+#         puts "  output: #{output.inspect}"
+#         puts
+#       end
+#       stack.push token
+#
+#     else
+#       raise "TODO"
+#     end
+#   end
+#
+#   puts "stack:  #{stack.inspect}"
+#   puts "output: #{output.inspect}"
+#   puts
+# end
+#
+# output + stack.reverse
+#end
+
+
     attr_reader :tokenizer
     forward_to :tokenizer, :compiler
     forward_to :compiler, :file
@@ -57,7 +210,9 @@ module Prick::Lang
 
     def parse_stmts(parent)
 #     puts "#parse_stmts"
-      while r = parse_stmt(parent); end
+      while stmt = parse_stmt(parent)
+        parent.attach stmt
+      end
       r
     end
 
@@ -166,6 +321,10 @@ module Prick::Lang
 #     puts "#parse_expr"
       token = readline or unexpected_token_error "expression"
       Ast::Expr.new parent, token
+    end
+
+    def parse_expr2(parent)
+
     end
 
     #
