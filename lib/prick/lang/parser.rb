@@ -41,7 +41,7 @@ module Prick::Lang
 #     TIGT: [2, :left, 2]
 #     ENV: [2, :right, 1]
 #     VERSION: [2, :right, 1]
-    }.map { |k,v| [k, { prior: v[0], assoc: v[1], arity: v[2] }
+    }.map { |k,v| [k, [prior: v[0], assoc: v[1], arity: v[2]] ] }
 
     # Operators for comparing versions
     VERSION_OPERATORS = Set[:LT, :LE, :EQ, :NE, :GE, :GT, :TIGT]
@@ -113,7 +113,7 @@ module Prick::Lang
                 when 1
                   e = UnExpr.new(parent, token)
                   arg = stack.pop
-                  e.expr =
+                  e.expr = # SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS
     #             a = stack.pop
     #             stack.push([token.to_sym, a])
                 when 2
