@@ -44,30 +44,7 @@ module Prick::Lang
         children
       end
 
-      def classname = "#{self.class}"
-
-      # The node's informal name. This is the class name by default but eg.
-      # Command redefines it depending on the kind of command (exec/eval/...).
-      # Used in #dump and test
-      #
-      # Note: Using implicit string conversion instead of #to_s because
-      # otherwise encoding would be US-ASCII instead of the application default
-      # (usually UTF-8)
-      def dumpname = "#{self.class}".sub(/.*::/, "")
-
-      # The node's identifier (possibly nil). Used in #dump and test
-      def dumpident = nil
-
-      # Signature of a node (token-kind/class + ident). Used in #dump and test
-      def dumpsig = [dumpname, dumpident].compact.join(" ")
-
-      # Dump an Ast node hierarchically
-      def dump(nodes = children)
-        puts dumpsig
-        indent { nodes.each &:dump }
-      end
-
-      def inspect() = "#<#{dumpsig}>"
+      def classname = self.class.to_s.sub(/.*::/, "")
     end
 
     class Program < Node
@@ -80,26 +57,19 @@ module Prick::Lang
     # Block allows the token to be nil. It defaults to #start_token
     class Block < Node
       def name = @token.text
-      attr_accessor :block
       alias_method :stmts, :children
     end
 
     class Decl < Node
       forward_to :token, :kind
+      forward_to :ident, :name
       attr_accessor :ident
       attr_accessor :block
-
-      forward_to :ident, :name
-
-      def dumpident = "#{Token::TOKENS[kind]} #{name.inspect}"
-      def dump = super([block])
-
     end
 
     class Phase < Node
+      def name = @token.text
       attr_accessor :block
-
-      def dumpident = Token::TOKENS[kind]
     end
 
     class Command < Node
@@ -108,27 +78,11 @@ module Prick::Lang
 
       # True iff source consists of multiple lines
       def multiline? = @source =~ /\n/
-
-      def dumpname = "#{kind}".capitalize
-      def dumpident = source ? source.split("\n").join("; ") : ""
     end
 
     class If < Node
       attr_accessor :if_thens # [IfThen]
       attr_accessor :else_ # Block
-
-      def dump
-        keyword = "If"
-        for if_then in if_thens
-          puts "#{keyword} #{if_then.expr.source}"
-          keyword = "Elsif"
-          indent { if_then.then_.dump }
-        end
-        if else_
-          puts "Else"
-          indent { else_.dump }
-        end
-      end
 
       def analyze(parent) Idr::IfStmt.new(self, parent, expr, @then.analyze, @else.analyze) end
     end
@@ -141,7 +95,6 @@ module Prick::Lang
     class Expr < Node
       def oper = @token.text
       def source = oper
-      def dump = puts source
     end
 
 
@@ -163,8 +116,8 @@ module Prick::Lang
       def source = "#{oper} #{list.join(" ")}"
     end
 
-    class VersionExpr < Expr # Token is the 'version' keyword
-      attr_accessor :exprs
+    class VersionExpr < Expr # the 'version' keyword. See Ver
+      alias_method :exprs, :children # [VersionCompareExpr]
     end
 
     class VersionCompareExpr
@@ -174,15 +127,13 @@ module Prick::Lang
 
     class File < Node
       forward_to :token, :filename, :extname
-      def dumpident = filename
     end
 
     class Ident < Node
       def name = token.text
-      def dumpsig = name
     end
 
-    class Ver < Node
+    class Ver < Node # a version value. See Version
       def source = token.text
       def version = source # For now
     end

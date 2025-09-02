@@ -95,6 +95,7 @@ end
 
 require_relative './lang/token.rb'
 require_relative './lang/ast.rb'
+require_relative './lang/ast.dump.rb'
 #require_relative './lang/idr.rb'
 
 require_relative './lang/tokenizer.rb'

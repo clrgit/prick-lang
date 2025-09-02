@@ -211,13 +211,8 @@ module Prick::Lang
       @ast
     end
 
-#     puts "#parse_stmts"
-#     true until parse_stmt(parent).nil?
-#   end
-
     def parse_stmt(parent)
-#     puts "#parse_stmt"; indent {
-#     puts "parent.children.size: #{parent.children.size}"
+#     puts "#parse_stmt"
       case peek.kind
         when :SCHEMA, :GROUP; parse_decl parent
         when :OPTIONS; parse_options parent
@@ -230,10 +225,8 @@ module Prick::Lang
         when :SQL; parse_sql parent
         when :FILE; parse_files parent
       else
-#       puts "parent.children.size: #{parent.children.size}"
         return nil
       end
-#     }
     end
 
     # Parse a statement block (a list of statements). Checks for non-empty when
@@ -248,15 +241,6 @@ module Prick::Lang
         block
       end
     end
-
-#   def parse_stmts(parent)
-#     stmts = []
-#     while stmt = parse_stmt(parent)
-#       stmts << stmt
-#     end
-#     stmts.empty? ? nil : stmts
-#   end
-
 
     # Parse a block expression
     #
@@ -283,6 +267,7 @@ module Prick::Lang
       end
     end
 
+    # Schema or group declaration
     def parse_decl(parent)
 #     puts "parse_decl"
       decl = Ast::Decl.new(parent, read)
@@ -291,6 +276,7 @@ module Prick::Lang
       decl
     end
 
+    # init, data, meta, etc. phases
     def parse_phase(parent)
 #     puts "parse_phase"
       phase = Ast::Phase.new(parent, read)
