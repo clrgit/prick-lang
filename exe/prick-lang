@@ -71,7 +71,7 @@ SPEC = %(
         case VAR-EXPR WHEN-STMT... [ else COMMAND... ] end
 
     WHEN-STMT ::=
-        when PRICK-VALUE COMMAND...
+        when VAL-EXPR COMMAND...
 
     PHASE-STMT ::=
         [init | term | meta | seeds | auth] BLOCK-ARGS

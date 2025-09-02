@@ -104,6 +104,10 @@ module Prick::Lang
       def source = "#{oper} #{expr.source}"
     end
 
+    class SimpleExpr < UnExpr
+      # oper is env, cmd, version, schema, group
+    end
+
     class BinExpr < Expr
       attr_accessor :lexpr
       attr_accessor :rexpr
