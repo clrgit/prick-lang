@@ -86,6 +86,17 @@ describe "Prick::Lang" do
           end
         end
 
+        context "require statements" do
+          it "with one argument" do
+            l = %(
+              require a
+            )
+            expect(dump l).to eq %(
+              Require a
+            ).align
+          end
+        end
+
         context "phase blocks" do
           it "with a file argument" do
             l = %(init file.sql)
@@ -259,34 +270,87 @@ describe "Prick::Lang" do
           end
         end
 
-        context "asdf" do
-          it "with a reference expression" #do
-#         end
-          it "with a unary expression" do
+        context "unary expressions" do
+          it "with one argument" do
             l = %(
               if ! env test
                 a.sql
               end
             )
             expect(dump l).to eq %(
-              If ! env(test)
+              If !(env(test))
                 Block
                   File a.sql
             ).align
           end
-          it "with a binary expression" do
+          it "associates operators" do
             l = %(
-              if env test && cmd build
+              if ! env test && env prod
                 a.sql
               end
             )
             expect(dump l).to eq %(
-              If env(test) && cmd(build)
+              If &&(!(env(test)), env(prod))
                 Block
                   File a.sql
             ).align
           end
         end
+
+        context "binary expressions" do
+          it "with two arguments" do
+            l = %(
+              if env test || env import
+                a.sql
+              end
+            )
+            expect(dump l).to eq %(
+              If ||(env(test), env(import))
+                Block
+                  File a.sql
+            ).align
+          end
+          it "with multi-argument runtime expressions" do
+            l = %(
+              if env test1 test2 || env import1 import2
+                a.sql
+              end
+            )
+            expect(dump l).to eq %(
+              If ||(env(test1, test2), env(import1, import2))
+                Block
+                  File a.sql
+            ).align
+          end
+          it "associates operators" do
+            l = %(
+              if env test || env import && env app
+                a.sql
+              end
+            )
+            expect(dump l).to eq %(
+              If ||(env(test), &&(env(import), env(app)))
+                Block
+                  File a.sql
+            ).align
+          end
+        end
+
+        context "parenthesized expressions" do
+          it "with one argument" do
+            l = %(
+              if ( env test )
+                a.sql
+              end
+            )
+            expect(dump l).to eq %(
+              If env(test)
+                Block
+                  File a.sql
+            ).align
+          end
+        end
+
       end
     end
   end

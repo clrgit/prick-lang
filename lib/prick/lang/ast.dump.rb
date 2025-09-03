@@ -33,6 +33,12 @@ module Prick::Lang
       def dump = super([block])
     end
 
+    class Require
+      def dump
+        puts "#{dumpsig} #{refs.map(&:ref).join(", ")}"
+      end
+    end
+
     class Phase
       def dumpident = Token::TOKENS[kind]
     end
@@ -72,7 +78,7 @@ module Prick::Lang
     class BinExpr
     end
 
-    class ListExpr
+    class ReferenceExpr
     end
 
     class VersionExpr

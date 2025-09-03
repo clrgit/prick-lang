@@ -27,17 +27,17 @@ module Prick::Lang
     end
 
     # Map from operator token kind to tuple of priority, associtivity (:left
-    # or :right), and arity
+    # or :right), and arity. Used by the shunter
     OPERATORS = {
-      ANDAND: [0, :left, 2],
       OROR: [0, :left, 2],
-      LT: [1, :left, 2],
-      LE: [1, :left, 2],
-      EQ: [1, :left, 2],
-      NE: [1, :left, 2],
-      GE: [1, :left, 2],
-      GT: [1, :left, 2],
-      EXCLAIM: [2, :right, 1]
+      ANDAND: [1, :left, 2],
+      LT: [2, :left, 2],
+      LE: [2, :left, 2],
+      EQ: [2, :left, 2],
+      NE: [2, :left, 2],
+      GE: [2, :left, 2],
+      GT: [2, :left, 2],
+      EXCLAIM: [3, :right, 1]
     }.map { |k,v| [k, { prior: v[0], assoc: v[1], arity: v[2] } ] }.to_h
 
     # Operators for comparing versions
@@ -137,6 +137,12 @@ module Prick::Lang
       decl
     end
 
+    def parse_require(parent)
+      require_ = Ast::Require.new(parent, read)
+      readwhile(:OBJREF, :GRPREF, :IDENT).map { Ast::Reference.new(require_, _1) }
+      require_
+    end
+
     # init, data, meta, etc. phases
     def parse_phase(parent)
 #     puts "parse_phase"
@@ -215,13 +221,18 @@ module Prick::Lang
           expr.words = readwhile :IDENT
         when :SCHEMA
           expr = Ast::ReferenceExpr.new(nil, read)
-          expr.ref = expect(:IDENT)
+          Ast::Reference.new(expr, expect(:IDENT))
+#         p expr
+#         p expr.token
+#         p expr.name
+#         p expr.ref
+#         p expr.ref.token
         when :OBJECT
           expr = Ast::ReferenceExpr.new(nil, read)
-          expr.ref = expect(:OBJREF, :IDENT)
+          Ast::Reference.new(expr, expect(:OBJREF, :IDENT))
         when :GROUP
           expr = Ast::ReferenceExpr.new(nil, read)
-          expr.ref = expect(:GRPREF, :IDENT)
+          Ast::Reference.new(expr, expect(:GRPREF, :IDENT))
         when :VERSION
           expr = Ast::VersionExpr.new(nil, read)
           while VERSION_OPERATORS.include?(peek.kind)
@@ -236,6 +247,9 @@ module Prick::Lang
     end
 
     def parse_ident(parent) = Ast::Ident.new(parent, expect(:IDENT))
+    def parse_refs(parent)
+      readwhile(:IDENT, :OBJREF, :GRPREF).map { Ast::ReferenceExpr.new(parent, _1) }
+    end
 
     # Parse a list of files. Return array of File objects. Raise an error if
     # the array is empty and :check is true
@@ -250,6 +264,43 @@ module Prick::Lang
         next nil if r.empty?
         r
       end
+    end
+
+    #
+    # S H U N T I N G
+    #
+    def shunt_exprs
+#     puts "#shunt_exprs"
+      stack = []
+      output = []
+      token_args = {} # Map from list operators 'env' and 'cmd' to array of arguments
+
+      while token = peek
+        case token.kind
+          when :PAREN_BEGIN; stack.push(read)
+          when :PAREN_END
+            read
+            while op = stack.pop and op != :PAREN_BEGIN
+              output << op
+            end
+          when :CMD, :ENV, :USER, :VERSION, :SCHEMA, :OBJECT, :GROUP
+            output << parse_simple_expr
+          else
+            if oper = OPERATORS[token.kind]
+              read
+              while top = OPERATORS[stack.last&.kind]
+                break if oper[:prior] > top[:prior]
+                break if oper[:prior] == top[:prior] && oper[:assoc] == :right
+                output << stack.pop
+              end
+              stack.push token
+            else
+              break
+            end
+        end
+      end
+
+      output + stack.reverse
     end
 
     #
@@ -327,43 +378,6 @@ module Prick::Lang
         when 2; words.join(" or ")
         else words[0..-2].join(", ") + ", or " + words.last
       end
-    end
-
-    #
-    # S H U N T I N G
-    #
-    def shunt_exprs
-#     puts "#shunt_exprs"
-      stack = []
-      output = []
-      token_args = {} # Map from list operators 'env' and 'cmd' to array of arguments
-
-      while token = peek
-        case token.kind
-          when :PAREN_BEGIN; stack.push(read)
-          when :PAREN_END
-            read
-            while op = stack.pop and op != :PAREN_BEGIN
-              output << op
-            end
-          when :CMD, :ENV, :USER, :VERSION, :SCHEMA, :OBJECT, :GROUP
-            output << parse_simple_expr
-          else
-            if oper = OPERATORS[token.kind]
-              read
-              while top = OPERATORS[stack.last]
-                break if oper[:prior] > top[:prior]
-                break if oper[:prior] == top[:prior] && oper[:assoc] == :right
-                output << stack.pop
-              end
-              stack.push token
-            else
-              break
-            end
-        end
-      end
-
-      output + stack.reverse
     end
 
   end

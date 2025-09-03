@@ -39,9 +39,10 @@ module Prick::Lang
       PAREN_END: ")",
       ANDAND: "&&",
       OROR: "||",
+      LE: "<=", # Order is important because this matches against prefixes
       LT: "<",
-      LE: "<=",
-      EQ: "==",
+      EQEQ: "==",
+      EQ: "=",
       NE: "!=",
       GE: ">=",
       GT: ">",

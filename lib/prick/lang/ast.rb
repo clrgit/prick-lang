@@ -68,6 +68,10 @@ module Prick::Lang
       attr_accessor :block
     end
 
+    class Require < Node
+      alias_method :refs, :children # [Reference]
+    end
+
     class Phase < Node
       def name = @token.text
       attr_accessor :block
@@ -94,25 +98,26 @@ module Prick::Lang
     end
 
     class Expr < Node
-      def oper = @token.text
-      def source = oper
+      def source = @token.text
     end
 
     # @token is the operator in expression objects
     class UnExpr < Expr
+      def oper = @token.text
       def expr = children.first
-      def source = "#{oper} #{expr.source}"
+      def source = "#{oper}(#{expr.source})"
     end
 
     class BinExpr < Expr
+      def oper = @token.text
       def lexpr = children.first
       def rexpr = children.last
 #     attr_accessor :lexpr
 #     attr_accessor :rexpr
-      def source = "#{lexpr.source} #{oper} #{rexpr.source}"
+      def source = "#{oper}(#{lexpr.source}, #{rexpr.source})"
     end
 
-    class SimpleExpr < Node
+    class SimpleExpr < Expr
       def name = @token.text
     end
 
@@ -121,9 +126,10 @@ module Prick::Lang
       def source = "#{name}(#{words.map(&:text).join(', ')})"
     end
 
+    # eg. 'schema app'
     class ReferenceExpr < SimpleExpr
-      attr_accessor :ref # Token
-      def source = "#{name}(#{ref.text})"
+      def ref = children.first # Reference
+      def source = "#{name}(#{ref.ref})"
     end
 
     class VersionExpr < SimpleExpr # the 'version' keyword. See Ver
@@ -137,6 +143,10 @@ module Prick::Lang
 
     class Ident < Node
       def name = @token.text
+    end
+
+    class Reference < Node
+      def ref = @token.text
     end
 
     class File < Node
