@@ -19,12 +19,13 @@ SPEC = %(
 
     STMT ::=
         DECL_STMT
-      | options TODO
-      | require SCHEMANAME|GROUPREF
+      | GROUP-STMT
+      | PHASE-STMT
+      | OPTION_STMT
+      | REQUIRE_STMT
       | IF-STMT
       | CASE-STMT
-      | PHASE-STMT
-      | GROUP-STMT
+      | MAKE-STMT
       | COMMAND-STMT
       | FILE-STMT
       | EXIT-STMT
@@ -40,9 +41,9 @@ SPEC = %(
       require SCHEMANAME|GROUPREF
 
     IF-STMT ::=
-        if PRICK-EXPR|BLOCK then COMMAND... end
-      | if PRICK-EXPR|BLOCK then COMMAND... else COMMAND... end
-      | if PRICK-EXPR|BLOCK then COMMAND... elsif PRICK-EXPR... end
+        if EXPR then COMMAND... end
+      | if EXPR then COMMAND... else COMMAND... end
+      | if EXPR then COMMAND... elsif EXPR... end
 
     EXPR ::=
         SIMPLE-EXPR
@@ -51,27 +52,15 @@ SPEC = %(
       | EXPR || EXPR
       | '(' EXPR ')'
 
-    SIMPLE-EXPR ::=
-        env ENVIRONMENT+
-      | cmd COMMAND+
-      | version VERSION_OP VERSION
-      | schema SCHEMANAME
-      | object OBJECTREF
-      | group GROUPREF
-
-    VAR-EXPR ::= env | cmd | version | schema | object | group
-
-    VAL-EXPR ::=
-        IDENT
-      | OBJREF
-      | GRPREF
-      | VER
-
     CASE-STMT ::=
         case VAR-EXPR WHEN-STMT... [ else COMMAND... ] end
 
     WHEN-STMT ::=
         when VAL-EXPR COMMAND...
+
+
+
+
 
     PHASE-STMT ::=
         [init | term | meta | seeds | auth] BLOCK-ARGS
@@ -86,20 +75,30 @@ SPEC = %(
 
     EXIT-STMT ::= exit INTEGER
 
+    SIMPLE-EXPR ::=
+        env ENVIRONMENT+
+      | cmd COMMAND+
+      | user USER+
+      | version VER_EXPR+
+      | schema SCHEMANAME
+      | object OBJECTREF
+      | group GROUPREF
+
+
+    VAR-EXPR ::= env | cmd | user | version | schema | object | group
+
+    VER-EXPR ::= VER-OP VER
+
+    VAL-EXPR ::=
+        IDENT
+      | OBJREF
+      | GRPREF
+      | VER
+
     BLOCK-ARGS ::=
         COMMAND-STMT
       | FILE-STMT...
       |  BLOCK
-
-    PRICK-EXPR ::=
-        env PRICK-ENVIRONMENT...
-      | cmd PRICK-COMMAND...
-      | version VERSION...
-      | user USER...
-
-    PRICK-VALUE ::=
-        PRICK-ENVIRONMENT...
-      | PRICK-COMMAND...
 
     BASH-EXPR ::= '|' <indented lines>
 
@@ -107,15 +106,11 @@ SPEC = %(
     FILE ::= <*.sql> | <*.psql> | <*.fox> | <*.prick> | <*.rb>
 
 
-    PRICK-EXPR-KIND ::= 'env' | 'cmd' | <more-to-come>
-    PRICK-ENVIRONMENT ::= 'proc' | 'dev' | 'test' | <user-defined>
-    PRICK-COMMAND ::= 'build' | 'rebuild' | 'make' | 'run' | <detected-dynamically>
-
-    SCHEMANAME ::= IDENT
-    OBJECTNAME ::= IDENT
-    OBJECTREF ::= SCHEMA_NAME.OBJECT_NAME
-    GROUPNAME ::= IDENT
-    GROUPREF ::= SCHEMA_NAME(::GROUP_NAME)+
+    SCHEMA_NAME ::= IDENT
+    OBJECT_NAME ::= IDENT
+    GROUP_NAME ::= IDENT
+    OBJREF ::= .? OBJECT_NAME ( . OBJECT_NAME )*
+    GRPREF ::= ::? GROUP_NAME ( :: GROUP_NAME )*
 
     IDENT ::= /[\w.]+/
     REF ::=

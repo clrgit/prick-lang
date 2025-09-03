@@ -134,13 +134,13 @@ describe "Prick::Lang" do
         context "if statements" do
           it "with only a then clause" do
             l = %(
-              if expr
+              if env test
                 a.sql
                 b.sql
               end
             )
             expect(dump l).to eq %(
-              If expr
+              If env(test)
                 Block
                   File a.sql
                   File b.sql
@@ -149,7 +149,7 @@ describe "Prick::Lang" do
 
           it "with a else clause" do
             l = %(
-              if expr
+              if env test
                 a.sql
                 b.sql
               else
@@ -157,7 +157,7 @@ describe "Prick::Lang" do
               end
             )
             expect(dump l).to eq %(
-              If expr
+              If env(test)
                 Block
                   File a.sql
                   File b.sql
@@ -169,21 +169,21 @@ describe "Prick::Lang" do
 
           it "with multiple elsif clauses" do
             l = %(
-              if expr1
+              if env test1
                 a.sql
                 b.sql
-              elsif expr2
+              elsif env test2
                 c.sql
               else
                 d.sql
               end
             )
             expect(dump l).to eq %(
-              If expr1
+              If env(test1)
                 Block
                   File a.sql
                   File b.sql
-              Elsif expr2
+              Elsif env(test2)
                 Block
                   File c.sql
               Else
@@ -193,106 +193,97 @@ describe "Prick::Lang" do
           end
         end
 
-
-      end
-    end
-  end
-end
-
-__END__
-
-      context "it parses" do
-        def sig(l) = call(l).children.first.dumpsig
-        def sigs(l) = call(l).children.map(&:dumpsig)
-        def blocksig(l) = call(l).children.first.children.first.children.map { |c| c.dumpsig }
-
-        context "file statements" do
+        context "runtime expressions" do
           it "with a single argument" do
-            l = %(file.sql)
-            expect(sig l).to eq "File file.sql"
+            l = %(
+              if env test
+                a.sql
+              end
+            )
+            expect(dump l).to eq %(
+              If env(test)
+                Block
+                  File a.sql
+            ).align
           end
           it "with multiple arguments" do
-            l = %(a.sql b.sql c.sql)
-            expect(sigs l).to eq ["File a.sql", "File b.sql", "File c.sql"]
+            l = %(
+              if env test1 test2
+                a.sql
+              end
+            )
+            expect(dump l).to eq %(
+              If env(test1, test2)
+                Block
+                  File a.sql
+            ).align
           end
         end
 
-        def d(t, s) = puts "#{t} #{s}: #{s.encoding}"
-
-        context "commands" do
-          it "with a LINE argument" do
-            l = %(eval ls -l)
-            expect(sig l).to eq "Eval ls -l"
-          end
-          it "with a TEXT argument" do
+        context "reference expressions" do
+          it "with an ident argument" do
             l = %(
-              eval |
-                ls -l
-                echo
+              if schema schema1
+                a.sql
+              end
             )
-            expect(sig l).to eq "Eval ls -l; echo"
+            expect(dump l).to eq %(
+              If schema(schema1)
+                Block
+                  File a.sql
+            ).align
+          end
+          it "with a object reference argument" do
+            l = %(
+              if object a.b.c
+                a.sql
+              end
+            )
+            expect(dump l).to eq %(
+              If object(a.b.c)
+                Block
+                  File a.sql
+            ).align
+          end
+          it "with a group reference argument" do
+            l = %(
+              if group a::b::c
+                a.sql
+              end
+            )
+            expect(dump l).to eq %(
+              If group(a::b::c)
+                Block
+                  File a.sql
+            ).align
           end
         end
 
-        context "if statements" do
-          it "with only a then clause" do
+        context "asdf" do
+          it "with a reference expression" #do
+#         end
+          it "with a unary expression" do
             l = %(
-              if expr
+              if ! env test
                 a.sql
-                b.sql
               end
             )
-
             expect(dump l).to eq %(
-              If expr
+              If ! env(test)
                 Block
                   File a.sql
-                  File b.sql
             ).align
           end
-
-          it "with a else clause" do
+          it "with a binary expression" do
             l = %(
-              if expr
+              if env test && cmd build
                 a.sql
-                b.sql
-              else
-                c.sql
               end
             )
             expect(dump l).to eq %(
-              If expr
+              If env(test) && cmd(build)
                 Block
                   File a.sql
-                  File b.sql
-              Else
-                Block
-                  File c.sql
-            ).align
-          end
-
-          it "with multiple elsif clauses" do
-            l = %(
-              if expr1
-                a.sql
-                b.sql
-              elsif expr2
-                c.sql
-              else
-                d.sql
-              end
-            )
-            expect(dump l).to eq %(
-              If expr1
-                Block
-                  File a.sql
-                  File b.sql
-              Elsif expr2
-                Block
-                  File c.sql
-              Else
-                Block
-                  File d.sql
             ).align
           end
         end
@@ -300,23 +291,4 @@ __END__
     end
   end
 end
-
-#   def dump(l)
-#     old_stdout = $stdout
-#     $stdout = StringIO.new
-#     call l
-#     $stdout.string.sub(/^.*?\n/m, "").align
-#   ensure
-#     $stdout = old_stdout
-#   end
-
-#   def capture(&block)
-#     old_stdout = $stdout
-#     $stdout = StringIO.new
-#     yield
-#     $stdout.string.sub(/^.*?\n/m, "").align
-#   ensure
-#     $stdout = old_stdout
-#   end
-
 

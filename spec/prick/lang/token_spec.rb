@@ -9,22 +9,40 @@ describe "Prick::Lang" do
       expect(string).to match re(re_symbol, eol: eol)
     end
 
+    def not_e(re_symbol, string, eol: true)
+      expect(string).not_to match re(re_symbol, eol: eol)
+    end
+
     # Lazy capture check
     def c(re_symbol, source, capture, text = source, eol: true)
       expect(re(re_symbol, eol: eol).match(source)[capture]).to eq text
     end
 
-    describe "::WORD_RE" do
+    describe "::KEYWORD_RE" do
+      it "matches whole words" do
+        not_e :KEYWORD_RE, "schema1", eol: false
+      end
+
       it "matches keywords" do
-        e :WORD_RE, "schema"
+        e :KEYWORD_RE, "schema"
+      end
+
+      it "sets 'keyword' capture" do
+        c :KEYWORD_RE, "schema", :keyword
+      end
+    end
+
+    describe "::PUNCT_RE" do
+      it "matches prefixes" do
+        e :PUNCT_RE, "<<", eol: false
       end
 
       it "matches punctuation" do
-        e :WORD_RE, "{"
+        e :PUNCT_RE, "{"
       end
 
-      it "sets 'word' capture" do
-        c :WORD_RE, "schema", :word
+      it "sets 'punct' capture" do
+        c :PUNCT_RE, "{", :punct
       end
     end
 
@@ -107,8 +125,11 @@ describe "Prick::Lang" do
     end
 
     describe "::TOKEN_RE" do
-      it "sets the 'word' capture" do
-        c :TOKEN_RE, "schema", :word
+      it "sets the 'keyword' capture" do
+        c :TOKEN_RE, "schema", :keyword
+      end
+      it "sets the 'punct' capture" do
+        c :TOKEN_RE, "{", :punct
       end
       it "sets the 'dir' capture" do
         c :TOKEN_RE, "./name/dir/", :dir

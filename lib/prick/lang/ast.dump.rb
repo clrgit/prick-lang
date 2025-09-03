@@ -4,8 +4,6 @@ module Prick::Lang
   module Ast
     class Node
       # The node's informal name. This is the class name by default but eg.
-      # Command redefines it depending on the kind of command (exec/eval/...).
-      # Used in #dump and test
       def dumpname = classname
 
       # The node's identifier (possibly nil). Used in #dump and test
@@ -23,28 +21,28 @@ module Prick::Lang
       def inspect() = "#<#{dumpsig}>"
     end
 
-    class Program < Node
+    class Program
     end
 
     # Block allows the token to be nil. It defaults to #start_token
-    class Block < Node
+    class Block
     end
 
-    class Decl < Node
+    class Decl
       def dumpident = "#{Token::TOKENS[kind]} #{name.inspect}"
       def dump = super([block])
     end
 
-    class Phase < Node
+    class Phase
       def dumpident = Token::TOKENS[kind]
     end
 
-    class Command < Node
+    class Command
       def dumpname = "#{kind}".capitalize
       def dumpident = source ? source.split("\n").join("; ") : ""
     end
 
-    class If < Node
+    class If
       def dump
         keyword = "If"
         for if_then in if_thens
@@ -59,39 +57,39 @@ module Prick::Lang
       end
     end
 
-    class IfThen < Node
+    class IfThen
     end
 
-    class Expr < Node
+    class Expr
       def dump = puts source
     end
 
 
     # @token is the operator in expression objects
-    class UnExpr < Expr
+    class UnExpr
     end
 
-    class BinExpr < Expr
+    class BinExpr
     end
 
-    class ListExpr < Expr
+    class ListExpr
     end
 
-    class VersionExpr < Expr # Token is the 'version' keyword
+    class VersionExpr
     end
 
     class VersionCompareExpr
     end
 
-    class File < Node
+    class File
       def dumpident = filename
     end
 
-    class Ident < Node
+    class Ident
       def dumpsig = name
     end
 
-    class Ver < Node
+    class Ver
     end
   end
 end
@@ -100,34 +98,34 @@ __END__
 
 
 
-    class InitBlock < Block
+    class InitBlock
     end
 
-    class FinalBlock < Block
+    class FinalBlock
     end
 
-    class MetaBlock < Block #?
+    class MetaBlock
     end
 
-    class SeedBlock < Block
+    class SeedBlock
     end
 
-    class AuthBlock < Block
+    class AuthBlock
     end
 
-    class SchemaStmt < Node
+    class SchemaStmt
     end
 
-    class OptionStmt < Node
+    class OptionStmt
     end
 
-    class CaseStmt < Node
+    class CaseStmt
       attr_reader :expr
       attr_reader :when_entries # {expr => Node}
       attr_reader :else_entry # Node or nil
     end
 
-    class CallStmt < Node
+    class CallStmt
       # Single-line command or multiline inline script
       attr_reader :source # String
 
@@ -141,35 +139,35 @@ __END__
       attr_reader :ruby
     end
 
-    class ExecStmt < CallStmt
+    class ExecStmt
     end
 
-    class EvalStmt < CallStmt
+    class EvalStmt
     end
 
-    class SqlFile < File
+    class SqlFile
     end
 
-    class PSqlFile < File
+    class PSqlFile
     end
 
-    class FoxFile < File
+    class FoxFile
     end
 
-    class RubyFile < File # ?
+    class RubyFile
       def analyze() CallStmt.new(self, filename, ruby: true) end
     end
 
-    class DirStmt < File
+    class DirStmt
     end
 
-    class PrickStmt < File
+    class PrickStmt
     end
 
     class InitBlock
     end
 
-    class Expr < Node
+    class Expr
     end
   end
 end

@@ -37,150 +37,11 @@ module Prick::Lang
       NE: [1, :left, 2],
       GE: [1, :left, 2],
       GT: [1, :left, 2],
-      EXCLAIM: [2, :right, 1],
-#     TIGT: [2, :left, 2]
-#     ENV: [2, :right, 1]
-#     VERSION: [2, :right, 1]
-    }.map { |k,v| [k, [prior: v[0], assoc: v[1], arity: v[2]] ] }
+      EXCLAIM: [2, :right, 1]
+    }.map { |k,v| [k, { prior: v[0], assoc: v[1], arity: v[2] } ] }.to_h
 
     # Operators for comparing versions
     VERSION_OPERATORS = Set[:LT, :LE, :EQ, :NE, :GE, :GT, :TIGT]
-
-    def shunt_expr
-      stack = []
-      output = []
-      token_args = {} # Map from list operators 'env' and 'cmd' to array of arguments
-
-      while token = peek
-        case token.kind
-          when :PAREN_BEGIN; stack.push(read)
-          when :PAREN_END
-            read
-            while op = stack.pop and op != :PAREN_BEGIN
-              output << op
-            end
-          when :ENV, :CMD
-            read
-            token.value = []
-            while peek?&.ident?
-              token.value << read
-            end
-            !token.value.empty? or unexpected_token_error(peek, "identifier")
-            output << token
-
-          when :VERSION
-            read
-            token.value = []
-            while VERSION_OPERATORS.include?(peek.kind)
-              op = read
-              token.value << [op, expect(:VER)]
-            end
-            !token.value.empty? or unexpected_token_error(peek, "version")
-            output << token
-
-          else
-            if oper = OPERATORS[token]
-              while top = OPERATORS[stack.last]
-                break if oper[:prior] > top[:prior]
-                break if oper[:prior] == top[:prior] && oper[:assoc] == :right
-                output << stack.pop
-              end
-              stack.push token
-            else
-              break
-            end
-        end
-      end
-
-      output + stack.reverse
-    end
-
-    def parse_expr
-      stack = []
-      shunt_expr.each { |token|
-        case token.kind
-          when :VERSION
-            expr = VersionExpr.new(parent, token)
-            for oper, version in token.value
-              compare_expr = VersionCompareExpr.new(expr, oper)
-              compare_expr.version = Version.new(compare_expr, version)
-              expr.exprs << compare_expr
-            end
-            stack.push expr
-          else
-            if oper = OPERATORS[token.to_s]
-              case oper[:arity]
-                when 1
-                  e = UnExpr.new(parent, token)
-                  arg = stack.pop
-#                 e.expr = # SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS
-    #             a = stack.pop
-    #             stack.push([token.to_sym, a])
-                when 2
-                  b = stack.pop
-                  a = stack.pop
-                  stack.push([token.to_sym, a, b])
-              else
-                raise
-              end
-            else
-              true ################################################
-            end
-#       else
-#         case token.kind
-#           when :VERSION
-
-#         stack.push(token)
-        end
-      }
-      stack.first
-    end
-
-
-# i = -1
-# i_end = tokens.size
-# while token = tokens[i+=1]
-#   puts "token:  #{token.inspect}"
-#   case token
-#     when :PAREN_BEGIN; stack.push(token)
-#     when :PAREN_END
-#       while op = stack.pop and op != :PAREN_BEGIN
-#         output << op
-#       end
-#     when :ENV
-#       while i < i_end && !OPERATORS.key?(tokens[i+1])
-#         puts "EAT #{tokens[i+1]}"
-#         i += 1
-#       end
-#       output << token
-#     when :VERSION;
-#     when Integer; output << token
-#     when :IDENT, :OBJREF, :GRPREF, :VER; stack.push(token)
-#   else
-#     if oper = OPERATORS[token]
-#       while top = OPERATORS[stack.last]
-#         break if oper[:precedence] > top[:precedence]
-#         break if oper[:precedence] == top[:precedence] && oper[:assoc] == :right
-#         output << stack.pop
-#         puts "  stack:  #{stack.inspect}"
-#         puts "  output: #{output.inspect}"
-#         puts
-#       end
-#       stack.push token
-#
-#     else
-#       raise "TODO"
-#     end
-#   end
-#
-#   puts "stack:  #{stack.inspect}"
-#   puts "output: #{output.inspect}"
-#   puts
-# end
-#
-# output + stack.reverse
-#end
-
 
     attr_reader :tokenizer
     forward_to :tokenizer, :compiler
@@ -319,13 +180,59 @@ module Prick::Lang
 
     def parse_expr(parent)
 #     puts "#parse_expr"
-      token = readline or unexpected_token_error "expression"
-      expr = Ast::Expr.new parent, token
-      expr
+      stack = []
+      shunt_exprs.each { |token| # Token may actually be an Expr but it quacks like a token in this context
+        if token.is_a? Ast::SimpleExpr
+          stack.push token
+        elsif oper = OPERATORS[token.kind]
+          case oper[:arity]
+            when 1
+              e = Ast::UnExpr.new(nil, token)
+              e.attach(stack.pop)
+              stack.push e
+            when 2
+              e = Ast::BinExpr.new(nil, token)
+              b = stack.pop
+              a = stack.pop
+              e.attachs(a, b)
+              stack.push e
+          else
+            raise InternalError
+          end
+        else
+          stack.push token
+        end
+      }
+      parent.attach stack.first
     end
 
-    def parse_expr2(parent)
-
+    # Parses list of words (cmd, env, user). Note: Called from the shunter
+    def parse_simple_expr # token should be equal to #peek
+#     puts "parse_simple_expr"
+      case peek.kind
+        when :CMD, :ENV, :USER
+          expr = Ast::RuntimeExpr.new(nil, read)
+          expr.words = readwhile :IDENT
+        when :SCHEMA
+          expr = Ast::ReferenceExpr.new(nil, read)
+          expr.ref = expect(:IDENT)
+        when :OBJECT
+          expr = Ast::ReferenceExpr.new(nil, read)
+          expr.ref = expect(:OBJREF, :IDENT)
+        when :GROUP
+          expr = Ast::ReferenceExpr.new(nil, read)
+          expr.ref = expect(:GRPREF, :IDENT)
+        when :VERSION
+          expr = Ast::VersionExpr.new(nil, read)
+          while VERSION_OPERATORS.include?(peek.kind)
+            op = read
+            expr.exprs << [op, expect(:VER)]
+          end
+          !expr.exprs.empty? or unexpected_token_error(peek, "version operator")
+      else
+        unexpected_token_error(peek, "simple expression")
+      end
+      expr
     end
 
     def parse_ident(parent) = Ast::Ident.new(parent, expect(:IDENT))
@@ -355,6 +262,7 @@ module Prick::Lang
     def read(**opts) = @tokenizer.read(**opts) or error(@tokenizer.error_token)
     def readline(**opts) = @tokenizer.readline(**opts) or error(@tokenizer.error_token)
     def readtext(indent, **opts) = @tokenizer.readtext(indent, **opts) or error(@tokenizer.error_token)
+    def readwhile(*kinds, **opts) = [expect(*kinds)] + readwhile?(kinds, **opts)
 
     # Functions from tokenizer that accepts a nil return. FIXME this sacrifices
     # run-time performance for code clarity
@@ -362,11 +270,20 @@ module Prick::Lang
     def read?(**opts) = @tokenizer.read(**opts)
     def readline?(**opts) = @tokenizer.readline(**opts)
     def readtext?(indent, **opts) = @tokenizer.readtext(indent, **opts)
+    def readwhile?(*kinds, **opts)
+      kinds = Array(kinds).flatten
+      a = []
+      while kinds.include? peek(**opts).kind
+        a << read(**opts)
+      end
+      a
+    end
 
     # Returns token of the given kind. Generate error if not found
-    def expect(kind)
+    def expect(*kinds)
+      kinds = Array(kinds).flatten
       token = tokenizer.read
-      token&.kind == kind or unexpected_token_error kind
+      kinds.include? token&.kind or unexpected_token_error kinds
       token
     end
 
@@ -411,6 +328,109 @@ module Prick::Lang
         else words[0..-2].join(", ") + ", or " + words.last
       end
     end
+
+    #
+    # S H U N T I N G
+    #
+    def shunt_exprs
+#     puts "#shunt_exprs"
+      stack = []
+      output = []
+      token_args = {} # Map from list operators 'env' and 'cmd' to array of arguments
+
+      while token = peek
+        case token.kind
+          when :PAREN_BEGIN; stack.push(read)
+          when :PAREN_END
+            read
+            while op = stack.pop and op != :PAREN_BEGIN
+              output << op
+            end
+          when :CMD, :ENV, :USER, :VERSION, :SCHEMA, :OBJECT, :GROUP
+            output << parse_simple_expr
+          else
+            if oper = OPERATORS[token.kind]
+              read
+              while top = OPERATORS[stack.last]
+                break if oper[:prior] > top[:prior]
+                break if oper[:prior] == top[:prior] && oper[:assoc] == :right
+                output << stack.pop
+              end
+              stack.push token
+            else
+              break
+            end
+        end
+      end
+
+      output + stack.reverse
+    end
+
   end
 end
+#       case token.kind
+#         when :CMD, :ENV, :USER
+#           e = BuiltinExpr.new(parent, token)
+#           e.words = parse_list(e)
+#         when :ENV
+#         when :USER
+#
+#         when :SCHEMA
+#         when :OBJECT
+#         when :GROUP
+#
+#         when :VERSION
+#           expr = VersionExpr.new(parent, token)
+#           for oper, version in token.value
+#             compare_expr = VersionCompareExpr.new(expr, oper)
+#             compare_expr.version = Version.new(compare_expr, version)
+#             expr.exprs << compare_expr
+#           end
+#           stack.push expr
+#
+
+# i = -1
+# i_end = tokens.size
+# while token = tokens[i+=1]
+#   puts "token:  #{token.inspect}"
+#   case token
+#     when :PAREN_BEGIN; stack.push(token)
+#     when :PAREN_END
+#       while op = stack.pop and op != :PAREN_BEGIN
+#         output << op
+#       end
+#     when :ENV
+#       while i < i_end && !OPERATORS.key?(tokens[i+1])
+#         puts "EAT #{tokens[i+1]}"
+#         i += 1
+#       end
+#       output << token
+#     when :VERSION;
+#     when Integer; output << token
+#     when :IDENT, :OBJREF, :GRPREF, :VER; stack.push(token)
+#   else
+#     if oper = OPERATORS[token]
+#       while top = OPERATORS[stack.last]
+#         break if oper[:precedence] > top[:precedence]
+#         break if oper[:precedence] == top[:precedence] && oper[:assoc] == :right
+#         output << stack.pop
+#         puts "  stack:  #{stack.inspect}"
+#         puts "  output: #{output.inspect}"
+#         puts
+#       end
+#       stack.push token
+#
+#     else
+#       raise "TODO"
+#     end
+#   end
+#
+#   puts "stack:  #{stack.inspect}"
+#   puts "output: #{output.inspect}"
+#   puts
+# end
+#
+# output + stack.reverse
+#end
+
 

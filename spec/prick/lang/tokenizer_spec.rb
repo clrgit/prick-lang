@@ -77,6 +77,11 @@ describe "Prick::Lang" do
         expect(kind l).to eq :EXEC
       end
 
+      it "reads identifiers" do
+        l = ["  schema1"]
+        expect(kind l).to eq :IDENT
+      end
+
       it "reads file tokens" do
         l = ["t.sql"]
         expect(kind l).to eq :FILE

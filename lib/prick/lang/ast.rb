@@ -39,8 +39,9 @@ module Prick::Lang
         child
       end
 
-      def attachs(children)
-        @children += children.tap { |c| c.parent = self }
+      def attachs(*children)
+        children = Array(children).flatten
+        @children += children.tap { |c| c.instance_variable_set(:@parent, self) }
         children
       end
 
@@ -97,30 +98,35 @@ module Prick::Lang
       def source = oper
     end
 
-
     # @token is the operator in expression objects
     class UnExpr < Expr
-      attr_accessor :expr
+      def expr = children.first
       def source = "#{oper} #{expr.source}"
     end
 
-    class SimpleExpr < UnExpr
-      # oper is env, cmd, version, schema, group
-    end
-
     class BinExpr < Expr
-      attr_accessor :lexpr
-      attr_accessor :rexpr
+      def lexpr = children.first
+      def rexpr = children.last
+#     attr_accessor :lexpr
+#     attr_accessor :rexpr
       def source = "#{lexpr.source} #{oper} #{rexpr.source}"
     end
 
-    class ListExpr < Expr
-      forward_to :@token, :name
-      attr_accessor :idents # List of Idents
-      def source = "#{oper} #{list.join(" ")}"
+    class SimpleExpr < Node
+      def name = @token.text
     end
 
-    class VersionExpr < Expr # the 'version' keyword. See Ver
+    class RuntimeExpr < SimpleExpr
+      attr_accessor :words # [Token]
+      def source = "#{name}(#{words.map(&:text).join(', ')})"
+    end
+
+    class ReferenceExpr < SimpleExpr
+      attr_accessor :ref # Token
+      def source = "#{name}(#{ref.text})"
+    end
+
+    class VersionExpr < SimpleExpr # the 'version' keyword. See Ver
       alias_method :exprs, :children # [VersionCompareExpr]
     end
 
@@ -129,17 +135,16 @@ module Prick::Lang
       attr_accessor :version
     end
 
-    class File < Node
-      forward_to :token, :filename, :extname
+    class Ident < Node
+      def name = @token.text
     end
 
-    class Ident < Node
-      def name = token.text
+    class File < Node
+      forward_to :@token, :filename, :extname
     end
 
     class Ver < Node # a version value. See Version
-      def source = token.text
-      def version = source # For now
+
     end
   end
 end

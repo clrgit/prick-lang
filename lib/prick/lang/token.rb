@@ -26,7 +26,9 @@ module Prick::Lang
       SQL: "sql",
       ENV: "env",
       CMD: "cmd",
-      VERSION: "version", # Version keyword
+      OBJECT: "object",
+      USER: "user",
+      VERSION: "version", # Version keyword, see also :VER
 
       # Punctuation
       BRACE_BEGIN: "{",
@@ -45,7 +47,7 @@ module Prick::Lang
       GT: ">",
       TIGT: "~>", # 'TI' for tilde
       EXCLAIM: "!",
-      PIPE: "|", # TODO: Eliminate or make optional
+      PIPE: "|",
 
       # Identifiers
       IDENT: nil,
@@ -55,7 +57,7 @@ module Prick::Lang
       # Literals
       FILE: nil,
       DIR: nil,
-      VER: nil, # Version number
+      VER: nil, # Version number, see also :VERSION
 
       # Text literals
       LINE: nil, # Line of text
@@ -98,7 +100,10 @@ module Prick::Lang
     FINALS = [:EOF, :EOL]
 
     # *_PATTERN do not generate captures
-    WORD_PATTERN = Regexp.union WORDS.keys # keywords and punctuation
+    KEYWORD_PATTERN = /\b#{Regexp.union KEYWORDS}\b/
+    PUNCT_PATTERN =  /#{Regexp.union PUNCTS}/
+
+#   WORD_PATTERN = /#{Regexp.union WORDS.keys}/ # keywords and punctuation
     FILE_PATTERN = /[^\/\s\0*?"`'$<>|:\[\]]+/ # Any legal linux filename
     EXT_PATTERN = Regexp.union(EXTS) # recognized file extensions
     REL_PATTERN = /\.{1,2}\/|\// # initial '/', '../', or './'
@@ -109,7 +114,8 @@ module Prick::Lang
     VERSION_PATTERN = /\d+(?:\.(\d+)(?:\.(\d+))?)?/
 
     # *_RE may generate captures
-    WORD_RE = /(?<word>#{WORD_PATTERN})/
+    KEYWORD_RE = /(?<keyword>#{KEYWORD_PATTERN})/
+    PUNCT_RE = /(?<punct>#{PUNCT_PATTERN})/
     FILE_RE = /(?<path>#{DIR_PATTERN})?(?<file>#{FILE_PATTERN}\.(?<ext>#{EXT_PATTERN}))/
     DIR_RE = /(?<dir>#{DIR_PATTERN})/
     IDENT_RE = /(?<ident>#{IDENT_PATTERN})/
@@ -130,7 +136,8 @@ module Prick::Lang
     # tokens are not matched. Sets $1 to the initial whitespace and $2 to the
     # non-blank part of the match. The kind of the token can be inferred from
     # the named captures: word, dir, path, file, ext, int, ident, ref
-    TOKEN_RE = /#{WORD_RE}|#{DIR_RE}|#{FILE_RE}|#{OBJREF_RE}|#{GRPREF_RE}|#{IDENT_RE}|#{VERSION_RE}|#{ERROR_RE}/
+    TOKEN_RE =
+        /#{KEYWORD_RE}|#{PUNCT_RE}|#{DIR_RE}|#{FILE_RE}|#{OBJREF_RE}|#{GRPREF_RE}|#{IDENT_RE}|#{VERSION_RE}|#{ERROR_RE}/
 
     # Matches as far as possible in the string. This is the same as TOKEN_RE
     # except filesystem names that matches nearly everything. ERROR_TOKEN_RE is
@@ -142,7 +149,10 @@ module Prick::Lang
     attr_reader :charno
     attr_accessor :kind # Symbol. Can mutate from keyword to ident
     attr_reader :text # String
-    attr_accessor :value # Value of token. Used by env and cmd to store list of matches
+
+    # Value of token. Used by simple expressions that accumulate arguments into
+    # a single token
+    attr_accessor :value
 
     # FIXME Unused?
     def punct? = PUNCTS.include? kind
