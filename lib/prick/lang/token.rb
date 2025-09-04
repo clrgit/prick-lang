@@ -149,7 +149,7 @@ module Prick::Lang
     attr_reader :lineno
     attr_reader :charno
     attr_accessor :kind # Symbol. Can mutate from keyword to ident
-    attr_reader :text # String
+    attr_accessor :text # String
 
     # Value of token. Used by simple expressions that accumulate arguments into
     # a single token

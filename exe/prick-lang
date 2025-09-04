@@ -94,6 +94,7 @@ SPEC = %(
       | OBJREF
       | GRPREF
       | VER
+      | VER-EXPR
 
     BLOCK-ARGS ::=
         COMMAND-STMT

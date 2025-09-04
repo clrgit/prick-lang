@@ -202,10 +202,36 @@ describe "Prick::Lang" do
                   File d.sql
             ).align
           end
+
+          it "with a version expression" do
+            l = %(
+              if version >= 1.2.3
+                a.sql
+              end
+            )
+            expect(dump l).to eq %(
+              If version >=("1.2.3")
+                Block
+                  File a.sql
+            ).align
+          end
+
+          it "with multiple version expressions" do
+            l = %(
+              if version >=1.2.3 <4.5.6
+                a.sql
+              end
+            )
+            expect(dump l).to eq %(
+              If version >=("1.2.3") <("4.5.6")
+                Block
+                  File a.sql
+            ).align
+          end
         end
 
         context "case statements" do
-          it "with single when-values" do
+          it "with single reference when-values" do
             l = %(
               case env
                 when test
@@ -214,11 +240,86 @@ describe "Prick::Lang" do
             )
             expect(dump l).to eq %(
               Case env
-                When test
+                When Reference("test")
                   Block
                     File a.sql
             ).align
           end
+
+          it "with single version when-values" do
+            l = %(
+              case version
+                when 1.2.3
+                  a.sql
+              end
+            )
+            expect(dump l).to eq %(
+              Case version
+                When ==("1.2.3")
+                  Block
+                    File a.sql
+            ).align
+          end
+
+          it "with single version expression when-values" do
+            l = %(
+              case version
+                when >=1.2.3
+                  a.sql
+              end
+            )
+            expect(dump l).to eq %(
+              Case version
+                When >=("1.2.3")
+                  Block
+                    File a.sql
+            ).align
+          end
+
+          it "with multiple reference when-values" do
+            l = %(
+              case env
+                when test prod
+                  a.sql
+              end
+            )
+            expect(dump l).to eq %(
+              Case env
+                When Reference("test"), Reference("prod")
+                  Block
+                    File a.sql
+            ).align
+          end
+
+          it "with multiple version when-values" do
+            l = %(
+              case version
+                when ~>1.2.3 <4.5.6
+                  a.sql
+              end
+            )
+            expect(dump l).to eq %(
+              Case version
+                When ~>("1.2.3"), <("4.5.6")
+                  Block
+                    File a.sql
+            ).align
+          end
+
+          it "fails on commas in list (with a sensible error message)" # do
+#           l = %(
+#             case env
+#               when test, prod
+#                 a.sql
+#             end
+#           )
+#           expect(dump l).to eq %(
+#             Case env
+#               When Reference("test"), Reference("prod")
+#                 Block
+#                   File a.sql
+#           ).align
+#         end
         end
 
         context "runtime expressions" do

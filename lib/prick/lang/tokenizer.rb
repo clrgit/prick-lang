@@ -54,7 +54,8 @@ module Prick::Lang
       @token = nil
       @error = nil # last error token
 
-      # Peek state
+      # Reset peek state (replace with #reset_peek but then goes our helpful
+      # explanation of @peek_token and @error_token)
       @peek_index = 0
       @peek_pos = 0
       @peek_token = nil # current peek'ed token if present
@@ -132,7 +133,7 @@ module Prick::Lang
           elsif m[:grpref]
             Token.new(*args, match, :GRPREF)
           elsif m[:version]
-            Token.new(*args, match, :VERSION)
+            Token.new(*args, match, :VER)
           elsif capture = m[:error]
             @peek_error = CharErrorToken.new(*args, capture)
             nil

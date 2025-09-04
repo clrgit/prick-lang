@@ -10,9 +10,9 @@ module Prick::Lang
       # All nodes have a start and stop token (they can be the same). The start token is equal to #token by default
 
       # All nodes have an eigen token and a start/stop token. The three tokens
-      # is often identical but eg. binary operators have three different
+      # are often identical but eg. binary operators have three different
       # tokens: '1 + 2' yields '1' as the start token, '2' as the stop token,
-      # and '+' as the binary node token
+      # and '+' as the binary expression token
       attr_accessor :token
 
       # Start token defaults recursively to the start token of the first child
@@ -34,6 +34,7 @@ module Prick::Lang
 
       def attach(child)
         return nil if child.nil?
+        child.is_a?(Node) or raise InternalError
         @children << child
         child.instance_variable_set(:@parent, self)
         child
@@ -41,6 +42,7 @@ module Prick::Lang
 
       def attachs(*children)
         children = Array(children).flatten
+        children.all? { _1.is_a?(Node) } or raise InternalError
         @children += children.tap { |c| c.instance_variable_set(:@parent, self) }
         children
       end
@@ -104,7 +106,7 @@ module Prick::Lang
     end
 
     class When < Node
-      attr_accessor :refs # [Value]
+      attr_accessor :values # [Value]
       attr_accessor :then_ # Block
     end
 
@@ -144,12 +146,13 @@ module Prick::Lang
     end
 
     class VersionExpr < SimpleExpr # the 'version' keyword. See Ver
-      alias_method :exprs, :children # [VersionCompare]
+      alias_method :matches, :children # [VersionCompare]
+      def source = "#{name} #{matches.map(&:dumpsig).join(' ')}"
     end
 
-    class VersionCompare < Node
-      def operator = @token.kind
-      attr_accessor :version
+    class VersionMatch < Node
+      def oper = @token.text
+      def version = @children.first
     end
 
     class Var < Node
@@ -169,7 +172,6 @@ module Prick::Lang
     end
 
     class Ver < Node # a version value. See Version
-
     end
   end
 end

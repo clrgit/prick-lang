@@ -68,7 +68,7 @@ module Prick::Lang
         puts "Case #{var.name}"
         indent {
           for when_ in whens
-            puts "when #{when_.values.map { |val| val.value(&:dumpsig).join(", ")}"
+            puts "When #{when_.values.map(&:dumpsig).join(", ")}"
             indent { when_.then_.dump }
           end
         }
@@ -82,9 +82,9 @@ module Prick::Lang
     class IfThen
     end
 
-    class Expr
-      def dump = puts source
-    end
+#   class Expr
+#     def dump = puts source
+#   end
 
 
     # @token is the operator in expression objects
@@ -95,13 +95,14 @@ module Prick::Lang
     end
 
     class ReferenceExpr
-      def dump = source + ">"
+      def dump = source
     end
 
     class VersionExpr
     end
 
-    class VersionCompare
+    class VersionMatch
+      def dumpsig = "#{oper}(#{version.dumpident.inspect})"
     end
 
     class File
@@ -116,7 +117,14 @@ module Prick::Lang
       def dumpident = token.text
     end
 
+    class Reference
+      def dumpident = token.text
+      def dumpsig = "Reference(#{token.text.inspect})"
+    end
+
     class Ver
+      def dumpident = token.text
+      def dumpsig = "Ver(#{token.text.inspect})"
     end
   end
 end

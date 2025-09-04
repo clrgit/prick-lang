@@ -33,15 +33,15 @@ module Prick::Lang
       ANDAND: [1, :left, 2],
       LT: [2, :left, 2],
       LE: [2, :left, 2],
-      EQ: [2, :left, 2],
-      NE: [2, :left, 2],
+      EQEQ: [2, :left, 2],
+      NEQ: [2, :left, 2],
       GE: [2, :left, 2],
       GT: [2, :left, 2],
       EXCLAIM: [3, :right, 1]
     }.map { |k,v| [k, { prior: v[0], assoc: v[1], arity: v[2] } ] }.to_h
 
     # Operators for comparing versions
-    VERSION_OPERATORS = Set[:LT, :LE, :EQ, :NE, :GE, :GT, :TIGT]
+    VERSION_OPERATORS = Set[:LT, :LE, :EQEQ, :NEQ, :GE, :GT, :TIGT]
 
     attr_reader :tokenizer
     forward_to :tokenizer, :compiler
@@ -128,6 +128,7 @@ module Prick::Lang
       end
     end
 
+
     # Schema or group declaration
     def parse_decl(parent)
 #     puts "parse_decl"
@@ -139,7 +140,7 @@ module Prick::Lang
 
     def parse_require(parent)
       require_ = Ast::Require.new(parent, read)
-      readwhile(:OBJREF, :GRPREF, :IDENT).map { Ast::Reference.new(require_, _1) }
+      readkinds(:OBJREF, :GRPREF, :IDENT).map { Ast::Reference.new(require_, _1) }
       require_
     end
 
@@ -203,10 +204,6 @@ module Prick::Lang
       case_
     end
 
-    def parse_var(parent)
-      Ast::Var.new(parent, expect(:ENV, :CMD, :USER, :VERSION, :SCHEMA, :OBJECT, :GROUP))
-    end
-
     def parse_expr(parent)
 #     puts "#parse_expr"
       stack = []
@@ -241,7 +238,7 @@ module Prick::Lang
       case peek.kind
         when :CMD, :ENV, :USER
           expr = Ast::RuntimeExpr.new(nil, read)
-          expr.words = readwhile :IDENT
+          expr.words = readkinds :IDENT
         when :SCHEMA
           expr = Ast::ReferenceExpr.new(nil, read)
           Ast::Reference.new(expr, expect(:IDENT))
@@ -254,10 +251,10 @@ module Prick::Lang
         when :VERSION
           expr = Ast::VersionExpr.new(nil, read)
           while VERSION_OPERATORS.include?(peek.kind)
-            op = read
-            expr.exprs << [op, expect(:VER)]
+            match = Ast::VersionMatch.new(expr, read)
+            ver = Ast::Ver.new(match, expect(:VER))
           end
-          !expr.exprs.empty? or unexpected_token_error(peek, "version operator")
+          !expr.matches.empty? or unexpected_token_error(peek, "version operator")
       else
         unexpected_token_error(peek, "simple expression")
       end
@@ -265,8 +262,37 @@ module Prick::Lang
     end
 
     def parse_ident(parent) = Ast::Ident.new(parent, expect(:IDENT))
+
+    def parse_var(parent)
+      Ast::Var.new(parent, expect(:ENV, :CMD, :USER, :VERSION, :SCHEMA, :OBJECT, :GROUP))
+    end
+
+    # Parse a space-separated list of values. Values are IDENT, OBJREF, GRPREF, or a version match
+    def parse_value?(parent)
+      case peek.kind
+        when :IDENT, :OBJREF, :GRPREF
+          Ast::Reference.new(parent, read)
+        when :VER # Default '==' operator
+          ver = read
+          oper = Token.new(ver.file, ver.lineno, ver.charno, "==", :EQEQ)
+          value = Ast::VersionMatch.new(parent, oper)
+          Ast::Ver.new(value, ver)
+          value
+        when *VERSION_OPERATORS
+          value = Ast::VersionMatch.new(parent, read)
+          Ast::Ver.new(value, expect(:VER))
+          value
+      else
+        nil
+      end
+    end
+
+    def parse_values(parent)
+      readwhile { parse_value? parent }
+    end
+
     def parse_refs(parent)
-      readwhile(:IDENT, :OBJREF, :GRPREF).map { Ast::ReferenceExpr.new(parent, _1) }
+      readkinds(:IDENT, :OBJREF, :GRPREF).map { Ast::ReferenceExpr.new(parent, _1) }
     end
 
     # Parse a list of files. Return array of File objects. Raise an error if
@@ -331,7 +357,7 @@ module Prick::Lang
     def read(**opts) = @tokenizer.read(**opts) or error(@tokenizer.error_token)
     def readline(**opts) = @tokenizer.readline(**opts) or error(@tokenizer.error_token)
     def readtext(indent, **opts) = @tokenizer.readtext(indent, **opts) or error(@tokenizer.error_token)
-    def readwhile(*kinds, **opts) = [expect(*kinds)] + readwhile?(kinds, **opts)
+    def readkinds(*kinds, **opts) = [expect(*kinds)] + readkinds?(kinds, **opts)
 
     # Functions from tokenizer that accepts a nil return. FIXME this sacrifices
     # run-time performance for code clarity
@@ -339,7 +365,7 @@ module Prick::Lang
     def read?(**opts) = @tokenizer.read(**opts)
     def readline?(**opts) = @tokenizer.readline(**opts)
     def readtext?(indent, **opts) = @tokenizer.readtext(indent, **opts)
-    def readwhile?(*kinds, **opts)
+    def readkinds?(*kinds, **opts)
       kinds = Array(kinds).flatten
       a = []
       while kinds.include? peek(**opts).kind
@@ -347,6 +373,22 @@ module Prick::Lang
       end
       a
     end
+
+    def readwhile?(&block)
+      a = []
+      r = yield
+      while r
+        a << r
+        r = yield
+      end
+      a
+    end
+
+    # Return nil if empty
+    def readwhile(&block)
+      (r = readwhile?(&block)).empty? ? nil : r
+    end
+
 
     # Returns token of the given kind. Generate error if not found
     def expect(*kinds)
@@ -391,15 +433,17 @@ module Prick::Lang
 
     # English language sequence of words. Eg 'a, b, or c'
     def seq(words)
+      words.map!(&:to_s)
       case words.size
         when 1; words.first
         when 2; words.join(" or ")
         else words[0..-2].join(", ") + ", or " + words.last
       end
     end
-
   end
 end
+
+
 #       case token.kind
 #         when :CMD, :ENV, :USER
 #           e = BuiltinExpr.new(parent, token)
