@@ -63,6 +63,22 @@ module Prick::Lang
       end
     end
 
+    class Case
+      def dump
+        puts "Case #{var.name}"
+        indent {
+          for when_ in whens
+            puts "when #{when_.values.map { |val| val.value(&:dumpsig).join(", ")}"
+            indent { when_.then_.dump }
+          end
+        }
+        if else_
+          puts "Else"
+          indent { else_.dump }
+        end
+      end
+    end
+
     class IfThen
     end
 
@@ -79,12 +95,13 @@ module Prick::Lang
     end
 
     class ReferenceExpr
+      def dump = source + ">"
     end
 
     class VersionExpr
     end
 
-    class VersionCompareExpr
+    class VersionCompare
     end
 
     class File
@@ -93,6 +110,10 @@ module Prick::Lang
 
     class Ident
       def dumpsig = name
+    end
+
+    class Var
+      def dumpident = token.text
     end
 
     class Ver

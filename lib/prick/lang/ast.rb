@@ -94,7 +94,18 @@ module Prick::Lang
 
     class IfThen < Node
       attr_accessor :expr # Expr
-      attr_accessor :then_ # [Stmt]
+      attr_accessor :then_ # Block
+    end
+
+    class Case < Node
+      attr_accessor :var # VarExpr
+      attr_accessor :whens # [When]
+      attr_accessor :else_ # Block
+    end
+
+    class When < Node
+      attr_accessor :refs # [Value]
+      attr_accessor :then_ # Block
     end
 
     class Expr < Node
@@ -133,12 +144,16 @@ module Prick::Lang
     end
 
     class VersionExpr < SimpleExpr # the 'version' keyword. See Ver
-      alias_method :exprs, :children # [VersionCompareExpr]
+      alias_method :exprs, :children # [VersionCompare]
     end
 
-    class VersionCompareExpr
+    class VersionCompare < Node
       def operator = @token.kind
       attr_accessor :version
+    end
+
+    class Var < Node
+      def name = @token.text
     end
 
     class Ident < Node

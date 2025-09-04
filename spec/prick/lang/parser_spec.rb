@@ -204,6 +204,23 @@ describe "Prick::Lang" do
           end
         end
 
+        context "case statements" do
+          it "with single when-values" do
+            l = %(
+              case env
+                when test
+                  a.sql
+              end
+            )
+            expect(dump l).to eq %(
+              Case env
+                When test
+                  Block
+                    File a.sql
+            ).align
+          end
+        end
+
         context "runtime expressions" do
           it "with a single argument" do
             l = %(

@@ -184,6 +184,29 @@ module Prick::Lang
       if_
     end
 
+    def parse_case(parent)
+      case_ = Ast::Case.new(parent, read)
+      case_.var = parse_var(case_)
+      case_.whens = []
+      while peek.kind == :WHEN
+        when_ = Ast::When.new(case_, read)
+        case_.whens << when_
+        when_.values = parse_values(when_)
+        when_.then_ = parse_block(when_)
+      end
+      !case_.whens.empty? or unexpected_token_eror peek, "'when'"
+      if peek.kind == :ELSE
+        read
+        case_.else_ = parse_block(case_)
+      end
+      expect(:END)
+      case_
+    end
+
+    def parse_var(parent)
+      Ast::Var.new(parent, expect(:ENV, :CMD, :USER, :VERSION, :SCHEMA, :OBJECT, :GROUP))
+    end
+
     def parse_expr(parent)
 #     puts "#parse_expr"
       stack = []
@@ -222,11 +245,6 @@ module Prick::Lang
         when :SCHEMA
           expr = Ast::ReferenceExpr.new(nil, read)
           Ast::Reference.new(expr, expect(:IDENT))
-#         p expr
-#         p expr.token
-#         p expr.name
-#         p expr.ref
-#         p expr.ref.token
         when :OBJECT
           expr = Ast::ReferenceExpr.new(nil, read)
           Ast::Reference.new(expr, expect(:OBJREF, :IDENT))
