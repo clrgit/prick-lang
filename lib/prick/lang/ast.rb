@@ -68,6 +68,8 @@ module Prick::Lang
       forward_to :ident, :name
       attr_accessor :ident
       attr_accessor :block
+
+      def buildtree = @children << ident << block
     end
 
     class Require < Node
@@ -111,14 +113,12 @@ module Prick::Lang
     end
 
     class Expr < Node
-      def source = @token.text
     end
 
     # @token is the operator in expression objects
     class UnExpr < Expr
       def oper = @token.text
       def expr = children.first
-      def source = "#{oper}(#{expr.source})"
     end
 
     class BinExpr < Expr
@@ -127,7 +127,6 @@ module Prick::Lang
       def rexpr = children.last
 #     attr_accessor :lexpr
 #     attr_accessor :rexpr
-      def source = "#{oper}(#{lexpr.source}, #{rexpr.source})"
     end
 
     class SimpleExpr < Expr
@@ -136,18 +135,15 @@ module Prick::Lang
 
     class RuntimeExpr < SimpleExpr
       attr_accessor :words # [Token]
-      def source = "#{name}(#{words.map(&:text).join(', ')})"
     end
 
     # eg. 'schema app'
     class ReferenceExpr < SimpleExpr
       def ref = children.first # Reference
-      def source = "#{name}(#{ref.ref})"
     end
 
     class VersionExpr < SimpleExpr # the 'version' keyword. See Ver
       alias_method :matches, :children # [VersionCompare]
-      def source = "#{name} #{matches.map(&:dumpsig).join(' ')}"
     end
 
     class VersionMatch < Node
@@ -159,6 +155,10 @@ module Prick::Lang
       def name = @token.text
     end
 
+    class File < Node
+      forward_to :@token, :filename, :extname
+    end
+
     class Ident < Node
       def name = @token.text
     end
@@ -167,89 +167,8 @@ module Prick::Lang
       def ref = @token.text
     end
 
-    class File < Node
-      forward_to :@token, :filename, :extname
-    end
-
     class Ver < Node # a version value. See Version
     end
   end
 end
 
-__END__
-
-
-
-    class InitBlock < Block
-    end
-
-    class FinalBlock < Block
-    end
-
-    class MetaBlock < Block #?
-    end
-
-    class SeedBlock < Block
-    end
-
-    class AuthBlock < Block
-    end
-
-    class SchemaStmt < Node
-    end
-
-    class OptionStmt < Node
-    end
-
-    class CaseStmt < Node
-      attr_reader :expr
-      attr_reader :when_entries # {expr => Node}
-      attr_reader :else_entry # Node or nil
-    end
-
-    class CallStmt < Node
-      # Single-line command or multiline inline script
-      attr_reader :source # String
-
-      # True if source is a multiline inline script
-      def multiline?() end
-
-#     # Shell command if single-line, otherwise nil
-#     def command() end
-
-      # True if calling a ruby script using require, default false
-      attr_reader :ruby
-    end
-
-    class ExecStmt < CallStmt
-    end
-
-    class EvalStmt < CallStmt
-    end
-
-    class SqlFile < File
-    end
-
-    class PSqlFile < File
-    end
-
-    class FoxFile < File
-    end
-
-    class RubyFile < File # ?
-      def analyze() CallStmt.new(self, filename, ruby: true) end
-    end
-
-    class DirStmt < File
-    end
-
-    class PrickStmt < File
-    end
-
-    class InitBlock
-    end
-
-    class Expr < Node
-    end
-  end
-end

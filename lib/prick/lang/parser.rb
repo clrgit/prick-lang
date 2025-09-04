@@ -128,7 +128,6 @@ module Prick::Lang
       end
     end
 
-
     # Schema or group declaration
     def parse_decl(parent)
 #     puts "parse_decl"

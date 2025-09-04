@@ -82,27 +82,42 @@ module Prick::Lang
     class IfThen
     end
 
-#   class Expr
-#     def dump = puts source
-#   end
+    class Expr
+      def source = @token.text # FIXME FIXME FIXME
+    end
 
 
     # @token is the operator in expression objects
     class UnExpr
+      def source = "#{oper}(#{expr.source})"
     end
 
     class BinExpr
+      def source = "#{oper}(#{lexpr.source}, #{rexpr.source})"
+    end
+
+    class SimpleExpr
+    end
+
+    class RuntimeExpr
+      def source = "#{name}(#{words.map(&:text).join(', ')})"
     end
 
     class ReferenceExpr
       def dump = source
+      def source = "#{name}(#{ref.ref})"
     end
 
     class VersionExpr
+      def source = "#{name} #{matches.map(&:dumpsig).join(' ')}"
     end
 
     class VersionMatch
       def dumpsig = "#{oper}(#{version.dumpident.inspect})"
+    end
+
+    class Var
+      def dumpident = token.text
     end
 
     class File
@@ -111,10 +126,6 @@ module Prick::Lang
 
     class Ident
       def dumpsig = name
-    end
-
-    class Var
-      def dumpident = token.text
     end
 
     class Reference
