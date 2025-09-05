@@ -65,7 +65,7 @@ module Prick::Lang
 
     class Case
       def dump
-        puts "Case #{var.name}"
+        puts "Case #{var.dumpident}"
         indent {
           for when_ in whens
             puts "When #{when_.values.map(&:dumpsig).join(", ")}"
@@ -83,7 +83,7 @@ module Prick::Lang
     end
 
     class Expr
-      def source = @token.text # FIXME FIXME FIXME
+#     def source = @token.text # FIXME FIXME FIXME
     end
 
 
@@ -97,27 +97,20 @@ module Prick::Lang
     end
 
     class SimpleExpr
+#     def source = @token.text # ???
     end
 
     class RuntimeExpr
-      def source = "#{name}(#{words.map(&:name).join(', ')})"
+      def source = "#{kind}(#{words.map(&:name).join(', ')})"
     end
 
     class ReferenceExpr
       def dump = source
-      def source = "#{name}(#{ref.ref})"
+      def source = "#{kind}(#{ref.ref})"
     end
 
     class VersionExpr
-      def source = "#{name} #{matches.map(&:dumpsig).join(' ')}"
-    end
-
-    class VersionMatch
-      def dumpsig = "#{oper}(#{version.dumpident.inspect})"
-    end
-
-    class Var
-      def dumpident = token.text
+      def source = "#{kind} #{matches.map(&:dumpsig).join(' ')}"
     end
 
     class File
@@ -125,7 +118,7 @@ module Prick::Lang
     end
 
     class Ident
-      def dumpsig = name
+      def dumpsig = token.text
     end
 
     class Reference
@@ -136,6 +129,14 @@ module Prick::Lang
     class Ver
       def dumpident = token.text
       def dumpsig = "Ver(#{token.text.inspect})"
+    end
+
+    class VersionMatch
+      def dumpsig = "#{oper}(#{version.dumpident.inspect})"
+    end
+
+    class Var
+      def dumpident = name.upcase
     end
   end
 end

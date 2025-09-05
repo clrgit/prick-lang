@@ -127,7 +127,6 @@ module Prick::Lang
     end
 
     class SimpleExpr < Expr
-      def name = @token.text
     end
 
     class RuntimeExpr < SimpleExpr

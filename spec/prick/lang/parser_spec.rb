@@ -151,7 +151,7 @@ describe "Prick::Lang" do
               end
             )
             expect(dump l).to eq %(
-              If env(test)
+              If ENV(test)
                 Block
                   File a.sql
                   File b.sql
@@ -168,7 +168,7 @@ describe "Prick::Lang" do
               end
             )
             expect(dump l).to eq %(
-              If env(test)
+              If ENV(test)
                 Block
                   File a.sql
                   File b.sql
@@ -190,11 +190,11 @@ describe "Prick::Lang" do
               end
             )
             expect(dump l).to eq %(
-              If env(test1)
+              If ENV(test1)
                 Block
                   File a.sql
                   File b.sql
-              Elsif env(test2)
+              Elsif ENV(test2)
                 Block
                   File c.sql
               Else
@@ -210,7 +210,7 @@ describe "Prick::Lang" do
               end
             )
             expect(dump l).to eq %(
-              If version >=("1.2.3")
+              If VERSION >=("1.2.3")
                 Block
                   File a.sql
             ).align
@@ -223,7 +223,7 @@ describe "Prick::Lang" do
               end
             )
             expect(dump l).to eq %(
-              If version >=("1.2.3") <("4.5.6")
+              If VERSION >=("1.2.3") <("4.5.6")
                 Block
                   File a.sql
             ).align
@@ -239,7 +239,7 @@ describe "Prick::Lang" do
               end
             )
             expect(dump l).to eq %(
-              Case env
+              Case ENV
                 When Reference("test")
                   Block
                     File a.sql
@@ -254,7 +254,7 @@ describe "Prick::Lang" do
               end
             )
             expect(dump l).to eq %(
-              Case version
+              Case VERSION
                 When ==("1.2.3")
                   Block
                     File a.sql
@@ -269,7 +269,7 @@ describe "Prick::Lang" do
               end
             )
             expect(dump l).to eq %(
-              Case version
+              Case VERSION
                 When >=("1.2.3")
                   Block
                     File a.sql
@@ -284,7 +284,7 @@ describe "Prick::Lang" do
               end
             )
             expect(dump l).to eq %(
-              Case env
+              Case ENV
                 When Reference("test"), Reference("prod")
                   Block
                     File a.sql
@@ -299,7 +299,7 @@ describe "Prick::Lang" do
               end
             )
             expect(dump l).to eq %(
-              Case version
+              Case VERSION
                 When ~>("1.2.3"), <("4.5.6")
                   Block
                     File a.sql
@@ -330,7 +330,7 @@ describe "Prick::Lang" do
               end
             )
             expect(dump l).to eq %(
-              If env(test)
+              If ENV(test)
                 Block
                   File a.sql
             ).align
@@ -342,7 +342,7 @@ describe "Prick::Lang" do
               end
             )
             expect(dump l).to eq %(
-              If env(test1, test2)
+              If ENV(test1, test2)
                 Block
                   File a.sql
             ).align
@@ -357,7 +357,7 @@ describe "Prick::Lang" do
               end
             )
             expect(dump l).to eq %(
-              If schema(schema1)
+              If SCHEMA(schema1)
                 Block
                   File a.sql
             ).align
@@ -369,7 +369,7 @@ describe "Prick::Lang" do
               end
             )
             expect(dump l).to eq %(
-              If object(a.b.c)
+              If OBJECT(a.b.c)
                 Block
                   File a.sql
             ).align
@@ -381,7 +381,7 @@ describe "Prick::Lang" do
               end
             )
             expect(dump l).to eq %(
-              If group(a::b::c)
+              If GROUP(a::b::c)
                 Block
                   File a.sql
             ).align
@@ -396,7 +396,7 @@ describe "Prick::Lang" do
               end
             )
             expect(dump l).to eq %(
-              If !(env(test))
+              If !(ENV(test))
                 Block
                   File a.sql
             ).align
@@ -408,7 +408,7 @@ describe "Prick::Lang" do
               end
             )
             expect(dump l).to eq %(
-              If &&(!(env(test)), env(prod))
+              If &&(!(ENV(test)), ENV(prod))
                 Block
                   File a.sql
             ).align
@@ -423,7 +423,7 @@ describe "Prick::Lang" do
               end
             )
             expect(dump l).to eq %(
-              If ||(env(test), env(import))
+              If ||(ENV(test), ENV(import))
                 Block
                   File a.sql
             ).align
@@ -435,7 +435,7 @@ describe "Prick::Lang" do
               end
             )
             expect(dump l).to eq %(
-              If ||(env(test1, test2), env(import1, import2))
+              If ||(ENV(test1, test2), ENV(import1, import2))
                 Block
                   File a.sql
             ).align
@@ -447,7 +447,7 @@ describe "Prick::Lang" do
               end
             )
             expect(dump l).to eq %(
-              If ||(env(test), &&(env(import), env(app)))
+              If ||(ENV(test), &&(ENV(import), ENV(app)))
                 Block
                   File a.sql
             ).align
@@ -462,7 +462,7 @@ describe "Prick::Lang" do
               end
             )
             expect(dump l).to eq %(
-              If env(test)
+              If ENV(test)
                 Block
                   File a.sql
             ).align
