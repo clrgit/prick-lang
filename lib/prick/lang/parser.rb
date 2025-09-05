@@ -11,6 +11,7 @@ module Prick::Lang
     include ErrorFunctions
     class ParserError < Prick::Lang::Error; end
 
+    # TODO: Yt. Erstat med per-group constants
     GRAMMAR_GROUPS = begin
       groups = {
         decl: [:SCHEMA, :GROUP],
@@ -27,6 +28,7 @@ module Prick::Lang
     end
 
     CONSTANTS = [:ENV, :CMD, :USER, :VERSION, :SCHEMA, :OBJECT, :GROUP]
+    COMMANDS = [:EXEC, :EVAL, :RUBY, :SQL]
 
     # Map from operator token kind to tuple of priority, associtivity (:left
     # or :right), and arity. Used by the shunter
@@ -168,15 +170,14 @@ module Prick::Lang
 
     def parse_if(parent)
 #     puts "#parse_if"
-      if_ = Ast::If.new(parent, token = read)
+      if_ = Ast::If.new(parent, token = peek)
       if_.if_thens = []
       loop do
-        if_then = Ast::IfThen.new(if_, token)
+        if_then = Ast::IfThen.new(if_, read)
         if_.if_thens << if_then
         if_then.expr = parse_expr(if_then)
         if_then.then_ = parse_block(if_then)
         break if peek.kind != :ELSIF
-        read
       end
       if peek.kind == :ELSE
         read
@@ -205,6 +206,8 @@ module Prick::Lang
       case_
     end
 
+    # Parse an expression. It use the shunter to compile the source into a RPN
+    # expression that is then converted into a Ast::Expr
     def parse_expr(parent)
 #     puts "#parse_expr"
       stack = []
@@ -233,7 +236,8 @@ module Prick::Lang
       parent.attach stack.first
     end
 
-    # Parses list of words (cmd, env, user). Note: Called from the shunter
+    # Parses list of words (cmd, env, user). Note: Called from the shunter to
+    # generate simple expressions
     def parse_simple_expr # token should be equal to #peek
 #     puts "parse_simple_expr"
       case peek.kind
@@ -264,6 +268,14 @@ module Prick::Lang
 
     def parse_values(parent)
       readwhile { parse_value? parent }
+    end
+
+    def parse_ruby(parent)
+      not_implemented_error "#parse_ruby"
+    end
+
+    def parse_sql(parent)
+      not_implemented_error "#parse_sql"
     end
 
     # Parse a list of files. Return array of File objects. Raise an error if
@@ -327,26 +339,24 @@ module Prick::Lang
 
       while token = peek
         case token.kind
-          when :PAREN_BEGIN; stack.push(read)
+          when :PAREN_BEGIN
+            stack.push(read)
           when :PAREN_END
             read
-            while op = stack.pop and op != :PAREN_BEGIN
+            while op = stack.pop and op.kind != :PAREN_BEGIN
               output << op
             end
           when :CMD, :ENV, :USER, :VERSION, :SCHEMA, :OBJECT, :GROUP
             output << parse_simple_expr
           else
-            if oper = OPERATORS[token.kind]
-              read
-              while top = OPERATORS[stack.last&.kind]
-                break if oper[:prior] > top[:prior]
-                break if oper[:prior] == top[:prior] && oper[:assoc] == :right
-                output << stack.pop
-              end
-              stack.push token
-            else
-              break
+            oper = OPERATORS[token.kind] or break
+            read
+            while top = OPERATORS[stack.last&.kind]
+              break if oper[:prior] > top[:prior]
+              break if oper[:prior] == top[:prior] && oper[:assoc] == :right
+              output << stack.pop
             end
+            stack.push token
         end
       end
 
@@ -429,6 +439,14 @@ module Prick::Lang
     def check_expected(words, &block)
       token = peek and r = yield(token) or unexpected_token_error token, words
       r
+    end
+
+    def not_implemented_error(*args)
+      token = args.first.is_a?(Token) ? args.shift : tokenizer.error || tokenizer.peek_error || tokenizer.token
+      token or raise ArgumentError
+      method_name = args.shift
+      message = "#{method_name} is not implemented"
+      error token, message
     end
 
     #

@@ -46,8 +46,6 @@ module Prick::Lang
         @children += children.tap { |c| c.instance_variable_set(:@parent, self) }
         children
       end
-
-      def classname = self.class.to_s.sub(/.*::/, "")
     end
 
     class Program < Node
@@ -57,15 +55,15 @@ module Prick::Lang
       end
     end
 
-    # Block allows the token to be nil. It defaults to #start_token
+    # Block has a nil ident. Token may be nil; it defaults to #start_token
     class Block < Node
-      def name = @token.text
+      def token = empty? ? nil : start_token # We check empty? to avoid endless recursion in #start_token
       alias_method :stmts, :children
     end
 
     class Decl < Node
       forward_to :token, :kind
-      forward_to :ident, :name
+#     forward_to :ident, :name
       attr_accessor :ident
       attr_accessor :block
 
@@ -99,6 +97,14 @@ module Prick::Lang
       attr_accessor :expr # Expr
       attr_accessor :then_ # Block
     end
+
+#   # Just to make #dump easier to read
+#   class ElsifThen < IfThen
+#   end
+#
+#   # Just to make #dump easier to read
+#   class Else < Block
+#   end
 
     class Case < Node
       attr_accessor :const # Const

@@ -37,57 +37,19 @@ module Prick::Lang
 
     def initialize(file)
       @file = file
-
     end
 
     def compile
-      # Tokenize
-      @tokenizer = Prick::Lang::Tokenizer.new(self)
+      @tokenizer = Tokenizer.new(self)
+      @parser = Parser.new(@tokenizer)
 
       puts "Tokenizing #{file}"
-      indent {
-#       while s = @tokenizer.read_line
-#         puts "#{@tokenizer.lineno} #{s}"
-#       end
 
-#       while s = @tokenizer.load_buffer
-#         puts "#{@tokenizer.lineno} #{s}"
-#       end
+      puts "Parsing #{file}"
+      program = @parser.parse
 
-#       @tokenizer.skip_blanks
-#       @tokenizer.dump
-#       while token = @tokenizer.read #(:TEXT)
-#         p token
-#         @tokenizer.dump
-#         if @tokenizer.eol?
-#           @tokenizer.next_line
-#           @tokenizer.skip_blanks
-#         end
-#
-#       end
-
-#       while !@tokenizer.eof?
-#         t = @tokenizer.readtext
-#         p t
-#         @tokenizer.find_line
-#       end
-
-#
-#       while t = @tokenizer.readline
-#         p t
-#       end
-#
-
-#       while line = @tokenizer.load_buffer
-#         puts "#{@tokenizer.lineno} #{line}"
-#       end
-
-#       while line = @tokenizer.readline
-#         puts "#{@tokenizer.lineno} #{line}"
-#       end
-      }
-
-
+      puts "Dumping"
+      program.dump
     end
   end
 end

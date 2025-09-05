@@ -58,10 +58,6 @@ SPEC = %(
     WHEN-STMT ::=
         when VAL-EXPR COMMAND...
 
-
-
-
-
     PHASE-STMT ::=
         [init | term | meta | seeds | auth] BLOCK-ARGS
 
@@ -130,4 +126,5 @@ begin
 rescue => ex
   raise Prick::Lang::ErrorFunctions.pretty_backtrace!(ex)
 end
+
 

@@ -1,6 +1,11 @@
 
+require './lib/prick/lang/ast.sig.rb'
+
 describe "Prick::Lang" do
   using String::Text
+
+  it "something" do
+  end
 
   describe "Parser" do
     def file = "file.txt" # Considered a constant
@@ -178,7 +183,7 @@ describe "Prick::Lang" do
             ).align
           end
 
-          it "with multiple elsif clauses" do
+          it "with elsif clauses" do
             l = %(
               if env test1
                 a.sql
