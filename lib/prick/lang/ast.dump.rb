@@ -100,7 +100,7 @@ module Prick::Lang
     end
 
     class RuntimeExpr
-      def source = "#{name}(#{words.map(&:text).join(', ')})"
+      def source = "#{name}(#{words.map(&:name).join(', ')})"
     end
 
     class ReferenceExpr

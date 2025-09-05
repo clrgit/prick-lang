@@ -237,7 +237,7 @@ module Prick::Lang
       case peek.kind
         when :CMD, :ENV, :USER
           expr = Ast::RuntimeExpr.new(nil, read)
-          expr.words = readkinds :IDENT
+          parse_idents(expr)
         when :SCHEMA
           expr = Ast::ReferenceExpr.new(nil, read)
           Ast::Reference.new(expr, expect(:IDENT))
@@ -260,10 +260,34 @@ module Prick::Lang
       expr
     end
 
+    def parse_values(parent)
+      readwhile { parse_value? parent }
+    end
+
+    # Parse a list of files. Return array of File objects. Raise an error if
+    # the array is empty and :check is true
+    #
+    def parse_files(parent, check: true)
+#     puts "#parse_files"
+      check_expected "files" do
+        r = []
+        while !@tokenizer.eof? && (token = peek) && token.kind == :FILE
+          r << Ast::File.new(parent, read)
+        end
+        next nil if r.empty?
+        r
+      end
+    end
+
+    def parse_ident?(parent) = peek&.kind == :IDENT ? Ast::Ident.new(parent, read) : nil
     def parse_ident(parent) = Ast::Ident.new(parent, expect(:IDENT))
 
-    def parse_var(parent)
-      Ast::Var.new(parent, expect(:ENV, :CMD, :USER, :VERSION, :SCHEMA, :OBJECT, :GROUP))
+    def parse_idents?(parent) = readwhile? { parse_ident? parent }
+    def parse_idents(parent) = check_expected("identifier") { readwhile { parse_ident? parent } }
+
+
+    def parse_refs(parent)
+      readkinds(:IDENT, :OBJREF, :GRPREF).map { Ast::ReferenceExpr.new(parent, _1) }
     end
 
     # Parse a space-separated list of values. Values are IDENT, OBJREF, GRPREF, or a version match
@@ -286,27 +310,8 @@ module Prick::Lang
       end
     end
 
-    def parse_values(parent)
-      readwhile { parse_value? parent }
-    end
-
-    def parse_refs(parent)
-      readkinds(:IDENT, :OBJREF, :GRPREF).map { Ast::ReferenceExpr.new(parent, _1) }
-    end
-
-    # Parse a list of files. Return array of File objects. Raise an error if
-    # the array is empty and :check is true
-    #
-    def parse_files(parent, check: true)
-#     puts "#parse_files"
-      check_expected "files" do
-        r = []
-        while !@tokenizer.eof? && (token = peek) && token.kind == :FILE
-          r << Ast::File.new(parent, read)
-        end
-        next nil if r.empty?
-        r
-      end
+    def parse_var(parent)
+      Ast::Var.new(parent, expect(:ENV, :CMD, :USER, :VERSION, :SCHEMA, :OBJECT, :GROUP))
     end
 
     #
@@ -358,16 +363,20 @@ module Prick::Lang
     def readtext(indent, **opts) = @tokenizer.readtext(indent, **opts) or error(@tokenizer.error_token)
     def readkinds(*kinds, **opts) = [expect(*kinds)] + readkinds?(kinds, **opts)
 
+    # Return nil if empty
+    def readwhile(&block) = (r = readwhile?(&block)).empty? ? nil : r
+
     # Functions from tokenizer that accepts a nil return. FIXME this sacrifices
     # run-time performance for code clarity
     def peek?(**opts) = @tokenizer.peek(**opts)
     def read?(**opts) = @tokenizer.read(**opts)
     def readline?(**opts) = @tokenizer.readline(**opts)
     def readtext?(indent, **opts) = @tokenizer.readtext(indent, **opts)
+
     def readkinds?(*kinds, **opts)
       kinds = Array(kinds).flatten
       a = []
-      while kinds.include? peek(**opts).kind
+      while kinds.include? peek(**opts)&.kind
         a << read(**opts)
       end
       a
@@ -382,12 +391,6 @@ module Prick::Lang
       end
       a
     end
-
-    # Return nil if empty
-    def readwhile(&block)
-      (r = readwhile?(&block)).empty? ? nil : r
-    end
-
 
     # Returns token of the given kind. Generate error if not found
     def expect(*kinds)
@@ -441,71 +444,5 @@ module Prick::Lang
     end
   end
 end
-
-
-#       case token.kind
-#         when :CMD, :ENV, :USER
-#           e = BuiltinExpr.new(parent, token)
-#           e.words = parse_list(e)
-#         when :ENV
-#         when :USER
-#
-#         when :SCHEMA
-#         when :OBJECT
-#         when :GROUP
-#
-#         when :VERSION
-#           expr = VersionExpr.new(parent, token)
-#           for oper, version in token.value
-#             compare_expr = VersionCompareExpr.new(expr, oper)
-#             compare_expr.version = Version.new(compare_expr, version)
-#             expr.exprs << compare_expr
-#           end
-#           stack.push expr
-#
-
-# i = -1
-# i_end = tokens.size
-# while token = tokens[i+=1]
-#   puts "token:  #{token.inspect}"
-#   case token
-#     when :PAREN_BEGIN; stack.push(token)
-#     when :PAREN_END
-#       while op = stack.pop and op != :PAREN_BEGIN
-#         output << op
-#       end
-#     when :ENV
-#       while i < i_end && !OPERATORS.key?(tokens[i+1])
-#         puts "EAT #{tokens[i+1]}"
-#         i += 1
-#       end
-#       output << token
-#     when :VERSION;
-#     when Integer; output << token
-#     when :IDENT, :OBJREF, :GRPREF, :VER; stack.push(token)
-#   else
-#     if oper = OPERATORS[token]
-#       while top = OPERATORS[stack.last]
-#         break if oper[:precedence] > top[:precedence]
-#         break if oper[:precedence] == top[:precedence] && oper[:assoc] == :right
-#         output << stack.pop
-#         puts "  stack:  #{stack.inspect}"
-#         puts "  output: #{output.inspect}"
-#         puts
-#       end
-#       stack.push token
-#
-#     else
-#       raise "TODO"
-#     end
-#   end
-#
-#   puts "stack:  #{stack.inspect}"
-#   puts "output: #{output.inspect}"
-#   puts
-# end
-#
-# output + stack.reverse
-#end
 
 

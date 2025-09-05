@@ -82,7 +82,6 @@ module Prick::Lang
     end
 
     class Command < Node
-      def kind = token.kind
       attr_accessor :source # Array of source lines. Assigned after initialization
 
       # True iff source consists of multiple lines
@@ -102,7 +101,7 @@ module Prick::Lang
     end
 
     class Case < Node
-      attr_accessor :var # VarExpr
+      attr_accessor :var # Var
       attr_accessor :whens # [When]
       attr_accessor :else_ # Block
     end
@@ -125,8 +124,6 @@ module Prick::Lang
       def oper = @token.text
       def lexpr = children.first
       def rexpr = children.last
-#     attr_accessor :lexpr
-#     attr_accessor :rexpr
     end
 
     class SimpleExpr < Expr
@@ -134,7 +131,7 @@ module Prick::Lang
     end
 
     class RuntimeExpr < SimpleExpr
-      attr_accessor :words # [Token]
+      alias_method :words, :children # [Ident]
     end
 
     # eg. 'schema app'
@@ -146,28 +143,32 @@ module Prick::Lang
       alias_method :matches, :children # [VersionCompare]
     end
 
-    class VersionMatch < Node
+    class Value < Node
+    end
+
+    class File < Value
+      forward_to :@token, :filename, :extname
+    end
+
+    class Ident < Value
+      def name = @token.text
+    end
+
+    class Reference < Value
+      def ref = @token.text
+    end
+
+    class Ver < Value # a version value. See Version
+      def version = @token.text # for now
+    end
+
+    class VersionMatch < Value
       def oper = @token.text
       def version = @children.first
     end
 
     class Var < Node
       def name = @token.text
-    end
-
-    class File < Node
-      forward_to :@token, :filename, :extname
-    end
-
-    class Ident < Node
-      def name = @token.text
-    end
-
-    class Reference < Node
-      def ref = @token.text
-    end
-
-    class Ver < Node # a version value. See Version
     end
   end
 end
