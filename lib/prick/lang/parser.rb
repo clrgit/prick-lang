@@ -189,7 +189,6 @@ module Prick::Lang
     def parse_case(parent)
       case_ = Ast::Case.new(parent, read)
       case_.const = parse_constant(case_)
-      p case_.const
       case_.whens = []
       while peek.kind == :WHEN
         when_ = Ast::When.new(case_, read)
@@ -220,9 +219,9 @@ module Prick::Lang
               stack.push e
             when 2
               e = Ast::BinExpr.new(nil, token)
-              b = stack.pop
-              a = stack.pop
-              e.attachs(a, b)
+              r = stack.pop
+              l = stack.pop
+              e.attachs(l, r)
               stack.push e
           else
             raise InternalError
