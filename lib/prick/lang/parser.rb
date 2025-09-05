@@ -26,6 +26,8 @@ module Prick::Lang
       })
     end
 
+    CONSTANTS = [:ENV, :CMD, :USER, :VERSION, :SCHEMA, :OBJECT, :GROUP]
+
     # Map from operator token kind to tuple of priority, associtivity (:left
     # or :right), and arity. Used by the shunter
     OPERATORS = {
@@ -186,7 +188,8 @@ module Prick::Lang
 
     def parse_case(parent)
       case_ = Ast::Case.new(parent, read)
-      case_.var = parse_var(case_)
+      case_.const = parse_constant(case_)
+      p case_.const
       case_.whens = []
       while peek.kind == :WHEN
         when_ = Ast::When.new(case_, read)
@@ -310,8 +313,8 @@ module Prick::Lang
       end
     end
 
-    def parse_var(parent)
-      Ast::Var.new(parent, expect(:ENV, :CMD, :USER, :VERSION, :SCHEMA, :OBJECT, :GROUP))
+    def parse_constant(parent)
+      Ast::Const.new(parent, expect(CONSTANTS))
     end
 
     #

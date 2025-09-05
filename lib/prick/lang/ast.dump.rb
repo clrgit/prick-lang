@@ -65,7 +65,7 @@ module Prick::Lang
 
     class Case
       def dump
-        puts "Case #{var.dumpident}"
+        puts "Case #{const.dumpident}"
         indent {
           for when_ in whens
             puts "When #{when_.values.map(&:dumpsig).join(", ")}"
@@ -135,7 +135,7 @@ module Prick::Lang
       def dumpsig = "#{oper}(#{version.dumpident.inspect})"
     end
 
-    class Var
+    class Const
       def dumpident = name.upcase
     end
   end

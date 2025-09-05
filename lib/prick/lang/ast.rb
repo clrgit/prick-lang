@@ -101,7 +101,7 @@ module Prick::Lang
     end
 
     class Case < Node
-      attr_accessor :var # Var
+      attr_accessor :const # Const
       attr_accessor :whens # [When]
       attr_accessor :else_ # Block
     end
@@ -166,7 +166,7 @@ module Prick::Lang
       def version = @children.first
     end
 
-    class Var < Node
+    class Const < Node
       def name = @token.text
     end
   end
