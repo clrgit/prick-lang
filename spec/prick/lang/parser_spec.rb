@@ -30,9 +30,9 @@ describe "Prick::Lang" do
       make(lines).parse
     end
 
-    def dump(lines)
+    def sig(lines)
       ast = make(lines.align).parse
-      capture { ast.dump }.sub(/^Program\n\s*Block\n/m, "").align
+      capture { ast.sig }.sub(/^Program\n\s*Block\n/m, "").align
     end
 
     describe "#parse" do
@@ -45,11 +45,11 @@ describe "Prick::Lang" do
         context "files" do
           it "with one file" do
             l = %(file.sql)
-            expect(dump l).to eq "File file.sql"
+            expect(sig l).to eq "File file.sql"
           end
           it "with multiple files" do
             l = %(a.sql b.sql)
-            expect(dump l).to eq %(
+            expect(sig l).to eq %(
               File a.sql
               File b.sql
             ).align
@@ -59,7 +59,7 @@ describe "Prick::Lang" do
         context "commands" do
           it "with a LINE argument" do
             l = %(eval ls -l)
-            expect(dump l).to eq "Eval ls -l"
+            expect(sig l).to eq "Eval ls -l"
           end
           it "with a TEXT argument" do
             l = %(
@@ -67,7 +67,7 @@ describe "Prick::Lang" do
                 ls -l
                 echo
             )
-            expect(dump l).to eq "Eval ls -l; echo"
+            expect(sig l).to eq "Eval ls -l; echo"
           end
         end
 
@@ -78,7 +78,7 @@ describe "Prick::Lang" do
                 file.sql
               }
             )
-            expect(dump l).to eq %(
+            expect(sig l).to eq %(
               Decl schema "app"
                 Block
                   File file.sql
@@ -91,7 +91,7 @@ describe "Prick::Lang" do
             l = %(
               require a
             )
-            expect(dump l).to eq %(
+            expect(sig l).to eq %(
               Require a
             ).align
           end
@@ -100,7 +100,7 @@ describe "Prick::Lang" do
         context "phase blocks" do
           it "with a file argument" do
             l = %(init file.sql)
-            expect(dump l).to eq %(
+            expect(sig l).to eq %(
               Phase init
                 Block
                   File file.sql
@@ -108,7 +108,7 @@ describe "Prick::Lang" do
           end
           it "with a command argument" do
             l = %(init exec ls -l)
-            expect(dump l).to eq %(
+            expect(sig l).to eq %(
               Phase init
                 Block
                   Exec ls -l
@@ -120,7 +120,7 @@ describe "Prick::Lang" do
                 ls -l
                 echo
             )
-            expect(dump l).to eq %(
+            expect(sig l).to eq %(
               Phase init
                 Block
                   Exec ls -l; echo
@@ -133,7 +133,7 @@ describe "Prick::Lang" do
                 b.sql
               }
             )
-            expect(dump l).to eq %(
+            expect(sig l).to eq %(
               Phase init
                 Block
                   File a.sql
@@ -150,7 +150,7 @@ describe "Prick::Lang" do
                 b.sql
               end
             )
-            expect(dump l).to eq %(
+            expect(sig l).to eq %(
               If ENV(test)
                 Block
                   File a.sql
@@ -167,7 +167,7 @@ describe "Prick::Lang" do
                 c.sql
               end
             )
-            expect(dump l).to eq %(
+            expect(sig l).to eq %(
               If ENV(test)
                 Block
                   File a.sql
@@ -189,7 +189,7 @@ describe "Prick::Lang" do
                 d.sql
               end
             )
-            expect(dump l).to eq %(
+            expect(sig l).to eq %(
               If ENV(test1)
                 Block
                   File a.sql
@@ -209,7 +209,7 @@ describe "Prick::Lang" do
                 a.sql
               end
             )
-            expect(dump l).to eq %(
+            expect(sig l).to eq %(
               If VERSION >=("1.2.3")
                 Block
                   File a.sql
@@ -222,7 +222,7 @@ describe "Prick::Lang" do
                 a.sql
               end
             )
-            expect(dump l).to eq %(
+            expect(sig l).to eq %(
               If VERSION >=("1.2.3") <("4.5.6")
                 Block
                   File a.sql
@@ -238,7 +238,7 @@ describe "Prick::Lang" do
                   a.sql
               end
             )
-            expect(dump l).to eq %(
+            expect(sig l).to eq %(
               Case ENV
                 When Reference("test")
                   Block
@@ -253,7 +253,7 @@ describe "Prick::Lang" do
                   a.sql
               end
             )
-            expect(dump l).to eq %(
+            expect(sig l).to eq %(
               Case VERSION
                 When ==("1.2.3")
                   Block
@@ -268,7 +268,7 @@ describe "Prick::Lang" do
                   a.sql
               end
             )
-            expect(dump l).to eq %(
+            expect(sig l).to eq %(
               Case VERSION
                 When >=("1.2.3")
                   Block
@@ -283,7 +283,7 @@ describe "Prick::Lang" do
                   a.sql
               end
             )
-            expect(dump l).to eq %(
+            expect(sig l).to eq %(
               Case ENV
                 When Reference("test"), Reference("prod")
                   Block
@@ -298,7 +298,7 @@ describe "Prick::Lang" do
                   a.sql
               end
             )
-            expect(dump l).to eq %(
+            expect(sig l).to eq %(
               Case VERSION
                 When ~>("1.2.3"), <("4.5.6")
                   Block
@@ -313,7 +313,7 @@ describe "Prick::Lang" do
 #                 a.sql
 #             end
 #           )
-#           expect(dump l).to eq %(
+#           expect(sig l).to eq %(
 #             Case env
 #               When Reference("test"), Reference("prod")
 #                 Block
@@ -329,7 +329,7 @@ describe "Prick::Lang" do
                 a.sql
               end
             )
-            expect(dump l).to eq %(
+            expect(sig l).to eq %(
               If ENV(test)
                 Block
                   File a.sql
@@ -341,7 +341,7 @@ describe "Prick::Lang" do
                 a.sql
               end
             )
-            expect(dump l).to eq %(
+            expect(sig l).to eq %(
               If ENV(test1, test2)
                 Block
                   File a.sql
@@ -356,7 +356,7 @@ describe "Prick::Lang" do
                 a.sql
               end
             )
-            expect(dump l).to eq %(
+            expect(sig l).to eq %(
               If SCHEMA(schema1)
                 Block
                   File a.sql
@@ -368,7 +368,7 @@ describe "Prick::Lang" do
                 a.sql
               end
             )
-            expect(dump l).to eq %(
+            expect(sig l).to eq %(
               If OBJECT(a.b.c)
                 Block
                   File a.sql
@@ -380,7 +380,7 @@ describe "Prick::Lang" do
                 a.sql
               end
             )
-            expect(dump l).to eq %(
+            expect(sig l).to eq %(
               If GROUP(a::b::c)
                 Block
                   File a.sql
@@ -395,7 +395,7 @@ describe "Prick::Lang" do
                 a.sql
               end
             )
-            expect(dump l).to eq %(
+            expect(sig l).to eq %(
               If !(ENV(test))
                 Block
                   File a.sql
@@ -407,7 +407,7 @@ describe "Prick::Lang" do
                 a.sql
               end
             )
-            expect(dump l).to eq %(
+            expect(sig l).to eq %(
               If &&(!(ENV(test)), ENV(prod))
                 Block
                   File a.sql
@@ -422,7 +422,7 @@ describe "Prick::Lang" do
                 a.sql
               end
             )
-            expect(dump l).to eq %(
+            expect(sig l).to eq %(
               If ||(ENV(test), ENV(import))
                 Block
                   File a.sql
@@ -434,7 +434,7 @@ describe "Prick::Lang" do
                 a.sql
               end
             )
-            expect(dump l).to eq %(
+            expect(sig l).to eq %(
               If ||(ENV(test1, test2), ENV(import1, import2))
                 Block
                   File a.sql
@@ -446,7 +446,7 @@ describe "Prick::Lang" do
                 a.sql
               end
             )
-            expect(dump l).to eq %(
+            expect(sig l).to eq %(
               If ||(ENV(test), &&(ENV(import), ENV(app)))
                 Block
                   File a.sql
@@ -461,7 +461,7 @@ describe "Prick::Lang" do
                 a.sql
               end
             )
-            expect(dump l).to eq %(
+            expect(sig l).to eq %(
               If ENV(test)
                 Block
                   File a.sql

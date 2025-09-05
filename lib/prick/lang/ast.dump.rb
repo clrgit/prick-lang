@@ -4,21 +4,21 @@ module Prick::Lang
   module Ast
     class Node
       # The node's informal name. This is the class name by default but eg.
-      def dumpname = classname
+      def signame = classname
 
-      # The node's identifier (possibly nil). Used in #dump and test
-      def dumpident = nil
+      # The node's identifier (possibly nil). Used in #sig and test
+      def sigident = nil
 
-      # Signature of a node (token-kind/class + ident). Used in #dump and test
-      def dumpsig = [dumpname, dumpident].compact.join(" ")
+      # Signature of a node (token-kind/class + ident). Used in #sig and test
+      def sigval = [signame, sigident].compact.join(" ")
 
       # Dump an Ast node hierarchically
-      def dump(nodes = children)
-        puts dumpsig
-        indent { nodes.each &:dump }
+      def sig(nodes = children)
+        puts sigval
+        indent { nodes.each &:sig }
       end
 
-      def inspect() = "#<#{dumpsig}>"
+      def inspect() = "#<#{sigval}>"
     end
 
     class Program
@@ -29,52 +29,52 @@ module Prick::Lang
     end
 
     class Decl
-      def dumpident = "#{Token::TOKENS[kind]} #{name.inspect}"
-      def dump = super([block])
+      def sigident = "#{Token::TOKENS[kind]} #{name.inspect}"
+      def sig = super([block])
     end
 
     class Require
-      def dump
-        puts "#{dumpsig} #{refs.map(&:ref).join(", ")}"
+      def sig
+        puts "#{sigval} #{refs.map(&:ref).join(", ")}"
       end
     end
 
     class Phase
-      def dumpident = Token::TOKENS[kind]
+      def sigident = Token::TOKENS[kind]
     end
 
     class Command
-      def dumpname = "#{kind}".capitalize
-      def dumpident = source ? source.split("\n").join("; ") : ""
+      def signame = "#{kind}".capitalize
+      def sigident = source ? source.split("\n").join("; ") : ""
     end
 
     class If
-      def dump
+      def sig
         keyword = "If"
         for if_then in if_thens
           puts "#{keyword} #{if_then.expr.source}"
           keyword = "Elsif"
-          indent { if_then.then_.dump }
+          indent { if_then.then_.sig }
         end
         if else_
           puts "Else"
-          indent { else_.dump }
+          indent { else_.sig }
         end
       end
     end
 
     class Case
-      def dump
-        puts "Case #{const.dumpident}"
+      def sig
+        puts "Case #{const.sigident}"
         indent {
           for when_ in whens
-            puts "When #{when_.values.map(&:dumpsig).join(", ")}"
-            indent { when_.then_.dump }
+            puts "When #{when_.values.map(&:sigval).join(", ")}"
+            indent { when_.then_.sig }
           end
         }
         if else_
           puts "Else"
-          indent { else_.dump }
+          indent { else_.sig }
         end
       end
     end
@@ -105,38 +105,38 @@ module Prick::Lang
     end
 
     class ReferenceExpr
-      def dump = source
+      def sig = source
       def source = "#{kind}(#{ref.ref})"
     end
 
     class VersionExpr
-      def source = "#{kind} #{matches.map(&:dumpsig).join(' ')}"
+      def source = "#{kind} #{matches.map(&:sigval).join(' ')}"
     end
 
     class File
-      def dumpident = filename
+      def sigident = filename
     end
 
     class Ident
-      def dumpsig = token.text
+      def sigval = token.text
     end
 
     class Reference
-      def dumpident = token.text
-      def dumpsig = "Reference(#{token.text.inspect})"
+      def sigident = token.text
+      def sigval = "Reference(#{token.text.inspect})"
     end
 
     class Ver
-      def dumpident = token.text
-      def dumpsig = "Ver(#{token.text.inspect})"
+      def sigident = token.text
+      def sigval = "Ver(#{token.text.inspect})"
     end
 
     class VersionMatch
-      def dumpsig = "#{oper}(#{version.dumpident.inspect})"
+      def sigval = "#{oper}(#{version.sigident.inspect})"
     end
 
     class Const
-      def dumpident = name.upcase
+      def sigident = name.upcase
     end
   end
 end
