@@ -61,22 +61,7 @@ describe "Prick::Lang" do
           end
         end
 
-        context "commands" do
-          it "with a LINE argument" do
-            l = %(eval ls -l)
-            expect(sig l).to eq "Eval ls -l"
-          end
-          it "with a TEXT argument" do
-            l = %(
-              eval |
-                ls -l
-                echo
-            )
-            expect(sig l).to eq "Eval ls -l; echo"
-          end
-        end
-
-        context "declarations" do
+        context "schema declarations" do
           it "with a name argument" do
             l = %(
               schema app {
@@ -91,6 +76,32 @@ describe "Prick::Lang" do
           end
         end
 
+        context "function declarations" do
+          it "with a name argument" do
+            l = %(
+              function func {
+                file.sql
+              }
+            )
+            expect(sig l).to eq %(
+              Decl function "func"
+                Block
+                  File file.sql
+            ).align
+          end
+        end
+
+        context "provide statements" do
+          it "with one argument" do
+            l = %(
+              provide a
+            )
+            expect(sig l).to eq %(
+              Provide a
+            ).align
+          end
+        end
+
         context "require statements" do
           it "with one argument" do
             l = %(
@@ -98,6 +109,14 @@ describe "Prick::Lang" do
             )
             expect(sig l).to eq %(
               Require a
+            ).align
+          end
+          it "with multiple arguments" do
+            l = %(
+              require a b
+            )
+            expect(sig l).to eq %(
+              Require a, b
             ).align
           end
         end
@@ -327,6 +346,32 @@ describe "Prick::Lang" do
 #         end
         end
 
+        context "source commands" do
+          it "with a LINE argument" do
+            l = %(eval ls -l)
+            expect(sig l).to eq "Eval ls -l"
+          end
+          it "with a TEXT argument" do
+            l = %(
+              eval |
+                ls -l
+                echo
+            )
+            expect(sig l).to eq "Eval ls -l; echo"
+          end
+        end
+
+        context "call commands" do
+          it "with a single reference argument" do
+            l = %(call func)
+            expect(sig l).to eq "Call func"
+          end
+          it "with multiple name arguments" do
+            l = %(call func1 func2)
+            expect(sig l).to eq "Call func1, func2"
+          end
+        end
+
         context "runtime expressions" do
           it "with a single argument" do
             l = %(
@@ -379,14 +424,14 @@ describe "Prick::Lang" do
                   File a.sql
             ).align
           end
-          it "with a group reference argument" do
+          it "with a resource reference argument" do
             l = %(
-              if group a::b::c
+              if resource a.b.c
                 a.sql
               end
             )
             expect(sig l).to eq %(
-              If GROUP(a::b::c)
+              If RESOURCE(a.b.c)
                 Block
                   File a.sql
             ).align
@@ -474,6 +519,21 @@ describe "Prick::Lang" do
           end
         end
 
+        context "references" do
+          it "ignores keywords"
+          it "with a simple identifier" do
+            l = %(call func)
+            expect(sig l).to eq "Call func"
+          end
+          it "with an initial dot" do
+            l = %(call .func)
+            expect(sig l).to eq "Call .func"
+          end
+          it "with dot-separated identifiers" do
+            l = %(call func1.func2)
+            expect(sig l).to eq "Call func1.func2"
+          end
+        end
       end
     end
   end

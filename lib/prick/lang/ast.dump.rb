@@ -10,14 +10,14 @@ module Prick::Lang
       def dump_title = puts [classname, title].join(' ')
       def dump_children = Kernel.indent { children.each &:dump }
 
-      def inspect() = "#<#{[classname, ident].compact.join(' ')}>"
+      def inspect() = "#<#{[classname, title].compact.join(' ')}>"
     end
 
     class Decl
       def title = @token.kind.to_s.downcase
     end
 
-    class Command
+    class SourceCommand
       def title = kind.downcase
       def dump_children = indent { puts source }
     end

@@ -15,35 +15,65 @@ SPEC = %(
 
   Syntax
 
-    SOURCE-FILE ::= STMT...
+    PROGRAM ::= BLOCK
 
     STMT ::=
         DECL_STMT
-      | GROUP-STMT
       | PHASE-STMT
       | OPTION_STMT
+      | PROVIDE-STAT
       | REQUIRE_STMT
       | IF-STMT
       | CASE-STMT
       | MAKE-STMT
       | COMMAND-STMT
       | FILE-STMT
-      | EXIT-STMT
+      | RETURN-STMT
 
     DECL-STMT ::=
-        schema SCHEMA_NAME BLOCK-ARGS
-      | gruop SCHEMA_NAME BLOCK-ARGS
+        schema IDENT BLOCK-ARGS
+      | function IDENT BLOCK-ARGS
+
+    PHASE-STMT ::=
+        [init | term | meta | seeds | auth] BLOCK-ARGS
 
     OPTION_STMT ::=
       # TODO
 
+    PROVIDE-STMT ::=
+      provide IDENT
+
     REQUIRE_STMT ::=
-      require SCHEMANAME|GROUPREF
+      require REF+
 
     IF-STMT ::=
-        if EXPR then COMMAND... end
-      | if EXPR then COMMAND... else COMMAND... end
-      | if EXPR then COMMAND... elsif EXPR... end
+        if EXPR BLOCK end
+      | if EXPR BLOCK else BLOCK end
+      | if EXPR BLOCK ( elsif EXPR <NL> BLOCK )+ ( else BLOCK )? end
+
+    CASE-STMT ::=
+        case VAR-EXPR WHEN-STMT... [ else COMMAND... ] end
+
+    WHEN-STMT ::=
+        when VAL-EXPR COMMAND...
+
+    COMMAND-STMT ::=
+        exec SOURCE
+      | eval SOURCE
+      | ruby RUBY_SCRIPT ARGUMENTS...
+      | sql SOURCE
+      | call REF+
+
+    FILE-STMT ::= PATH...
+
+    EXIT-STMT ::= return INTEGER
+
+    BLOCK-ARGS ::=
+        COMMAND-STMT
+      | FILE-STMT...
+      | BLOCK
+
+    BLOCK ::= STMT+
 
     EXPR ::=
         SIMPLE-EXPR
@@ -52,65 +82,35 @@ SPEC = %(
       | EXPR || EXPR
       | '(' EXPR ')'
 
-    CASE-STMT ::=
-        case VAR-EXPR WHEN-STMT... [ else COMMAND... ] end
-
-    WHEN-STMT ::=
-        when VAL-EXPR COMMAND...
-
-    PHASE-STMT ::=
-        [init | term | meta | seeds | auth] BLOCK-ARGS
-
-    COMMAND-STMT ::=
-        exec BASH-EXPR
-      | eval BASH-EXPR
-      | ruby RUBY_SCRIPT ARGUMENTS...
-      | sql SQL-EXPR
-
-    FILE-STMT ::= PATH...
-
-    EXIT-STMT ::= exit INTEGER
-
+    # 'env', 'cmd', and 'user' or's their arguments together, 'version' and's
+    # them
     SIMPLE-EXPR ::=
-        env ENVIRONMENT+
-      | cmd COMMAND+
-      | user USER+
+        env IDENT+
+      | cmd IDENT+
+      | user IDENT+
+      | schema IDENT
+      | object REF
+      | resource REF
       | version VER_EXPR+
-      | schema SCHEMANAME
-      | object OBJECTREF
-      | group GROUPREF
 
-
-    VAR-EXPR ::= env | cmd | user | version | schema | object | group
+    VAR-EXPR ::= env | cmd | user | version | schema | object | resource
 
     VER-EXPR ::= VER-OP VER
 
     VAL-EXPR ::=
         IDENT
-      | OBJREF
-      | GRPREF
       | VER
       | VER-EXPR
 
-    BLOCK-ARGS ::=
-        COMMAND-STMT
-      | FILE-STMT...
-      |  BLOCK
-
-    BASH-EXPR ::= '|' <indented lines>
-
     PATH ::= <path>/FILE
     FILE ::= <*.sql> | <*.psql> | <*.fox> | <*.prick> | <*.rb>
+    REF ::= .? IDENT ( . IDENT )*
 
-
-    SCHEMA_NAME ::= IDENT
-    OBJECT_NAME ::= IDENT
-    GROUP_NAME ::= IDENT
-    OBJREF ::= .? OBJECT_NAME ( . OBJECT_NAME )*
-    GRPREF ::= ::? GROUP_NAME ( :: GROUP_NAME )*
+    SOURCE ::=
+        <line>
+      | '|' <indented lines>
 
     IDENT ::= /[\w.]+/
-    REF ::=
 )
 
 opts, args = ShellOpts.process(SPEC, ARGV)

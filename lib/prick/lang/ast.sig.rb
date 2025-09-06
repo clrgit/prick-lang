@@ -27,6 +27,11 @@ module Prick::Lang
       def sig = super([block])
     end
 
+    class Provide
+      def signame = ident.name
+      def sig = puts sigtitle
+    end
+
     class Require
       def sig
         puts "#{sigtitle} #{refs.map(&:ref).join(", ")}"
@@ -37,9 +42,14 @@ module Prick::Lang
       def signame = Token::TOKENS[kind]
     end
 
-    class Command
+    class SourceCommand
       def sigclass = kind.to_s.capitalize
       def signame = source ? source.split("\n").join("; ") : ""
+    end
+
+    class CallCommand
+      def sigclass = kind.to_s.capitalize
+      def sig = puts "#{sigtitle} #{refs.map(&:ref).join(", ")}"
     end
 
     class If

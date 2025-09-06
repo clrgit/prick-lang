@@ -97,21 +97,15 @@ describe "Prick::Lang" do
       end
     end
 
-    describe "::OBJREF_RE" do
-      it "matches object references" do
-        e :OBJREF_RE, "root.branch.leaf"
+    describe "::REF_RE" do
+      it "matches references" do
+        e :REF_RE, "root.branch.leaf"
       end
-      it "sets the 'objref' capture" do
-        c :OBJREF_RE, "root.branch.leaf", :objref
+      it "matches self references" do
+        e :REF_RE, ".here"
       end
-    end
-
-    describe "::GRPREF_RE" do
-      it "matches group references" do
-        e :GRPREF_RE, "root::branch::leaf"
-      end
-      it "sets the 'grpref' capture" do
-        c :GRPREF_RE, "root::branch::leaf", :grpref
+      it "sets the 'ref' capture" do
+        c :REF_RE, "root.branch.leaf", :ref
       end
     end
 
@@ -143,16 +137,13 @@ describe "Prick::Lang" do
       it "sets 'ext' capture" do
         c :TOKEN_RE, "dir/name/file.sql", :ext, "sql"
       end
+      it "sets 'ref' capture" do
+        c :TOKEN_RE, "root.branch.leaf", :ref
+      end
       it "sets 'ident' capture" do
         c :TOKEN_RE, "id", :ident
       end
-      it "sets the 'objref' capture" do
-        c :TOKEN_RE, "root.branch.leaf", :objref
-      end
-      it "sets the 'grpref' capture" do
-        c :TOKEN_RE, "root::branch::leaf", :grpref
-      end
-      it "sets the 'version' capture" do
+      it "sets 'version' capture" do
         c :TOKEN_RE, "1.2.3", :version
       end
     end
@@ -203,20 +194,8 @@ describe "Prick::Lang" do
         e "word@", "@"
       end
       it "...or string" do
-        e ".word", ".word"
+        e "£word", "£word"
       end
     end
   end
 end
-__END__
-    # Token *_RE constants by name (symbol) so save a lot of typing
-    def re(re_symbol) = /^#{Prick::Lang::Token.const_get(re_symbol)}$/
-
-    # Lazy match check
-    def e(re_symbol, string)
-      expect(string).to match re re_symbol
-    end
-
-    # Lazy capture check
-    def c(re_symbol, source, capture, text = source) = expect(re(re_symbol).match(source)[capture]).to eq text
-

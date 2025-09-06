@@ -1,34 +1,12 @@
 
 module Prick::Lang
-  # Extend Token with a group function
-  class Token
-    def group?(group) = Parser::GRAMMAR_GROUPS[group].include?(kind)
-    def groups?(groups) = Parser::GRAMMAR_GROUPS.values_at(*groups).any? { _1.include?(kind) }
-  end
-
   class Parser
     using String::Text
     include ErrorFunctions
     class ParserError < Prick::Lang::Error; end
 
-    # TODO: Yt. Erstat med per-group constants
-    GRAMMAR_GROUPS = begin
-      groups = {
-        decl: [:SCHEMA, :GROUP],
-        phase: [:INIT, :TERM, :META, :SEEDS, :AUTH],
-        command: [:EXEC, :EVAL, :RUBY, :SQL],
-        require: [:REQUIRE],
-        file: [:FILE],
-        punct: [:BEGIN_BLOCK, :END_BLOCK, :MULTILINE]
-      }
-      # FIXME what?
-      groups.merge!({
-        unit: groups[:command] + groups[:require] + groups[:file]
-      })
-    end
-
-    CONSTANTS = [:ENV, :CMD, :USER, :VERSION, :SCHEMA, :OBJECT, :GROUP]
-    COMMANDS = [:EXEC, :EVAL, :RUBY, :SQL]
+    CONSTANTS = [:ENV, :CMD, :USER, :VERSION, :SCHEMA, :OBJECT, :RESOURCE]
+    COMMANDS = [:EXEC, :EVAL, :RUBY, :SQL, :CALL]
 
     # Map from operator token kind to tuple of priority, associtivity (:left
     # or :right), and arity. Used by the shunter
@@ -79,13 +57,15 @@ module Prick::Lang
     def parse_stmt(parent)
 #     puts "#parse_stmt"
       case peek.kind
-        when :SCHEMA, :GROUP; parse_decl parent
+        when :SCHEMA, :FUNCTION; parse_decl parent
         when :OPTIONS; parse_options parent
+        when :PROVIDE; parse_provide parent
         when :REQUIRE; parse_require parent
         when :IF; parse_if parent
         when :CASE; parse_case parent
         when :INIT, :TERM, :META, :SEEDS, :AUTH; parse_phase parent
         when :EXEC, :EVAL, :SQL; parse_command parent
+        when :CALL; parse_call parent
         when :RUBY; not_implemented_error "'ruby' command"
         when :FILE; parse_files parent
       else
@@ -117,13 +97,12 @@ module Prick::Lang
       check_expected %w(block command file) do |token|
         if token.kind == :BRACE_BEGIN
           block = parse_block(parent, read, check: false)
-          block.stop_token = expect(:BRACE_END) or unexpected_token_error "}"
+          block.stop_token = readkind(:BRACE_END)
         else
           block = Ast::Block.new(parent, token)
-          if token.kind == :FILE
-            parse_files block
-          elsif token.group? :command
-            parse_command block
+          case token.kind
+            when :FILE; parse_files block
+            when *COMMANDS; parse_command block
           else
             nil
           end
@@ -132,7 +111,13 @@ module Prick::Lang
       end
     end
 
-    # Schema or group declaration
+    def parse_call(parent)
+      call = Ast::CallCommand.new(parent, read)
+      readkinds(:REF, :IDENT).each { Ast::Reference.new(call, _1) }
+      call
+    end
+
+    # Schema or function declaration
     def parse_decl(parent)
 #     puts "parse_decl"
       decl = Ast::Decl.new(parent, read)
@@ -141,9 +126,15 @@ module Prick::Lang
       decl
     end
 
+    def parse_provide(parent)
+      provide = Ast::Provide.new(parent, read)
+      parse_ident(provide)
+      provide
+    end
+
     def parse_require(parent)
       require_ = Ast::Require.new(parent, read)
-      readkinds(:OBJREF, :GRPREF, :IDENT).map { Ast::Reference.new(require_, _1) }
+      readkinds(:REF, :IDENT).each { Ast::Reference.new(require_, _1) }
       require_
     end
 
@@ -157,7 +148,7 @@ module Prick::Lang
 
     def parse_command(parent)
 #     puts "#parse_command"
-      command = Ast::Command.new(parent, token = read)
+      command = Ast::SourceCommand.new(parent, read)
       if peek.kind == :PIPE
         min_indent = tokenizer.indent + 1
         read
@@ -170,7 +161,7 @@ module Prick::Lang
 
     def parse_if(parent)
 #     puts "#parse_if"
-      if_ = Ast::If.new(parent, token = peek)
+      if_ = Ast::If.new(parent, peek)
       if_.if_thens = []
       loop do
         if_then = Ast::IfThen.new(if_, read)
@@ -183,7 +174,7 @@ module Prick::Lang
         read
         if_.else_ = parse_block(if_)
       end
-      expect(:END)
+      readkind(:END)
       if_
     end
 
@@ -197,17 +188,17 @@ module Prick::Lang
         when_.values = parse_values(when_)
         when_.then_ = parse_block(when_)
       end
-      !case_.whens.empty? or unexpected_token_eror peek, "'when'"
+      !case_.whens.empty? or unexpected_token_error peek, "'when'"
       if peek.kind == :ELSE
         read
         case_.else_ = parse_block(case_)
       end
-      expect(:END)
+      readkind(:END)
       case_
     end
 
-    # Parse an expression. It use the shunter to compile the source into a RPN
-    # expression that is then converted into a Ast::Expr
+    # Parse an expression. It uses the shunter to compile the source into
+    # reverse polish notation that is then converted into an Ast::Expr
     def parse_expr(parent)
 #     puts "#parse_expr"
       stack = []
@@ -233,6 +224,7 @@ module Prick::Lang
           stack.push token
         end
       }
+      stack.first or unexpected_token_error read, "expression"
       parent.attach stack.first
     end
 
@@ -246,22 +238,22 @@ module Prick::Lang
           parse_idents(expr)
         when :SCHEMA
           expr = Ast::ReferenceExpr.new(nil, read)
-          Ast::Reference.new(expr, expect(:IDENT))
+          Ast::Reference.new(expr, readkind(:IDENT))
         when :OBJECT
           expr = Ast::ReferenceExpr.new(nil, read)
-          Ast::Reference.new(expr, expect(:OBJREF, :IDENT))
-        when :GROUP
+          Ast::Reference.new(expr, readkind(:REF, :IDENT))
+        when :RESOURCE
           expr = Ast::ReferenceExpr.new(nil, read)
-          Ast::Reference.new(expr, expect(:GRPREF, :IDENT))
+          Ast::Reference.new(expr, readkind(:REF, :IDENT))
         when :VERSION
           expr = Ast::VersionExpr.new(nil, read)
           while VERSION_OPERATORS.include?(peek.kind)
             match = Ast::VersionMatch.new(expr, read)
-            ver = Ast::Ver.new(match, expect(:VER))
+            ver = Ast::Ver.new(match, readkind(:VER))
           end
-          !expr.matches.empty? or unexpected_token_error(peek, "version operator")
+          !expr.matches.empty? or unexpected_token_error peek, "version operator"
       else
-        unexpected_token_error(peek, "simple expression")
+        unexpected_token_error peek, "simple expression"
       end
       expr
     end
@@ -290,20 +282,19 @@ module Prick::Lang
     end
 
     def parse_ident?(parent) = peek&.kind == :IDENT ? Ast::Ident.new(parent, read) : nil
-    def parse_ident(parent) = Ast::Ident.new(parent, expect(:IDENT))
+    def parse_ident(parent) = Ast::Ident.new(parent, readkind(:IDENT))
 
     def parse_idents?(parent) = readwhile? { parse_ident? parent }
     def parse_idents(parent) = check_expected("identifier") { readwhile { parse_ident? parent } }
 
-
     def parse_refs(parent)
-      readkinds(:IDENT, :OBJREF, :GRPREF).map { Ast::ReferenceExpr.new(parent, _1) }
+      readkinds(:IDENT, :REF).map { Ast::Reference.new(parent, _1) }
     end
 
-    # Parse a space-separated list of values. Values are IDENT, OBJREF, GRPREF, or a version match
+    # Parse a space-separated list of values. Values are IDENT, REF, or a version match
     def parse_value?(parent)
       case peek.kind
-        when :IDENT, :OBJREF, :GRPREF
+        when :IDENT, :REF
           Ast::Reference.new(parent, read)
         when :VER # Default '==' operator
           ver = read
@@ -313,7 +304,7 @@ module Prick::Lang
           value
         when *VERSION_OPERATORS
           value = Ast::VersionMatch.new(parent, read)
-          Ast::Ver.new(value, expect(:VER))
+          Ast::Ver.new(value, readkind(:VER))
           value
       else
         nil
@@ -321,7 +312,7 @@ module Prick::Lang
     end
 
     def parse_constant(parent)
-      Ast::Const.new(parent, expect(CONSTANTS))
+      Ast::Const.new(parent, readkind(*CONSTANTS))
     end
 
     #
@@ -342,7 +333,7 @@ module Prick::Lang
             while op = stack.pop and op.kind != :PAREN_BEGIN
               output << op
             end
-          when :CMD, :ENV, :USER, :VERSION, :SCHEMA, :OBJECT, :GROUP
+          when *CONSTANTS
             output << parse_simple_expr
           else
             oper = OPERATORS[token.kind] or break
@@ -369,7 +360,8 @@ module Prick::Lang
     def read(**opts) = @tokenizer.read(**opts) or error(@tokenizer.error_token)
     def readline(**opts) = @tokenizer.readline(**opts) or error(@tokenizer.error_token)
     def readtext(indent, **opts) = @tokenizer.readtext(indent, **opts) or error(@tokenizer.error_token)
-    def readkinds(*kinds, **opts) = [expect(*kinds)] + readkinds?(kinds, **opts)
+    def readkind(*kinds, **opts) = readkind?(*kinds, **opts) or unexpected_token_error kinds
+    def readkinds(*kinds, **opts) = [readkind(*kinds)] + readkinds?(kinds, **opts)
 
     # Return nil if empty
     def readwhile(&block) = (r = readwhile?(&block)).empty? ? nil : r
@@ -381,6 +373,12 @@ module Prick::Lang
     def readline?(**opts) = @tokenizer.readline(**opts)
     def readtext?(indent, **opts) = @tokenizer.readtext(indent, **opts)
 
+    def readkind?(*kinds, **opts)
+      kinds.include? peek&.kind or return nil
+      read
+    end
+
+    # Note: Returns an empty list if no token was found
     def readkinds?(*kinds, **opts)
       kinds = Array(kinds).flatten
       a = []
@@ -390,6 +388,7 @@ module Prick::Lang
       a
     end
 
+    # Note: Returns an empty list if no token was found
     def readwhile?(&block)
       a = []
       r = yield
@@ -398,14 +397,6 @@ module Prick::Lang
         r = yield
       end
       a
-    end
-
-    # Returns token of the given kind. Generate error if not found
-    def expect(*kinds)
-      kinds = Array(kinds).flatten
-      token = tokenizer.read
-      kinds.include? token&.kind or unexpected_token_error kinds
-      token
     end
 
     #
@@ -417,15 +408,18 @@ module Prick::Lang
     #
     # Raise an error with the message format
     #
-    #   Expected KIND, ..., or KIND, got KIND
+    #   Expected WORD, ..., or WORD, got WORD
     #
     # The error will be located at the given token (default tokenizer #error or
     # #token). Note that it does not check for an error, it only displays it
     #
+    # Some prettyfication is done on words
+    #
     def unexpected_token_error(*args)
-      token = args.first.is_a?(Token) ? args.shift : tokenizer.error || tokenizer.peek_error || tokenizer.token
-      token or raise ArgumentError
-      words = seq Array(*args).flatten
+      token = args.first.is_a?(Token) ? args.shift : tokenizer.error || tokenizer.peek_error || tokenizer.token or
+          raise ArgumentError
+      words = Array(*args).flatten.map! { |w| w.is_a?(Symbol) ? Token::TEXTS[w] : w }
+      words = seq words
       source = token.respond_to?(:error) && token.error || token.text
       got = (source.empty? ? "" : ", got '#{source}'")
       message = "Expected #{words}#{got}"

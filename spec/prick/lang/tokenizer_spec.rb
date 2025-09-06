@@ -115,16 +115,16 @@ describe "Prick::Lang" do
 
       context "when unknown/unexpected token" do
         it "returns nil" do
-          l = [".word"]
+          l = ["£word"]
           t = make l
           expect(t.read).to eq nil
         end
 
         it "sets #error_token" do
-          l = [".word"]
+          l = ["£word"]
           t = make l
           t.read
-          expect(t.error.text).to eq ".word"
+          expect(t.error.text).to eq "£word"
         end
       end
 

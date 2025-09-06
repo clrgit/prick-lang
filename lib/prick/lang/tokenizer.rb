@@ -128,10 +128,8 @@ module Prick::Lang
             FileToken.new(*args, match, m[:path], m[:file], m[:ext])
           elsif m[:ident]
             Token.new(*args, match, :IDENT)
-          elsif m[:objref]
-            Token.new(*args, match, :OBJREF)
-          elsif m[:grpref]
-            Token.new(*args, match, :GRPREF)
+          elsif m[:ref]
+            Token.new(*args, match, :REF)
           elsif m[:version]
             Token.new(*args, match, :VER)
           elsif capture = m[:error]
@@ -144,9 +142,6 @@ module Prick::Lang
 
     def read(eol: false, eof: false)
 #     puts "#read"
-#     puts "  peek?: #{peek?}"
-#     puts "  index, peek_index: #{@index}, #{@peek_index}"
-#     puts "  pos, peek_pos: #{@pos}, #{@peek_pos}"
       peek(eol: eol, eof: eof) if !peek?
       @index = @peek_index
       @pos = @peek_pos
@@ -264,6 +259,9 @@ module Prick::Lang
       @token
     end
 
+    # Handles an EOF/EOL condition. Return Eof/EolToken if :flag is true and
+    # clear error state. Return nil if flag is false and set #error_token to
+    # the Eof/EolToken. kind can be :EOF og :EOL
     def handle_peek_eox(kind, flag)
       constrain kind, :EOF, :EOL
       token = Token.new(file, lineno, charno, nil, kind)

@@ -66,8 +66,10 @@ module Prick::Lang
 #     forward_to :ident, :name
       attr_accessor :ident
       attr_accessor :block
+    end
 
-      def buildtree = @children << ident << block
+    class Provide < Node
+      def ident = children.first
     end
 
     class Require < Node
@@ -79,11 +81,17 @@ module Prick::Lang
       attr_accessor :block
     end
 
-    class Command < Node
+    class Command < Node; end
+
+    class SourceCommand < Command
       attr_accessor :source # Array of source lines. Assigned after initialization
 
       # True iff source consists of multiple lines
       def multiline? = @source =~ /\n/
+    end
+
+    class CallCommand < Command
+      alias_method :refs, :children
     end
 
     class If < Node
@@ -155,10 +163,6 @@ module Prick::Lang
       forward_to :@token, :filename, :extname
     end
 
-    class Ident < Value
-      def name = @token.text
-    end
-
     class Reference < Value
       def ref = @token.text
     end
@@ -170,6 +174,10 @@ module Prick::Lang
     class VersionMatch < Value
       def oper = @token.text
       def version = @children.first
+    end
+
+    class Ident < Value
+      def name = @token.text
     end
 
     class Const < Node

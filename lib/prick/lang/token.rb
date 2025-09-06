@@ -3,31 +3,43 @@ module Prick::Lang
   class Token
     # Tokens
     TOKENS = {
-      # Keywords
-      PROGRAM: nil, # FIXME "program"
+      # Top level keywords
+      PROGRAM: nil,
       SCHEMA: "schema",
       OPTION: "option",
       REQUIRE: "require",
+      PROVIDE: "provide",
+      FUNCTION: "function",
+      RETURN: "return",
+
+      # Phases
       INIT: "init",
       TERM: "term",
       META: "meta",
-      SEEDS: "seeds",
+      SEEDS: "seed",
       AUTH: "auth",
-      GROUP: "group",
+
+      # Control structures
       IF: "if",
       ELSE: "else",
       ELSIF: "elsif",
       END: "end",
       CASE: "case",
       WHEN: "when",
+
+      # Commands
       EXEC: "exec",
       EVAL: "eval",
       RUBY: "ruby",
       SQL: "sql",
+      CALL: "call",
+
+      # Query operators (in addition to 'schema')
       ENV: "env",
       CMD: "cmd",
-      OBJECT: "object",
       USER: "user",
+      OBJECT: "object",
+      RESOURCE: "resource",
       VERSION: "version", # Version keyword, see also :VER
 
       # Punctuation
@@ -52,8 +64,7 @@ module Prick::Lang
 
       # Identifiers
       IDENT: nil,
-      OBJREF: nil,
-      GRPREF: nil,
+      REF: nil,
 
       # Literals
       FILE: nil,
@@ -73,11 +84,23 @@ module Prick::Lang
       ERROR: nil
     }
 
-    # List of recognized file types
-    EXTS = %w(sql psql rb fox prick)
-
     # Maps from keyword/punctuation character to kind. Inverse map of TOKENS
     WORDS = TOKENS.select { _2.is_a? String }.invert
+
+    # Texts for error messages: Token strings are enclosed in quotes, other
+    # tokens are defined below
+    TEXTS = WORDS.transform_values { "'#{_1}'" }.merge({
+      IDENT: "identifier",
+      REF: "reference",
+      FILE: "filename",
+      DIR: "directory",
+      VER: "version number",
+      LINE: "text",
+      TEXT: "indented text",
+      EOL: "EOL",
+      EOB: "EOB",
+      EOF: "EOF"
+    })
 
     # List of kinds
     KINDS = TOKENS.keys
@@ -88,40 +111,28 @@ module Prick::Lang
     # List of punctuation characters (strings are allowed by not used)
     PUNCTS = WORDS.keys - KEYWORDS
 
-    # List if identifiers
-    IDENTS = [:IDENT, :REF]
+    # List of recognized file types. They are reserved keywords and can't be used
+    # for function or resources
+    EXTS = %w(sql psql rb fox prick)
 
-    # List of literals
-    LITERALS = [:FILE, :DIR, :INT]
-
-    # List of textual tokens
-    TEXTS = [:LINE, :TEXT]
-
-    # Finalizing tokens
-    FINALS = [:EOF, :EOL]
-
-    # *_PATTERN do not generate captures
+    # *_PATTERN regular expressions do not generate captures
     KEYWORD_PATTERN = /\b#{Regexp.union KEYWORDS}\b/
     PUNCT_PATTERN =  /#{Regexp.union PUNCTS}/
-
-#   WORD_PATTERN = /#{Regexp.union WORDS.keys}/ # keywords and punctuation
     FILE_PATTERN = /[^\/\s\0*?"`'$<>|:\[\]]+/ # Any legal linux filename
     EXT_PATTERN = Regexp.union(EXTS) # recognized file extensions
-    REL_PATTERN = /\.{1,2}\/|\// # initial '/', '../', or './'
-    DIR_PATTERN = /#{REL_PATTERN}?(?:#{FILE_PATTERN}\/)+/ # path ending in '/'
+    RELDIR_PATTERN = /\.{1,2}\/|\// # initial '/', '../', or './'
+    DIR_PATTERN = /#{RELDIR_PATTERN}?(?:#{FILE_PATTERN}\/)+/ # path ending in '/'
     IDENT_PATTERN = /[_a-zA-Z]\w*/ # language identifier
-    OBJREF_PATTERN = /#{IDENT_PATTERN}(?:\.#{IDENT_PATTERN})+/
-    GRPREF_PATTERN = /#{IDENT_PATTERN}(?:::#{IDENT_PATTERN})+/
+    REF_PATTERN = /#{IDENT_PATTERN}?(?:\.#{IDENT_PATTERN})+/
     VERSION_PATTERN = /\d+(?:\.(\d+)(?:\.(\d+))?)?/
 
-    # *_RE may generate captures
+    # *_RE regular expressions generate captures
     KEYWORD_RE = /(?<keyword>#{KEYWORD_PATTERN})/
     PUNCT_RE = /(?<punct>#{PUNCT_PATTERN})/
     FILE_RE = /(?<path>#{DIR_PATTERN})?(?<file>#{FILE_PATTERN}\.(?<ext>#{EXT_PATTERN}))/
     DIR_RE = /(?<dir>#{DIR_PATTERN})/
+    REF_RE = /(?<ref>#{REF_PATTERN})/
     IDENT_RE = /(?<ident>#{IDENT_PATTERN})/
-    OBJREF_RE = /(?<objref>#{OBJREF_PATTERN})/
-    GRPREF_RE = /(?<grpref>#{GRPREF_PATTERN})/
     VERSION_RE = /(?<version>#{VERSION_PATTERN})/
 
     ERROR_RE = /(?<error>\S*)/
@@ -138,12 +149,14 @@ module Prick::Lang
     # non-blank part of the match. The kind of the token can be inferred from
     # the named captures: word, dir, path, file, ext, int, ident, ref
     TOKEN_RE =
-        /#{KEYWORD_RE}|#{PUNCT_RE}|#{DIR_RE}|#{FILE_RE}|#{OBJREF_RE}|#{GRPREF_RE}|#{IDENT_RE}|#{VERSION_RE}|#{ERROR_RE}/
+        /#{KEYWORD_RE}|#{PUNCT_RE}|#{DIR_RE}|#{FILE_RE}|#{REF_RE}|#{IDENT_RE}|#{VERSION_RE}|#{ERROR_RE}/
 
     # Matches as far as possible in the string. This is the same as TOKEN_RE
     # except filesystem names that matches nearly everything. ERROR_TOKEN_RE is
-    # to pin-point the character that made TOKEN_RE to fail
-    ERROR_TOKEN_RE = /^(?:#{OBJREF_PATTERN}|#{GRPREF_PATTERN}|#{VERSION_PATTERN}|#{IDENT_PATTERN})(?<char>.)/
+    # used to pin-point the character that made TOKEN_RE to fail
+    #
+    # FIXME: What about ERROR_RE?
+    ERROR_TOKEN_RE = /^(?:#{REF_PATTERN}|#{VERSION_PATTERN}|#{IDENT_PATTERN})(?<char>.)/
 
     attr_reader :file
     attr_reader :lineno
@@ -151,21 +164,8 @@ module Prick::Lang
     attr_accessor :kind # Symbol. Can mutate from keyword to ident
     attr_accessor :text # String
 
-    # Value of token. Used by simple expressions that accumulate arguments into
-    # a single token
+    # Value of token. Used by simple expressions to accumulate arguments
     attr_accessor :value
-
-    # FIXME Unused?
-    def punct? = PUNCTS.include? kind
-
-    # Return true if the token can be interpreted as the given kind
-    def keyword? = KEYWORDS.include? kind
-    def ident? = IDENTS.include? kind
-    def objref? = ident? || kind == :OBJREF
-    def grpref? = ident? || kind == :GRPREF
-
-    def literal? = LITERALS.include? kind
-    def text? = TEXTS.include? kind
 
     def initialize(file, lineno, charno, text, kind)
       @file, @lineno, @charno, @text, @kind = file, lineno, charno, text, kind
