@@ -17,6 +17,11 @@ module Prick::Lang
       def title = @token.kind.to_s.downcase
     end
 
+    class Command
+      def title = kind.downcase
+      def dump_children = indent { puts source }
+    end
+
     class Expr
       def title = token.text
     end

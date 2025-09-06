@@ -43,12 +43,12 @@ module Prick::Lang
       @tokenizer = Tokenizer.new(self)
       @parser = Parser.new(@tokenizer)
 
-      puts "Tokenizing #{file}"
+#     puts "Tokenizing #{file}"
 
-      puts "Parsing #{file}"
+#     puts "Parsing #{file}"
       program = @parser.parse
 
-      puts "Dumping"
+#     puts "Dumping"
       program.dump
     end
   end

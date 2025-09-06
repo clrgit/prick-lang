@@ -85,14 +85,14 @@ module Prick::Lang
         when :IF; parse_if parent
         when :CASE; parse_case parent
         when :INIT, :TERM, :META, :SEEDS, :AUTH; parse_phase parent
-        when :EXEC, :EVAL; parse_command parent
-        when :RUBY; parse_ruby parent
-        when :SQL; parse_sql parent
+        when :EXEC, :EVAL, :SQL; parse_command parent
+        when :RUBY; not_implemented_error "'ruby' command"
         when :FILE; parse_files parent
       else
         return nil
       end
     end
+
 
     # Parse a statement block (a list of statements). Checks for non-empty when
     # :check is true (the default)
@@ -272,10 +272,6 @@ module Prick::Lang
 
     def parse_ruby(parent)
       not_implemented_error "#parse_ruby"
-    end
-
-    def parse_sql(parent)
-      not_implemented_error "#parse_sql"
     end
 
     # Parse a list of files. Return array of File objects. Raise an error if
