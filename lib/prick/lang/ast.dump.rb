@@ -22,6 +22,16 @@ module Prick::Lang
       def dump_children = indent { puts source }
     end
 
+    class Make
+      def dump_children
+        indent {
+          puts "DstFile #{dstfiles.map(&:filename).join(', ')}"
+          puts "SrcFile #{srcfiles.map(&:text).join(', ')}"
+          block.dump
+        }
+      end
+    end
+
     class Expr
       def title = token.text
     end

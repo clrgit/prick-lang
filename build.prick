@@ -14,7 +14,7 @@ seeds {
 meta {
   meta.sql
 }
-
+# This comment should not survive because it starts in colunm 1
 auth {
   auth.sql
 }
@@ -26,6 +26,7 @@ exec ls -l
 exec |
   # This comment should survive
   ls -l
+# This comment should not survive because it starts in colunm 1
   sed 's/#/SURVIVOR/' gryf.txt # this too
 
 

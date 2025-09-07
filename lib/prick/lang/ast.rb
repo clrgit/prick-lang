@@ -106,14 +106,6 @@ module Prick::Lang
       attr_accessor :then_ # Block
     end
 
-#   # Just to make #dump easier to read
-#   class ElsifThen < IfThen
-#   end
-#
-#   # Just to make #dump easier to read
-#   class Else < Block
-#   end
-
     class Case < Node
       attr_accessor :const # Const
       attr_accessor :whens # [When]
@@ -123,6 +115,12 @@ module Prick::Lang
     class When < Node
       attr_accessor :values # [Value]
       attr_accessor :then_ # Block
+    end
+
+    class Make < Node
+      attr_accessor :dstfiles
+      attr_accessor :srcfiles
+      attr_accessor :block
     end
 
     class Expr < Node
@@ -178,6 +176,10 @@ module Prick::Lang
 
     class Ident < Value
       def name = @token.text
+    end
+
+    class Word < Value
+      def text = @token.text
     end
 
     class Const < Node

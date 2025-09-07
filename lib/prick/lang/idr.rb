@@ -1,3 +1,28 @@
+
+
+#module Prick::Lang
+# module Idr
+#   class Node; end
+#
+#   class Block < Node; end
+#   class Source < Node; end
+#   class Stmt < Node; end
+#
+# end
+#end
+
+
+
+
+
+
+
+
+
+
+
+
+module Prick::Lang
   module Idr
     class Node
       attr_accessor :ast_node
@@ -101,4 +126,4 @@
       def value() @value ||= within_some_context { eval expr } end
     end
   end
-
+end

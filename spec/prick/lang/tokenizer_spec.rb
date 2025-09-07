@@ -26,11 +26,20 @@ describe "Prick::Lang" do
     end
 
     describe "#initialize" do
-      it "strips source file lines"
-      it "strips the lines argument" do
-        l = ["a", "  "]
+      it "skips trailing blanks" do
+        l = ["a", "  ", "b"]
         t = make l
         expect(t.instance_eval("@lines")[1]).to eq ""
+      end
+      it "skips trailing empty lines" do
+        l = ["a", "  "]
+        t = make l
+        expect(t.instance_eval("@lines").size).to eq 1
+      end
+      it "skips trailing comment-only lines" do
+        l = ["a", "  # comment"]
+        t = make l
+        expect(t.instance_eval("@lines").size).to eq 1
       end
     end
 
@@ -365,12 +374,12 @@ describe "Prick::Lang" do
       def call(lines) = make(lines).scanlines
 
       it "skips single empty line" do
-        l = [""]
+        l = ["", "a"]
         expect(call l).to eq 1
       end
 
       it "skips multiple empty lines" do
-        l = ["", ""]
+        l = ["", "", "a"]
         expect(call l).to eq 2
       end
 

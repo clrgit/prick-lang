@@ -23,9 +23,9 @@ SPEC = %(
       | OPTION_STMT
       | PROVIDE-STAT
       | REQUIRE_STMT
+      | MAKE-STMT
       | IF-STMT
       | CASE-STMT
-      | MAKE-STMT
       | COMMAND-STMT
       | FILE-STMT
       | RETURN-STMT
@@ -43,8 +43,13 @@ SPEC = %(
     PROVIDE-STMT ::=
       provide IDENT
 
-    REQUIRE_STMT ::=
+    REQUIRE-STMT ::=
       require REF+
+
+    MAKE-STMT ::=
+      make FILE+ from PATH+
+        BLOCK
+      end
 
     IF-STMT ::=
         if EXPR BLOCK end
@@ -64,7 +69,7 @@ SPEC = %(
       | sql SOURCE
       | call REF+
 
-    FILE-STMT ::= PATH...
+    FILE-STMT ::= FILE+
 
     EXIT-STMT ::= return INTEGER
 
@@ -102,15 +107,19 @@ SPEC = %(
       | VER
       | VER-EXPR
 
-    PATH ::= <path>/FILE
-    FILE ::= <*.sql> | <*.psql> | <*.fox> | <*.prick> | <*.rb>
-    REF ::= .? IDENT ( . IDENT )*
+    # Files
+    PATH ::= <path>/<*>
+    FILE ::= <path> / <*.sql> | <*.psql> | <*.fox> | <*.prick> | <*.rb>
 
+    # Reference & identifier
+    REF ::= .? IDENT ( . IDENT )*
+    IDENT ::= /[\w.]+/
+
+    # Inline source
     SOURCE ::=
         <line>
       | '|' <indented lines>
 
-    IDENT ::= /[\w.]+/
 )
 
 opts, args = ShellOpts.process(SPEC, ARGV)

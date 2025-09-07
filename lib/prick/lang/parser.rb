@@ -37,7 +37,13 @@ module Prick::Lang
       @ast = nil
     end
 
-    def parse = parse_program
+    def parse
+      @ast = parse_program
+      if !@tokenizer.eof?
+        unexpected_token_error "end of file"
+      end
+      @ast
+    end
 
     def inspect = "<Parser: #{file}>"
 
@@ -63,6 +69,7 @@ module Prick::Lang
         when :REQUIRE; parse_require parent
         when :IF; parse_if parent
         when :CASE; parse_case parent
+        when :MAKE; parse_make parent
         when :INIT, :TERM, :META, :SEEDS, :AUTH; parse_phase parent
         when :EXEC, :EVAL, :SQL; parse_command parent
         when :CALL; parse_call parent
@@ -72,7 +79,6 @@ module Prick::Lang
         return nil
       end
     end
-
 
     # Parse a statement block (a list of statements). Checks for non-empty when
     # :check is true (the default)
@@ -133,6 +139,7 @@ module Prick::Lang
     end
 
     def parse_require(parent)
+#     puts "#parse_require"
       require_ = Ast::Require.new(parent, read)
       readkinds(:REF, :IDENT).each { Ast::Reference.new(require_, _1) }
       require_
@@ -195,6 +202,16 @@ module Prick::Lang
       end
       readkind(:END)
       case_
+    end
+
+    def parse_make(parent)
+      make = Ast::Make.new(parent, read)
+      make.dstfiles = parse_files(make)
+      readkind(:FROM)
+      make.srcfiles = parse_words(make)
+      make.block = parse_block(make)
+      readkind(:END)
+      make
     end
 
     # Parse an expression. It uses the shunter to compile the source into
@@ -281,6 +298,10 @@ module Prick::Lang
       end
     end
 
+    def parse_words(parent)
+      readwords.map { Ast::Word.new(parent, _1) }
+    end
+
     def parse_ident?(parent) = peek&.kind == :IDENT ? Ast::Ident.new(parent, read) : nil
     def parse_ident(parent) = Ast::Ident.new(parent, readkind(:IDENT))
 
@@ -362,6 +383,7 @@ module Prick::Lang
     def readtext(indent, **opts) = @tokenizer.readtext(indent, **opts) or error(@tokenizer.error_token)
     def readkind(*kinds, **opts) = readkind?(*kinds, **opts) or unexpected_token_error kinds
     def readkinds(*kinds, **opts) = [readkind(*kinds)] + readkinds?(kinds, **opts)
+    def readwords() = @tokenizer.readwords or error @tokenizer.error_token
 
     # Return nil if empty
     def readwhile(&block) = (r = readwhile?(&block)).empty? ? nil : r
@@ -377,6 +399,31 @@ module Prick::Lang
       kinds.include? peek&.kind or return nil
       read
     end
+
+#   KEYWORD_RE = /(?<keyword>#{KEYWORD_PATTERN})/
+#   PUNCT_RE = /(?<punct>#{PUNCT_PATTERN})/
+#   DIR_RE = /(?<dir>#{DIR_PATTERN})/
+#   FILE_RE = /(?<path>#{DIR_PATTERN})?(?<file>#{FILE_PATTERN}\.(?<ext>#{EXT_PATTERN}))/
+#   PATH_RE = /TODO/
+#   REF_RE = /(?<ref>#{REF_PATTERN})/
+#   IDENT_RE = /(?<ident>#{IDENT_PATTERN})/
+#   VERSION_RE = /(?<version>#{VERSION_PATTERN})/
+#
+#   KIND_RES = {
+#     KEYWORD: KEYWORD_RE,
+#     PUNCT: PUNCT_RE,
+#     DIR: DIR_RE,
+#     FILE: FILE_RE,
+#     PATH: PATH_RE,
+#     REF: REF_RE,
+#     IDENT: IDENT_RE,
+#     VERSION: VERSION_RE
+#   }
+
+
+#   def peekkind(*kinds, **opts)
+#     @tokenizer.peekkind()
+#   end
 
     # Note: Returns an empty list if no token was found
     def readkinds?(*kinds, **opts)

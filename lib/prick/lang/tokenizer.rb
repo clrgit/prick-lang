@@ -24,6 +24,9 @@ module Prick::Lang
     # Current line
     def line = @lines[@index]
 
+    # Rest of current line
+    def rest = @lines[@index][@pos..-1]
+
     # Current line number (one-based)
     def lineno = @index + 1
 
@@ -47,6 +50,7 @@ module Prick::Lang
       constrain lines, [String], nil
       @compiler = compiler
       @lines = (lines || IO.readlines(file)).map(&:rstrip)
+      trimlines
 
       # Current state
       @index = 0 # current line index
@@ -81,8 +85,8 @@ module Prick::Lang
     # Return nil if no regular token was found but return EolToken/EofToken if
     # :eol/:eof is true and at the end of line/file
     #
-    # Note that #peek has eof default true but #read has it default false
-    def peek(eol: false, eof: true)
+    # Note that #peek has eof default true but #read has eof default false
+    def peek(eol: false, eof: true, re: TOKEN_RE)
       return @peek_token if peek?
 
       # Handle initial EOF
@@ -119,9 +123,10 @@ module Prick::Lang
         @peek_pos = 0
       end
 
+      # Detect matched token type and extract value
       @peek_token =
           if m[:keyword] || m[:punct]
-            Token.new *args, match, Token::WORDS[match] #Token::WORDS[capture] FIXME
+            Token.new *args, match, Token::TOKEN_KINDS[match]
           elsif m[:dir]
             DirToken.new *args, match
           elsif m[:file]
@@ -132,17 +137,17 @@ module Prick::Lang
             Token.new(*args, match, :REF)
           elsif m[:version]
             Token.new(*args, match, :VER)
-          elsif capture = m[:error]
-            @peek_error = CharErrorToken.new(*args, capture)
+          elsif s = m[:error]
+            @peek_error = CharErrorToken.new(*args, s)
             nil
           else
             raise InternalError
           end
     end
 
-    def read(eol: false, eof: false)
+    def read(eol: false, eof: false, re: TOKEN_RE)
 #     puts "#read"
-      peek(eol: eol, eof: eof) if !peek?
+      peek(eol: eol, eof: eof, re: re) if !peek?
       @index = @peek_index
       @pos = @peek_pos
       @token = @peek_token; @peek_token = nil
@@ -218,9 +223,24 @@ module Prick::Lang
       Token.new(file, token_lineno, token_charno, source, :TEXT)
     end
 
+    def readwords
+      !eof? or return handle_eox(:EOF, false)
+      !eol? or return handle_eox(:EOL, false)
+      words = []
+      while !eol? && m = Token::WORD_RE.match(@lines[@index], @pos)
+        match = m.match(:word)
+        match_charno = m.offset(:word).first + 1
+        words << Token.new(file, lineno, match_charno, match, :WORD)
+        @pos += m.match_length(0)
+      end
+      nextline
+      words
+    end
+
     def nextline
       @index += 1
       @pos = 0
+      @error = nil
       reset_peek
     end
 
@@ -282,6 +302,13 @@ module Prick::Lang
       re = (!comment ? Token::COMMENT_LINE_RE : Token::BLANK_LINE_RE)
       offset = @lines[index..-1].find_index { |l| !re.match(l) }
       (offset ? index + offset : @lines.size)
+    end
+
+    # Removes trailing blank or comment-only lines
+    def trimlines
+      while @lines.last && @lines.last =~ Token::COMMENT_LINE_RE
+        @lines.pop
+      end
     end
   end
 end

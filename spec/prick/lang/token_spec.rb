@@ -109,12 +109,12 @@ describe "Prick::Lang" do
       end
     end
 
-    describe "::VERSION_RE" do
+    describe "::VER_RE" do
       it "matches versions" do
-        e :VERSION_RE, "1.2.3"
+        e :VER_RE, "1.2.3"
       end
       it "sets the 'version' capture" do
-        c :VERSION_RE, "1.2.3", :version
+        c :VER_RE, "1.2.3", :version
       end
     end
 

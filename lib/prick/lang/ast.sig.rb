@@ -83,6 +83,13 @@ module Prick::Lang
       end
     end
 
+    class Make
+      def sig
+        puts "Make #{dstfiles.map(&:filename).join(", ")} from #{srcfiles.map(&:text).join(", ")}"
+        indent { block.sig }
+      end
+    end
+
     class Expr
 #     def source = @token.text # FIXME FIXME FIXME
     end

@@ -26,6 +26,8 @@ module Prick::Lang
       END: "end",
       CASE: "case",
       WHEN: "when",
+      MAKE: "make",
+      FROM: "from",
 
       # Commands
       EXEC: "exec",
@@ -70,6 +72,7 @@ module Prick::Lang
       FILE: nil,
       DIR: nil,
       VER: nil, # Version number, see also :VERSION
+      WORD: nil, # Any group of space-separated characters. Only used in make statements
 
       # Text literals
       LINE: nil, # Line of text
@@ -84,17 +87,18 @@ module Prick::Lang
       ERROR: nil
     }
 
-    # Maps from keyword/punctuation character to kind. Inverse map of TOKENS
-    WORDS = TOKENS.select { _2.is_a? String }.invert
+    # Maps from keyword/punctuation-character to kind. Inverse map of TOKENS
+    TOKEN_KINDS = TOKENS.select { _2.is_a? String }.invert
 
     # Texts for error messages: Token strings are enclosed in quotes, other
     # tokens are defined below
-    TEXTS = WORDS.transform_values { "'#{_1}'" }.merge({
+    TEXTS = TOKEN_KINDS.transform_values { "'#{_1}'" }.merge({
       IDENT: "identifier",
       REF: "reference",
-      FILE: "filename",
+      FILE: "file",
       DIR: "directory",
       VER: "version number",
+      WORD: "file",
       LINE: "text",
       TEXT: "indented text",
       EOL: "EOL",
@@ -102,14 +106,22 @@ module Prick::Lang
       EOF: "EOF"
     })
 
-    # List of kinds
+    # List of all token kinds
     KINDS = TOKENS.keys
+#
+#   TOKEN_KIND_KINDS = TOKENS.select { _2 }.keys
+#   KEYWORD_KINDS = TOKENS.select { _2.to_s =~ /^\w+$/ }.keys
+#   PUNCT_KINDS = TOKEN_KIND_KINDS - KEYWORD_KINDS
+#
+#   TOKEN_RES =
+#     KEYWORDS_KINDS.map { |kind| [kind, KEYWORD_RE] } +
+#     PUNCT
 
     # List of keywords
-    KEYWORDS = WORDS.keys.select { _1 =~ /^\w+$/ }
+    KEYWORDS = TOKEN_KINDS.keys.select { _1.to_s =~ /^\w+$/ }
 
     # List of punctuation characters (strings are allowed by not used)
-    PUNCTS = WORDS.keys - KEYWORDS
+    PUNCTS = TOKEN_KINDS.keys - KEYWORDS
 
     # List of recognized file types. They are reserved keywords and can't be used
     # for function or resources
@@ -124,7 +136,7 @@ module Prick::Lang
     DIR_PATTERN = /#{RELDIR_PATTERN}?(?:#{FILE_PATTERN}\/)+/ # path ending in '/'
     IDENT_PATTERN = /[_a-zA-Z]\w*/ # language identifier
     REF_PATTERN = /#{IDENT_PATTERN}?(?:\.#{IDENT_PATTERN})+/
-    VERSION_PATTERN = /\d+(?:\.(\d+)(?:\.(\d+))?)?/
+    VER_PATTERN = /\d+(?:\.(\d+)(?:\.(\d+))?)?/
 
     # *_RE regular expressions generate captures
     KEYWORD_RE = /(?<keyword>#{KEYWORD_PATTERN})/
@@ -133,7 +145,10 @@ module Prick::Lang
     DIR_RE = /(?<dir>#{DIR_PATTERN})/
     REF_RE = /(?<ref>#{REF_PATTERN})/
     IDENT_RE = /(?<ident>#{IDENT_PATTERN})/
-    VERSION_RE = /(?<version>#{VERSION_PATTERN})/
+    VER_RE = /(?<version>#{VER_PATTERN})/
+
+    # TODO
+#   IDENT_REF_RE = /(?<ref>(?<ident>#{IDENT_PATTERN})?(?:\.#{IDENT_PATTERN})+)/
 
     ERROR_RE = /(?<error>\S*)/
 
@@ -149,14 +164,19 @@ module Prick::Lang
     # non-blank part of the match. The kind of the token can be inferred from
     # the named captures: word, dir, path, file, ext, int, ident, ref
     TOKEN_RE =
-        /#{KEYWORD_RE}|#{PUNCT_RE}|#{DIR_RE}|#{FILE_RE}|#{REF_RE}|#{IDENT_RE}|#{VERSION_RE}|#{ERROR_RE}/
+        /#{KEYWORD_RE}|#{PUNCT_RE}|#{DIR_RE}|#{FILE_RE}|#{REF_RE}|#{IDENT_RE}|#{VER_RE}|#{ERROR_RE}/
+
+    WORD_RE = /\s*(?<word>\S+)/
+
+#   TOKEN_RES =
+#     KEYWORDS.map { |k|
 
     # Matches as far as possible in the string. This is the same as TOKEN_RE
-    # except filesystem names that matches nearly everything. ERROR_TOKEN_RE is
-    # used to pin-point the character that made TOKEN_RE to fail
-    #
-    # FIXME: What about ERROR_RE?
-    ERROR_TOKEN_RE = /^(?:#{REF_PATTERN}|#{VERSION_PATTERN}|#{IDENT_PATTERN})(?<char>.)/
+    # except filesystem names that matches nearly everything. Note that while
+    # ERROR_RE (included in TOKEN_RE) matches the whole failing string,
+    # ERROR_TOKEN_RE is used to pin-point the character that made TOKEN_RE to
+    # fail
+    ERROR_TOKEN_RE = /^(?:#{REF_PATTERN}|#{VER_PATTERN}|#{IDENT_PATTERN})(?<char>.)/
 
     attr_reader :file
     attr_reader :lineno

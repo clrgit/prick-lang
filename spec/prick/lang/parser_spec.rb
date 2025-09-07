@@ -346,6 +346,21 @@ describe "Prick::Lang" do
 #         end
         end
 
+        context "make statement" do
+          it "with a block" do
+            l = %(
+              make a.sql b.sql from c.rb d.txt
+                exec t.rb
+              end
+            )
+            expect(sig l).to eq %(
+              Make a.sql, b.sql from c.rb, d.txt
+                Block
+                  Exec t.rb
+            ).align
+          end
+        end
+
         context "source commands" do
           it "with a LINE argument" do
             l = %(eval ls -l)
