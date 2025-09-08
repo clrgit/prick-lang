@@ -1,0 +1,53 @@
+
+# Schema
+schema my_schema {
+
+  # Phase
+  init {
+    # If statement
+    if version ~> 1.2 && ( env prod || cmd build )
+      a.sql
+    elsif ! env prod
+      b.sql
+    else
+      c.sql
+    end
+  }
+
+  # Function
+  function my_function {
+    # Case statment
+    case version
+      when ~> 1.2.3
+        a.sql
+      when < 4.5.6
+        b.sql
+    else
+      c.sql
+    end
+  }
+
+  # Make
+  make file1.sql file2.sql from file.rb data.txt
+    exec something.rb
+  end
+
+  # Require
+  require another_schema
+  require my_schema.resource
+  require a.b.c
+
+  # Files
+  r.rb
+  p.psql
+
+  # Commands
+  exec ls -l
+  eval ls -l
+  # ruby r.rb # Not implemented
+  sql |
+    select 1
+    from table
+    where column = 42
+}
+

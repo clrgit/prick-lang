@@ -1,22 +1,107 @@
 
 
-#module Prick::Lang
-# module Idr
-#   class Node; end
+# while ! eof
+#   analyze until if statement
+#   if if-statement involves schema, object, or resource
+#     emit 'unevaluated'
+#     skip if-statement
+#   else
+#     eval if-statement
+#     skip false-branch
+#   end
 #
-#   class Block < Node; end
-#   class Source < Node; end
-#   class Stmt < Node; end
+# while unevaluated control statements
 #
 # end
-#end
+#
+# Example:
+#   t.prick:
+#     if resource s.r
+#       provide t.r
+#     else
+#       something # Negative assert
+#     end
+#
+#   s.prick:
+#     if resource t.r
+#       provide s.r
+#     end
+#
+# Handled by detecting dependencies when a provide is used within a dynamic
+# control statement. In the example, t.r will depend on s.r and s.r will depend
+# on t.r so the analyzer will detect a circular reference when computing the
+# build order. This should be done in the check phase: A resource dependency check
+#
+# Example:
+#   t.prick:
+#     provide t.r
+#     require s.r
+#
+#   s.prick:
+#     provide s.r
+#     require t.r
+#
+
+
+module Prick::Lang
+  module Idr
+    class Node; end
+
+    class Schema
+      attr_reader :init, :meta, :seed, :auth, :final
+      attr_reader :resources
+      attr_reader :functions
+
+    end
+
+    class Block < Node
+      attr_reader :stmts
+
+    end
+
+    class Source < Node; end
+    class Stmt < Node; end
+
+  end
+end
+
+
+module Prick::Lang
+  module Checker
+
+    class Decl
+      @@IN_SCHEMA = false
+      @@IN_FUNCTION = false
+
+      def check
+        check_nesting(&block)
+      end
+
+      def check_nesting
+        if kind == :SCHEMA
+          @@IN_SCHEMA == false or error "Can't have schemas within schemas"
+          @@IN_FUNCTION == false or error "Can't have schemas within functions"
+          @@IN_SCHEMA = true
+          yield
+          @@IN_SCHEMA = true
+        else
+          @@IN_FUNCTION == false or error "Can't have functions within functions"
+          @@IN_FUNCTION = true
+          yield
+          @@IN_FUNCTION = true
+        end
+      end
+
+      def check_duplicate
+
+      end
+    end
+  end
+end
 
 
 
-
-
-
-
+__END__
 
 
 
