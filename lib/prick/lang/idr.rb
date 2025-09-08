@@ -41,6 +41,11 @@
 #     provide s.r
 #     require t.r
 #
+# Example
+#   if resource t.r or resource s.r # Assert truish/falsy expression (lazy evaluated)
+#     # Is t.r or s.r true?
+#   end
+#
 
 
 module Prick::Lang
