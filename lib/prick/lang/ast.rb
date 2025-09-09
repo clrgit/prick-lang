@@ -142,11 +142,13 @@ module Prick::Lang
     end
 
     class RuntimeExpr < SimpleExpr
+      def kind = token.text
       alias_method :words, :children # [Ident]
     end
 
     # eg. 'schema app'
     class ReferenceExpr < SimpleExpr
+      def kind = token.text
       def ref = children.first # Reference
     end
 

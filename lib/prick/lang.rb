@@ -15,6 +15,7 @@ include IndentedIO
 
 using String::Text
 
+require_relative './lang/ext/semver.rb'
 require_relative './lang/error.rb'
 
 module Prick::Lang

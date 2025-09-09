@@ -1,4 +1,281 @@
 
+#class Oracle
+# def truths = @resources.filter_map { _2 and _1 }
+# def falses = @resources.filter_map { ! _2 and _1 }
+#
+# def initialize
+#   @resources = {} # Map from resource name to true/false
+# end
+#
+# def add(resource, truish)
+#   ! present(resource) or raise ArgumentError "Duplicate key"
+#   @resources[resource] = truish
+# end
+#
+# def present?(source) = @resources.key?(resource)
+# def truish?(resource) = @resources[resource]
+# def falsy?(resource) = !@resources[resource]
+#end
+
+#schema.sql
+#provide decl
+#a.sql
+#provide a
+#b.sql
+#require x
+#c.sql
+#provide b
+#d.sql
+#provide schema
+#
+#a -> decl
+#b -> a, x
+#schema -> b
+#
+#Resources:
+# decl:
+#   schema.sql
+# a -> decl
+#   a.sql
+# b -> a
+#   b.sql
+#   require x
+#   c.sql
+# d.sql
+# schema -> b
+#   require b
+
+# Lumps of simple statements are groups. They're treated as one unit to reduce
+# the workload of the dependency analysis. 'require' and 'provide' and
+# if-statements involving 'schema', 'object', or 'resource' expressions are not
+# included in statement groups
+
+
+# The Ast is compiled using frames so that compilation can be interrupted. A
+# frame is just the resource object that encloses the code plus the point where
+# the compiled Idr should be attached
+#
+#   def compile(frame, attach_point, ast_node)
+#     return a block. The block may have #evaluated? false/nil
+#   end
+#
+# At the end of a compilation pass we'll have a list of unresolved resources
+
+
+
+module Prick::Lang
+  module Idr
+
+    class Node
+      attr_reader :parent
+      attr_reader :children
+
+      def initialize(parent)
+        @children = []
+        parent && attach(parent)
+      end
+
+      def assign(attribute, child)
+        attach child if child
+        self.instance_variable_set(:"@#{attribute}", child)
+      end
+
+      def attach(child) @children = child; child.instance_variable_set(:@parent, self) end
+      def detach(child) @children.delete(child); @child.instance_variable_set(:@parent, nil) end
+    end
+
+    class Block < Node
+      alias_method :stmts, :children
+    end
+
+    class Group < Node
+      attr_reader :stmts # Not children!
+    end
+
+    class Resource < Block
+      attr_reader :parent # SchemaDecl
+      attr_reader :provide
+      attr_reader :block
+
+      attr_reader :requires # [Resource]
+      alias_method :provide, :ident
+
+      def uid() @uid ||= [parent&.uid, provide].compact.join('.') end
+
+      def evaluated? = !@presence.nil?
+      def present? = @presence
+      def absent? = !@presence
+
+      def initialize(parent, ident)
+        super parent
+        @ident = ident
+        @requires = Set.new
+      end
+    end
+
+    # This models only the postgres schema and phases. The actual implementation of
+    # the schema is the #defn Schema object
+    class SchemaDecl < Resource
+      def defn = @children.first # Always a Schema
+      attr_accessor :init, :meta, :seed, :auth, :final
+      def initialize(..., defn = nil)
+        super ...
+        assign(:defn, defn)
+    end
+
+    # Resources inside a schema require the Schema declaration
+    class Schema < Resource
+      alias_method :decl, :parent # Always a SchemaDecl
+      attr_reader :block
+      forward_to :decl, :init, :meta, :seed, :auth, :final
+      def initialize(decl, block)
+        super decl
+        assign(:block, block)
+      end
+    end
+
+    class If < Node
+      attr_reader :if_thens # [IfThen]
+      attr_reader :block
+      def initialize(..., if_thens, block)
+        super ...
+        if_thens.each { attach _1 }
+        assign(:block, block)
+      end
+    end
+
+    class IfThen < Node
+      attr_reader :expr
+      attr_reader :block
+      forward_to :expr, :resolvable?
+      def intialize(..., expr, block)
+        super ...
+        assign(:expr ,expr)
+        assign(:block, block)
+      end
+    end
+
+    class Command < Node # Stand-in
+      attr_reader :text # String (for now)
+      def initialize(parent, text)
+        super(parent)
+        @text = text
+      end
+    end
+
+    class Expr < Node
+      attr_reader :resolvable? # True if the expression only involves evaluated resources
+      attr_reader :unresolved # List of unresolved resources in the expression
+
+      # This intentionally only caches when resolvable goes to true
+      def resolvable?() @resolveable? ||= children.all?(&:resolvable?) end
+
+      # List of unresolved resources
+      def unresolved = recursive_unresolved([])
+
+      def eval() = raise
+
+    private
+      def recursive_unresolved(a)
+        children.reject { |c| c.instance_variable_get(:@resolvable) }.each { |c|
+          if c.is_a? ResourceValue
+            a << c if !c.resolvable?
+          end
+          c.recursive_unresolved(a)
+        }
+        a
+      end
+    end
+
+    class BinExpr < Expr
+      attr_reader :oper # Symbol
+      attr_reader :left # Expr
+      attr_reader :right # Expr
+      def initialize(..., oper, left, right)
+        super ...
+        @oper = oper
+        assign :left, left
+        assign :right, right
+      end
+
+      def eval
+        case oper
+          :OROR; left.eval || right.eval
+          :ANDAND; left.eval && right.eval
+          :LT; left < right
+          :LE; left <= right
+          :EQEQ; left == right
+          :NEQ; left != right
+          :GE; left >= right
+          :GT; left > right
+          :TIGT left.squiggle?(right)
+        else
+          raise InternalError
+        end
+      end
+    end
+    #     OROR: [0, :left, 2],
+    #     ANDAND: [1, :left, 2],
+    #     LT: [2, :left, 2],
+    #     LE: [2, :left, 2],
+    #     EQEQ: [2, :left, 2],
+    #     NEQ: [2, :left, 2],
+    #     GE: [2, :left, 2],
+    #     GT: [2, :left, 2],
+    #     EXCLAIM: [3, :right, 1]
+    #   }.map { |k,v| [k, { prior: v[0], assoc: v[1], arity: v[2] } ] }.to_h
+    #
+    #   # Operators for comparing versions
+    #   VERSION_OPERATORS = Set[:LT, :LE, :EQEQ, :NEQ, :GE, :GT, :TIGT]
+
+
+    class UnExpr < Expr
+      attr_reader :oper # Symbol
+      attr_reader :arg # Expr
+
+      def initialize(..., oper, arg)
+        super ...
+        @oper = oper
+        assign :arg, arg
+      end
+
+      def eval
+        case oper
+          when :EXCLAIM; ! arg.eval
+        else
+          raise InternalError
+        end
+      end
+    end
+
+    class SimpleExpr < Expr
+      def eval = value
+    end
+
+    class ResourceValue < Expr
+      attr_reader :resource
+
+      def initialize(..., resource)
+        super ...
+        assign :resource, resource
+      end
+
+      def resolvable? = resource.evaluated?
+      def unresolved = resolvable? ? [self] : []
+      def value
+        resolveable? or raise InternalError
+        resource.present?
+      end
+    end
+  end
+end
+
+
+# Truths
+#
+# Falses
+
+
 
 # while ! eof
 #   analyze until if statement
@@ -34,14 +311,96 @@
 #
 # Example:
 #   t.prick:
-#     provide t.r
 #     require s.r
+#     provide t.r
 #
 #   s.prick:
-#     provide s.r
 #     require t.r
+#     provide s.r
+#
+# Results in the dependencies that contains a cycle:
+#
+#   t.r -> t
+#   t -> s.r
+#   s.r -> s
+#   s -> t.r
+#
+# Maybe a similar problem with if-statements. Example:
+#
+#   if ! t # set false # conflict if evaluated last
+#     s
+#   end
+#
+#   if s # set truth
+#     t # conflict because t is already marked falsy
+#   end
+#
+# Stop-go compilation makes it possible to see resource that are not compiled
+# yet. Example:
+#
+#   s1.prick
+#     if s2
+#       ...
+#     end
+#
+#   s2.prick
+#     ...
+#
+#   main.prick
+#     s1
+#     s2
+#
+# Algorithm
+#
+#   compile_as_far_as_possible
+#   check for cyclic dependencies
+#   loop
+#     find expressions that evaluates to true/false (ie. skip unevaluated)
+#       compile_as_far_as_possible
+#     end
+#     if no expression evaluated to true
+#       # set "some" resource to false <- Shouldn't matter which one vs. longest/shortest FIXME
+#       compile_as_far_as_possible
+#     end
+#
+#
+#
+#
+#
+#
+#
+#
 #
 # Example
+#   t.prick:
+#     if x
+#       require s.prick
+#     end
+#
+#   s.prick:
+#     if ! x
+#       require t.prick
+#     end
+#
+#
+# Example
+#   if t (*)
+#     s
+#   end
+#
+#   if s (*)
+#
+#   end
+#
+#   u.sql
+#   provide u
+#
+#   How to proceed?
+#
+#   If t is evaluated first, then s will not be included, but
+#
+#
+#
 #   if resource t.r or resource s.r # Assert truish/falsy expression (lazy evaluated)
 #     # Is t.r or s.r true?
 #   end
