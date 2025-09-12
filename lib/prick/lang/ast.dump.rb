@@ -22,16 +22,6 @@ module Prick::Lang
       def dump_children = indent { puts source }
     end
 
-    class Make
-      def dump_children
-        indent {
-          puts "DstFile #{dstfiles.map(&:filename).join(', ')}"
-          puts "SrcFile #{srcfiles.map(&:text).join(', ')}"
-          block.dump
-        }
-      end
-    end
-
     class Expr
       def title = token.text
     end
@@ -46,80 +36,3 @@ module Prick::Lang
   end
 end
 
-__END__
-
-
-
-    class InitBlock
-    end
-
-    class FinalBlock
-    end
-
-    class MetaBlock
-    end
-
-    class SeedBlock
-    end
-
-    class AuthBlock
-    end
-
-    class SchemaStmt
-    end
-
-    class OptionStmt
-    end
-
-    class CaseStmt
-      attr_reader :expr
-      attr_reader :when_entries # {expr => Node}
-      attr_reader :else_entry # Node or nil
-    end
-
-    class CallStmt
-      # Single-line command or multiline inline script
-      attr_reader :source # String
-
-      # True if source is a multiline inline script
-      def multiline?() end
-
-#     # Shell command if single-line, otherwise nil
-#     def command() end
-
-      # True if calling a ruby script using require, default false
-      attr_reader :ruby
-    end
-
-    class ExecStmt
-    end
-
-    class EvalStmt
-    end
-
-    class SqlFile
-    end
-
-    class PSqlFile
-    end
-
-    class FoxFile
-    end
-
-    class RubyFile
-      def analyze() CallStmt.new(self, filename, ruby: true) end
-    end
-
-    class DirStmt
-    end
-
-    class PrickStmt
-    end
-
-    class InitBlock
-    end
-
-    class Expr
-    end
-  end
-end

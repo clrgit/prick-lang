@@ -28,9 +28,12 @@ schema my_schema {
   }
 
   # Make
-  make file1.sql file2.sql from file.rb data.txt
-    exec something.rb
-  end
+  exec |
+    if [ file1.sql -nt file.rb -o file2.sql -nt data.txt ]; then
+      something.rb
+    fi
+  file1.sql
+  file2.sql
 
   # Require
   require another_schema

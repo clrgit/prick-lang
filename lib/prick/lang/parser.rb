@@ -68,7 +68,6 @@ module Prick::Lang
         when :REQUIRE; parse_require parent
         when :IF; parse_if parent
         when :CASE; parse_case parent
-        when :MAKE; parse_make parent
         when :INIT, :TERM, :META, :SEEDS, :AUTH; parse_phase parent
         when :EXEC, :EVAL, :SQL; parse_command parent
         when :CALL; parse_call parent
@@ -174,9 +173,6 @@ module Prick::Lang
         if_.if_thens << if_then
         if_then.expr = parse_expr(if_then)
         if_then.then_ = parse_block(if_then)
-        $stderr.puts "-----------------------------------"
-        $stderr.puts if_then.expr.class
-        $stderr.puts if_then.then_.class
         break if peek.kind != :ELSIF
       end
       if peek.kind == :ELSE
@@ -204,16 +200,6 @@ module Prick::Lang
       end
       readkind(:END)
       case_
-    end
-
-    def parse_make(parent)
-      make = Ast::Make.new(parent, read)
-      make.dstfiles = parse_files(make)
-      readkind(:FROM)
-      make.srcfiles = parse_words(make)
-      make.block = parse_block(make)
-      readkind(:END)
-      make
     end
 
     # Parse an expression. It uses the shunter to compile the source into
@@ -302,10 +288,6 @@ module Prick::Lang
       end
     end
 
-    def parse_words(parent)
-      readwords.map { Ast::Word.new(parent, _1) }
-    end
-
     def parse_ident?(parent) = peek&.kind == :IDENT ? Ast::Ident.new(parent, read) : nil
     def parse_ident(parent) = Ast::Ident.new(parent, readkind(:IDENT))
 
@@ -387,7 +369,6 @@ module Prick::Lang
     def readtext(indent, **opts) = @tokenizer.readtext(indent, **opts) or error(@tokenizer.error_token)
     def readkind(*kinds, **opts) = readkind?(*kinds, **opts) or unexpected_token_error kinds
     def readkinds(*kinds, **opts) = [readkind(*kinds)] + readkinds?(kinds, **opts)
-    def readwords() = @tokenizer.readwords or error @tokenizer.error_token
 
     # Return nil if empty
     def readwhile(&block) = (r = readwhile?(&block)).empty? ? nil : r

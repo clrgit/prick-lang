@@ -28,10 +28,29 @@ module Prick::Lang
 
       forward_to :@token, :lineno, :charno, :kind, :file
 
+#     @PARTS = {}
+#     def self.part(*syms)
+#       (@@PARTS[self] ||= []) += syms
+#     end
+#
+#     def self.whole(sym)
+#     end
+#
+#     def DAbuild_tree
+#       for
+#     end
+
       def initialize(parent, token)
         constrain token, Token, nil
         initialize_tree parent
         @token = token
+      end
+    end
+
+    # Array of nodes. Used in the initializer
+    class Nodes < Node
+      def initialize(parent, nodes)
+        @children = nodes
       end
     end
 
@@ -102,12 +121,6 @@ module Prick::Lang
     class When < Node
       attr_accessor :values # [Value]
       attr_accessor :then_ # Block
-    end
-
-    class Make < Node
-      attr_accessor :dstfiles
-      attr_accessor :srcfiles
-      attr_accessor :block
     end
 
     class Expr < Node

@@ -26,7 +26,6 @@ module Prick::Lang
       END: "end",
       CASE: "case",
       WHEN: "when",
-      MAKE: "make",
       FROM: "from",
 
       # Commands
@@ -72,7 +71,6 @@ module Prick::Lang
       FILE: nil,
       DIR: nil,
       VER: nil, # Version number, see also :VERSION
-      WORD: nil, # Any group of space-separated characters. Only used in make statements
 
       # Text literals
       LINE: nil, # Line of text
