@@ -17,6 +17,8 @@ SPEC = %(
 
     PROGRAM ::= BLOCK
 
+    BLOCK ::= STMT+
+
     STMT ::=
         DECL_STMT
       | PHASE-STMT
@@ -77,8 +79,6 @@ SPEC = %(
         COMMAND-STMT
       | FILE-STMT...
       | BLOCK
-
-    BLOCK ::= STMT+
 
     EXPR ::=
         SIMPLE-EXPR

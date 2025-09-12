@@ -49,5 +49,8 @@ schema my_schema {
     select 1
     from table
     where column = 42
+
+  # Function call
+  #call my_function
 }
 

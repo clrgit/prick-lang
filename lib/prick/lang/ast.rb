@@ -2,17 +2,20 @@
 module Prick::Lang
   module Ast
     class Node
+      include Tree
+
       attr_reader :parent # Node or nil
       attr_reader :children # [Node]
 
       forward_to :@children, :empty?
 
-      # All nodes have a start and stop token (they can be the same). The start token is equal to #token by default
+      # All nodes have a start and stop token (they can be the same). The start
+      # token is equal to #token by default
 
-      # All nodes have an eigen token and a start/stop token. The three tokens
-      # are often identical but eg. binary operators have three different
-      # tokens: '1 + 2' yields '1' as the start token, '2' as the stop token,
-      # and '+' as the binary expression token
+      # All nodes have a token that identifies the node and a start and stop
+      # token.  The three tokens are often identical but eg. binary operators
+      # have three different tokens: '1 + 2' yields '1' as the start token, '2'
+      # as the stop token, and '+' as the binary expression token
       attr_accessor :token
 
       # Start token defaults recursively to the start token of the first child
@@ -23,28 +26,12 @@ module Prick::Lang
       def stop_token() @stop_token ||= @children.last&.stop_token || @token end
       attr_writer :stop_token
 
-      forward_to :@token, :lineno, :charno, :kind
+      forward_to :@token, :lineno, :charno, :kind, :file
 
       def initialize(parent, token)
         constrain token, Token, nil
-        parent&.attach(self)
-        @children = []
+        initialize_tree parent
         @token = token
-      end
-
-      def attach(child)
-        return nil if child.nil?
-        child.is_a?(Node) or raise InternalError
-        @children << child
-        child.instance_variable_set(:@parent, self)
-        child
-      end
-
-      def attachs(*children)
-        children = Array(children).flatten
-        children.all? { _1.is_a?(Node) } or raise InternalError
-        @children += children.tap { |c| c.instance_variable_set(:@parent, self) }
-        children
       end
     end
 
@@ -62,7 +49,7 @@ module Prick::Lang
     end
 
     class Decl < Node
-      forward_to :token, :kind
+      forward_to :token, :kind # Symbol
 #     forward_to :ident, :name
       attr_accessor :ident
       attr_accessor :block
@@ -142,13 +129,11 @@ module Prick::Lang
     end
 
     class RuntimeExpr < SimpleExpr
-      def kind = token.text
       alias_method :words, :children # [Ident]
     end
 
     # eg. 'schema app'
     class ReferenceExpr < SimpleExpr
-      def kind = token.text
       def ref = children.first # Reference
     end
 
@@ -157,6 +142,7 @@ module Prick::Lang
     end
 
     class Value < Node
+      def value = raise
     end
 
     class File < Value
@@ -169,6 +155,7 @@ module Prick::Lang
 
     class Ver < Value # a version value. See Version
       def version = @token.text # for now
+      def value() @value ||= SemVer.new(version) end
     end
 
     class VersionMatch < Value

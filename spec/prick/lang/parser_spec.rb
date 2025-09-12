@@ -25,10 +25,8 @@ describe "Prick::Lang" do
 
     def make(lines)
       lines = lines.split "\n", -1
-#     allow(IO).to receive(:readlines).with('file.txt').and_return(lines)
-      c = Prick::Lang::Compiler.new(file)
-      t = Prick::Lang::Tokenizer.new(c, lines)
-      Prick::Lang::Parser.new(t)
+      tk = Prick::Lang::Tokenizer.new(file, lines)
+      pa = Prick::Lang::Parser.new(tk)
     end
 
     def call(lines)

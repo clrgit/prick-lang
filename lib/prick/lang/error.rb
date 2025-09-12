@@ -10,6 +10,7 @@ module Prick::Lang
     # :call-seq:
     #   error(message...)
     #   error(token, message...)
+    #   error(ast-node, message...)
     #   error(lineno, charno, message...)
     #
     def error(*args)
@@ -31,7 +32,8 @@ module Prick::Lang
     def parse_args!(args) # Modifies 'args'
       case args.first
         when Integer; args.shift(2)
-        when Token; a = args.shift; [a.lineno, a.charno]
+        when Token; t = args.shift; [t.lineno, t.charno]
+        when Ast::Node; n = args.shift.token; [n.lineno, n.charno]
         else
           case self
             when Tokenizer; [self.lineno, self.charno]

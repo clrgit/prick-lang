@@ -56,6 +56,8 @@ module Prick::Lang
       def sig
         keyword = "If"
         for if_then in if_thens
+#         $stderr.puts if_then.class
+#         $stderr.puts if_then.expr.class
           puts "#{keyword} #{if_then.expr.source}"
           keyword = "Elsif"
           indent { if_then.then_.sig }

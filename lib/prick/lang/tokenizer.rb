@@ -16,10 +16,8 @@ module Prick::Lang
     TOKEN_RE = /\G(?<ws>\s*)(?<token>#{Token::TOKEN_RE})#{Token::COMMENT_RE}/
     IDENT_RE = /\G(?<ws>\s*)(?<ident>#{Token::IDENT_RE})#{Token::COMMENT_RE}/
 
-    attr_reader :compiler
-
     # Source file
-    forward_to :compiler, :file
+    attr_reader :file
 
     # Current line
     def line = @lines[@index]
@@ -45,10 +43,10 @@ module Prick::Lang
     # Token of the last peek'ed error
     attr_reader :peek_error
 
-    def initialize(compiler, lines = nil)
-      constrain compiler, Compiler
+    def initialize(file, lines = nil)
+      constrain file, String
       constrain lines, [String], nil
-      @compiler = compiler
+      @file = file
       @lines = (lines || IO.readlines(file)).map(&:rstrip)
       trimlines
 
@@ -57,13 +55,7 @@ module Prick::Lang
       @pos = 0 # current character index
       @token = nil
       @error = nil # last error token
-
-      # Reset peek state (replace with #reset_peek but then goes our helpful
-      # explanation of @peek_token and @error_token)
-      @peek_index = 0
-      @peek_pos = 0
-      @peek_token = nil # current peek'ed token if present
-      @peek_error = nil # error token from last call to #peek
+      reset_peek
     end
 
     # Return true if at end of file
@@ -292,8 +284,8 @@ module Prick::Lang
     def reset_peek
       @peek_index = @index
       @peek_pos = @pos
-      @peek_token = nil
-      @peek_error = nil
+      @peek_token = nil # current peek'ed token if present
+      @peek_error = nil # error token from last call to #peek
     end
 
     # Return index of first non blank line including the current line. Ignore

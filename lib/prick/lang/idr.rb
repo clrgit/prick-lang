@@ -1,4 +1,61 @@
 
+
+
+
+
+    class Node
+      attr_reader :deps
+      def flatten = [self]
+    end
+
+    class Resource < Node
+      attr_reader :ident # String
+      attr_reader :uid # String
+      attr_reader :nodes # [nodes]
+      def flatten = nodes.flat_map(&:flatten)
+    end
+
+    # TODO: End-of-schema-marker (or use schema itself - like other resources)
+    class Schema < Resource
+      attr_reader :decl # Decl
+      attr_reader :functions # { uid => Function }
+
+      def flatten = [decl] + super
+    end
+
+    class Decl < Resource # Schema declaration
+      def command = nodes.first # Has only a schema command as child
+    end
+
+    class Require < Node
+      attr_reader :resource
+    end
+
+    class Command < Node
+      attr_reader :kind
+    end
+
+    class SchemaCommand < Command
+    end
+
+    class SourceCommand < Command
+      attr_reader :source
+    end
+
+    class CallCommand < Command
+    end
+
+    # osv.
+
+
+
+
+
+
+
+
+
+
 #class Oracle
 # def truths = @resources.filter_map { _2 and _1 }
 # def falses = @resources.filter_map { ! _2 and _1 }
@@ -61,35 +118,20 @@
 #
 # At the end of a compilation pass we'll have a list of unresolved resources
 
-
-
 module Prick::Lang
   module Idr
-
     class Node
-      attr_reader :parent
-      attr_reader :children
+      include Tree
+      alias_method :scope, :parent
 
       def initialize(parent)
         @children = []
         parent && attach(parent)
       end
-
-      def assign(attribute, child)
-        attach child if child
-        self.instance_variable_set(:"@#{attribute}", child)
-      end
-
-      def attach(child) @children = child; child.instance_variable_set(:@parent, self) end
-      def detach(child) @children.delete(child); @child.instance_variable_set(:@parent, nil) end
     end
 
     class Block < Node
       alias_method :stmts, :children
-    end
-
-    class Group < Node
-      attr_reader :stmts # Not children!
     end
 
     class Resource < Block
@@ -106,6 +148,9 @@ module Prick::Lang
       def present? = @presence
       def absent? = !@presence
 
+      def present! @present = true end
+      def absent! @present = false end
+
       def initialize(parent, ident)
         super parent
         @ident = ident
@@ -114,17 +159,22 @@ module Prick::Lang
     end
 
     # This models only the postgres schema and phases. The actual implementation of
-    # the schema is the #defn Schema object
+    # the schema is the #defn Schema object. The intention is that the first
+    # statement of the schema depends on the declaration only and not the full
+    # schema
     class SchemaDecl < Resource
       def defn = @children.first # Always a Schema
       attr_accessor :init, :meta, :seed, :auth, :final
       def initialize(..., defn = nil)
         super ...
         assign(:defn, defn)
+      end
     end
 
-    # Resources inside a schema require the Schema declaration
+    # Full schema definition
     class Schema < Resource
+      alias_method :program, :parent
+
       alias_method :decl, :parent # Always a SchemaDecl
       attr_reader :block
       forward_to :decl, :init, :meta, :seed, :auth, :final
@@ -134,7 +184,15 @@ module Prick::Lang
       end
     end
 
-    class If < Node
+    class Stmt < Node
+    end
+
+    class UnresolvedStmt < Stmt
+      attr_reader :stmt
+      attr_reader :unresolved_resource # The first resource in the stmt
+    end
+
+    class If < Stmt
       attr_reader :if_thens # [IfThen]
       attr_reader :block
       def initialize(..., if_thens, block)
@@ -144,7 +202,7 @@ module Prick::Lang
       end
     end
 
-    class IfThen < Node
+    class IfThen < Stmt
       attr_reader :expr
       attr_reader :block
       forward_to :expr, :resolvable?
@@ -155,7 +213,7 @@ module Prick::Lang
       end
     end
 
-    class Command < Node # Stand-in
+    class Command < Stmt # Stand-in
       attr_reader :text # String (for now)
       def initialize(parent, text)
         super(parent)
@@ -214,20 +272,6 @@ module Prick::Lang
         end
       end
     end
-    #     OROR: [0, :left, 2],
-    #     ANDAND: [1, :left, 2],
-    #     LT: [2, :left, 2],
-    #     LE: [2, :left, 2],
-    #     EQEQ: [2, :left, 2],
-    #     NEQ: [2, :left, 2],
-    #     GE: [2, :left, 2],
-    #     GT: [2, :left, 2],
-    #     EXCLAIM: [3, :right, 1]
-    #   }.map { |k,v| [k, { prior: v[0], assoc: v[1], arity: v[2] } ] }.to_h
-    #
-    #   # Operators for comparing versions
-    #   VERSION_OPERATORS = Set[:LT, :LE, :EQEQ, :NEQ, :GE, :GT, :TIGT]
-
 
     class UnExpr < Expr
       attr_reader :oper # Symbol
@@ -269,6 +313,9 @@ module Prick::Lang
     end
   end
 end
+
+__END__
+
 
 
 # Truths
