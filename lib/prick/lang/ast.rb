@@ -2,10 +2,48 @@
 module Prick::Lang
   module Ast
     class Node
+    end
+
+    class Nodes < Node; end
+    class Stmt < Node; end
+    class Block < Stmt; end
+    class Program < Node; end
+    class Decl < Stmt; end
+    class Provide < Stmt; end
+    class Require < Stmt; end
+    class Phase < Stmt; end
+    class Command < Stmt; end
+    class Source < Command; end
+    class ExternalCommand < Command; end
+    class CallCommand < Command; end
+    class If < Stmt; end
+    class IfThen < Node; end
+    class Case < Stmt; end
+    class When < Node; end
+    class Expr < Node; end
+    class UnExpr < Expr; end
+    class BinExpr < Expr; end
+    class SimpleExpr < Expr; end
+    class RuntimeExpr < SimpleExpr; end
+    class ReferenceExpr < SimpleExpr; end
+    class VersionExpr < SimpleExpr; end
+    class VersionMatch < Node; end
+    class Value < Node; end
+    class File < Value; end
+    class Reference < Value; end
+    class Ver < Value; end
+    class Ident < Value; end
+    class Word < Value; end
+    class Const < Value; end
+
+    class Node
       include Tree
 
+      def self.classname = self.to_s.sub(/.*::/, "")
+      def classname = self.class.classname
+
       attr_reader :parent # Node or nil
-      attr_reader :children # [Node]
+      attr_reader :children # [Node] mostly initialized by the analyzer
 
       forward_to :@children, :empty?
 
@@ -13,7 +51,7 @@ module Prick::Lang
       # token is equal to #token by default
 
       # All nodes have a token that identifies the node and a start and stop
-      # token.  The three tokens are often identical but eg. binary operators
+      # token. The three tokens are often identical but eg. binary operators
       # have three different tokens: '1 + 2' yields '1' as the start token, '2'
       # as the stop token, and '+' as the binary expression token
       attr_accessor :token
@@ -26,101 +64,176 @@ module Prick::Lang
       def stop_token() @stop_token ||= @children.last&.stop_token || @token end
       attr_writer :stop_token
 
-      forward_to :@token, :lineno, :charno, :kind, :file
+      forward_to :token, :lineno, :charno, :kind, :file
 
-#     @PARTS = {}
-#     def self.part(*syms)
-#       (@@PARTS[self] ||= []) += syms
-#     end
-#
-#     def self.whole(sym)
-#     end
-#
-#     def DAbuild_tree
-#       for
-#     end
+      # Map from class to [sym, klass, element klass]
+      @@PARTS = {}
 
-      def initialize(parent, token)
+      def self.part(sym, constraint = Node)
+        constrain sym, Symbol
+        constrain constraint, Class, [Class]
+
+        attr_reader sym
+
+        element_klass = nil
+        if constraint.is_a?(Array)
+          klass = Nodes
+          element_klass = constraint.first
+          define_method(:"#{sym}=") { |node|
+            if node.nil?
+              assign(sym, nil)
+            else
+              if node.is_a? Nodes
+                node.nil? || node.is_a?(Nodes) or
+                    raise ArgumentError, "Expected a Nodes object, got #{node.class}"
+                node.nil? || node.element_klass < element_klass or
+                    raise ArgumentError, "Expected a Nodes of #{element_klass} objects, " +
+                                         "got Nodes of #{node.element_klass}"
+                assign(sym, node)
+
+              elsif node.is_a? Array
+                nodes = Nodes.new(nil, element_klass)
+                nodes.concat node
+                assign(sym, nodes)
+
+              else
+                raise ArgumentError, "Expected #{element_klass} objects, got #{node.class}"
+              end
+            end
+            self
+          }
+        else
+          klass = constraint
+          define_method(:"#{sym}=") { |node|
+            node.is_a?(klass) or
+                raise ArgumentError, "Expected #{klass} object, got #{node.class}"
+            self.assign(sym, node)
+          }
+        end
+
+        (@@PARTS[self] ||= []) << [sym, klass, element_klass]
+      end
+
+      def get_part(sym) = self.instance_variable_get(:"@#{sym}")
+
+      def initialize_parts
+        indent {
+          for sym, klass, element_klass in @@PARTS[self.class] || []
+            if klass == Nodes
+              if get_part(sym).nil?
+                assign(sym, Nodes.new(nil, element_klass))
+              end
+            end
+          end
+        }
+      end
+
+      def initialize(token)
         constrain token, Token, nil
-        initialize_tree parent
         @token = token
+        Tree.initialize(self)
+        initialize_parts
       end
     end
 
-    # Array of nodes. Used in the initializer
+    # Array of nodes. Token may be nil; it defaults to #start_token
     class Nodes < Node
-      def initialize(parent, nodes)
-        @children = nodes
+      # Redefine token to default to #start_token. We check empty? to avoid
+      # endless recursion in #start_token
+      def token = @token || (empty? ? nil : start_token)
+
+      attr_reader :element_klass
+
+      def initialize(token, element_klass)
+        super token
+        @element_klass = element_klass
       end
+
+      forward_to :@children, :each, :map
+
+      def <<(node)
+        !node.nil? or raise ArgumentError
+        node.class <= element_klass or
+            raise ArgumentError, "Expected #{element_klass.classname}, got #{node.classname}"
+        self.attach node
+      end
+    end
+
+    class Stmt < Node
+    end
+
+    # A block is an Nodes object with elements restricted to statements
+    class Block < Stmt
+      part :stmts, [Stmt]
     end
 
     class Program < Node
-      attr_accessor :block
+      part :block, Block
+#     attr_accessor :block
       def initialize(file)
-        super nil, Token.new(file, 1, 1, "", :PROGRAM)
+        super Token.new(file, 1, 1, "", :PROGRAM)
       end
     end
 
-    # Block has a nil ident. Token may be nil; it defaults to #start_token
-    class Block < Node
-      def token = empty? ? nil : start_token # We check empty? to avoid endless recursion in #start_token
-      alias_method :stmts, :children
-    end
-
-    class Decl < Node
+    class Decl < Stmt
       forward_to :token, :kind # Symbol
 #     forward_to :ident, :name
-      attr_accessor :ident
-      attr_accessor :block
+      part :ident, Ident
+      part :block, Block
     end
 
-    class Provide < Node
-      def ident = children.first
+    class Provide < Stmt
+      part :ident, Ident
     end
 
-    class Require < Node
-      alias_method :refs, :children # [Reference]
+    class Require < Stmt
+      part :refs, [Reference]
     end
 
-    class Phase < Node
+    class Phase < Stmt
       def name = @token.text
-      attr_accessor :block
+      part :block, Block
     end
 
-    class Command < Node; end
+    class Command < Stmt; end
 
-    class SourceCommand < Command
+    # Sequence of .sql/.psql files
+    class Source < Command
+      part :files, [File]
+    end
+
+    # exec/eval
+    class ExternalCommand < Command
       attr_accessor :source # Array of source lines. Assigned after initialization
 
       # True iff source consists of multiple lines
       def multiline? = @source =~ /\n/
     end
 
+    # call
     class CallCommand < Command
-      alias_method :refs, :children
+      part :refs, [Reference]
     end
 
-    class If < Node
-      attr_accessor :if_thens # [IfThen]
-      attr_accessor :else_ # Block
-
-      def analyze(parent) Idr::IfStmt.new(self, parent, expr, @then.analyze, @else.analyze) end
+    class If < Stmt
+      part :if_thens, [IfThen]
+      part :else_, Block
     end
 
     class IfThen < Node
-      attr_accessor :expr # Expr
-      attr_accessor :then_ # Block
+      part :expr, Expr
+      part :then_, Block
     end
 
-    class Case < Node
-      attr_accessor :const # Const
-      attr_accessor :whens # [When]
-      attr_accessor :else_ # Block
+    class Case < Stmt
+      part :const, Const
+      part :whens, [When]
+      part :else_, Block
     end
 
     class When < Node
-      attr_accessor :values # [Value]
-      attr_accessor :then_ # Block
+      part :values, [Value]
+      part :then_, Block
     end
 
     class Expr < Node
@@ -129,64 +242,68 @@ module Prick::Lang
     # @token is the operator in expression objects
     class UnExpr < Expr
       def oper = @token.text
-      def expr = children.first
+      part :expr, Expr
     end
 
     class BinExpr < Expr
       def oper = @token.text
-      def lexpr = children.first
-      def rexpr = children.last
+      part :lexpr, Expr
+      part :rexpr, Expr
     end
 
     class SimpleExpr < Expr
     end
 
     class RuntimeExpr < SimpleExpr
-      alias_method :words, :children # [Ident]
+      part :words, [Ident]
     end
 
     # eg. 'schema app'
     class ReferenceExpr < SimpleExpr
-      def ref = children.first # Reference
+      part :ref, Reference
     end
 
     class VersionExpr < SimpleExpr # the 'version' keyword. See Ver
-      alias_method :matches, :children # [VersionCompare]
+      part :matches, [VersionMatch]
+    end
+
+    class VersionMatch < Node
+      def oper = @token.text
+      part :version, Ver
     end
 
     class Value < Node
-      def value = raise
+      def value = @token.text
+      def literal = @token.text
+      def to_s = value.to_s
     end
 
     class File < Value
-      forward_to :@token, :filename, :extname
+      forward_to :@token, :path, :dirname, :filename, :extname
+      def value = @token.path
     end
 
     class Reference < Value
-      def ref = @token.text
     end
 
     class Ver < Value # a version value. See Version
-      def version = @token.text # for now
-      def value() @value ||= SemVer.new(version) end
-    end
-
-    class VersionMatch < Value
-      def oper = @token.text
-      def version = @children.first
+      def value() @value ||= Semver.new(literal) end
     end
 
     class Ident < Value
-      def name = @token.text
     end
 
     class Word < Value
-      def text = @token.text
     end
 
-    class Const < Node
-      def name = @token.text
+    class Const < Value
     end
   end
 end
+
+
+
+
+
+
 

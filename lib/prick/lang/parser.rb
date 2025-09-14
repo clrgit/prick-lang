@@ -46,46 +46,58 @@ module Prick::Lang
 
     def inspect = "<Parser: #{file}>"
 
-    def dump
-      puts self.class
-      indent { puts "file: #{file}" }
-    end
+#   def dump
+#     puts self.class
+#     indent { puts "file: #{file}" }
+#   end
 
   protected
     def parse_program
 #     puts "#parse_program"
       @ast = Ast::Program.new(file)
-      @ast.block = parse_block(@ast)
+      @ast.block = parse_block
       @ast
     end
 
-    def parse_stmt(parent)
+    def parse_stmt
 #     puts "#parse_stmt"
       case peek&.kind
-        when :SCHEMA, :FUNCTION; parse_decl parent
-        when :OPTIONS; parse_options parent
-        when :PROVIDE; parse_provide parent
-        when :REQUIRE; parse_require parent
-        when :IF; parse_if parent
-        when :CASE; parse_case parent
-        when :INIT, :TERM, :META, :SEEDS, :AUTH; parse_phase parent
-        when :EXEC, :EVAL, :SQL; parse_command parent
-        when :CALL; parse_call parent
+        when :SCHEMA, :FUNCTION; parse_decl
+        when :OPTIONS; parse_options
+        when :PROVIDE; parse_provide
+        when :REQUIRE; parse_require
+        when :IF; parse_if
+        when :CASE; parse_case
+        when :INIT, :TERM, :META, :SEEDS, :AUTH; parse_phase
+        when :EXEC, :EVAL, :SQL; parse_command
+        when :CALL; parse_call
         when :RUBY; not_implemented_error "'ruby' command"
-        when :FILE; parse_files parent
+        when :FILE; parse_source
       else
         return nil
+      end
+    end
+
+    def parse_stmts(check: true)
+#     puts "#parse_stmts"
+      check_expected "statement" do
+        stmts = []
+        while stmt = parse_stmt
+          stmts << stmt
+        end
+        check && stmts.empty? ? nil : stmts # nil triggers enclosing #check_expected
       end
     end
 
     # Parse a statement block (a list of statements). Checks for non-empty when
     # :check is true (the default)
     #
-    def parse_block(parent, token = nil, check: true)
+    def parse_block(token = nil, check: true)
+#     puts "#parse_block"
       check_expected "block" do
-        block = Ast::Block.new(parent, token) # Note that token may be nil
-        true until parse_stmt(block).nil?
-        next nil if block.empty? && check
+        block = Ast::Block.new(token) # Note that token may be nil, it is assigned later if so
+        block.stmts = parse_stmts
+        next nil if block.stmts.empty? && check
         block.token ||= block.start_token # Default token to start token
         block
       end
@@ -97,16 +109,19 @@ module Prick::Lang
     #   FILE...
     #   COMMAND
     #
-    def parse_block_argument(parent)
+    def parse_block_argument
       check_expected %w(block command file) do |token|
         if token.kind == :BRACE_BEGIN
-          block = parse_block(parent, read, check: false)
+          block = parse_block(read, check: false)
           block.stop_token = readkind(:BRACE_END)
-        else
-          block = Ast::Block.new(parent, token)
+        else # Create a one-statement block
+          block = Ast::Block.new(token)
           case token.kind
-            when :FILE; parse_files block
-            when *COMMANDS; parse_command block
+            when :FILE;
+              source = Ast::Source.new(token)
+              source.files.concat(parse_files)
+              block.stmts << source
+            when *COMMANDS; block.stmts << parse_command
           else
             nil
           end
@@ -115,45 +130,45 @@ module Prick::Lang
       end
     end
 
-    def parse_call(parent)
-      call = Ast::CallCommand.new(parent, read)
-      readkinds(:REF, :IDENT).each { Ast::Reference.new(call, _1) }
+    def parse_call
+      call = Ast::CallCommand.new(read)
+      readkinds(:REF, :IDENT).each { call.refs << Ast::Reference.new(_1) }
       call
     end
 
     # Schema or function declaration
-    def parse_decl(parent)
+    def parse_decl
 #     puts "parse_decl"
-      decl = Ast::Decl.new(parent, read)
-      decl.ident = parse_ident(decl)
-      decl.block = parse_block_argument(decl)
+      decl = Ast::Decl.new(read)
+      decl.ident = parse_ident
+      decl.block = parse_block_argument
       decl
     end
 
-    def parse_provide(parent)
-      provide = Ast::Provide.new(parent, read)
-      parse_ident(provide)
+    def parse_provide
+      provide = Ast::Provide.new(read)
+      provide.ident = parse_ident
       provide
     end
 
-    def parse_require(parent)
+    def parse_require
 #     puts "#parse_require"
-      require_ = Ast::Require.new(parent, read)
-      readkinds(:REF, :IDENT).each { Ast::Reference.new(require_, _1) }
+      require_ = Ast::Require.new(read)
+      readkinds(:REF, :IDENT).each { require_.refs << Ast::Reference.new(_1) }
       require_
     end
 
     # init, data, meta, etc. phases
-    def parse_phase(parent)
+    def parse_phase
 #     puts "parse_phase"
-      phase = Ast::Phase.new(parent, read)
-      phase.block = parse_block_argument(phase)
+      phase = Ast::Phase.new(read)
+      phase.block = parse_block_argument
       phase
     end
 
-    def parse_command(parent)
+    def parse_command
 #     puts "#parse_command"
-      command = Ast::SourceCommand.new(parent, read)
+      command = Ast::ExternalCommand.new(read)
       if peek.kind == :PIPE
         min_indent = @tokenizer.indent + 1
         read
@@ -164,39 +179,43 @@ module Prick::Lang
       command
     end
 
-    def parse_if(parent)
+    def parse_source
+      source = Ast::Source.new peek
+      source.files = parse_files
+      source
+    end
+
+    def parse_if
 #     puts "#parse_if"
-      if_ = Ast::If.new(parent, peek)
-      if_.if_thens = []
+      if_ = Ast::If.new(peek)
       loop do
-        if_then = Ast::IfThen.new(if_, read)
+        if_then = Ast::IfThen.new(read)
+        if_then.expr = parse_expr
+        if_then.then_ = parse_block
         if_.if_thens << if_then
-        if_then.expr = parse_expr(if_then)
-        if_then.then_ = parse_block(if_then)
         break if peek.kind != :ELSIF
       end
       if peek.kind == :ELSE
         read
-        if_.else_ = parse_block(if_)
+        if_.else_ = parse_block
       end
       readkind(:END)
       if_
     end
 
-    def parse_case(parent)
-      case_ = Ast::Case.new(parent, read)
-      case_.const = parse_constant(case_)
-      case_.whens = []
+    def parse_case
+      case_ = Ast::Case.new(read)
+      case_.const = parse_constant
       while peek.kind == :WHEN
-        when_ = Ast::When.new(case_, read)
+        when_ = Ast::When.new(read)
+        when_.values = parse_values
+        when_.then_ = parse_block
         case_.whens << when_
-        when_.values = parse_values(when_)
-        when_.then_ = parse_block(when_)
       end
       !case_.whens.empty? or unexpected_token_error peek, "'when'"
       if peek.kind == :ELSE
         read
-        case_.else_ = parse_block(case_)
+        case_.else_ = parse_block
       end
       readkind(:END)
       case_
@@ -204,35 +223,27 @@ module Prick::Lang
 
     # Parse an expression. It uses the shunter to compile the source into
     # reverse polish notation that is then converted into an Ast::Expr
-    def parse_expr(parent)
+    def parse_expr
 #     puts "#parse_expr"
       stack = []
-      shunt_exprs.each { |token| # Token may actually be an Expr but it quacks like a token in this context
+      shunt_exprs.each { |token| # Token is either a SimpleExpr or a operator token
         if token.is_a? Ast::SimpleExpr
           stack.push token
-        elsif oper = OPERATORS[token.kind]
-          case oper[:arity]
+        else
+          case OPERATORS[token.kind][:arity]
             when 1
-              e = Ast::UnExpr.new(nil, token)
-              e.attach(stack.pop)
+              e = Ast::UnExpr.new(token)
+              e.expr = stack.pop
               stack.push e
             when 2
-              e = Ast::BinExpr.new(nil, token)
-              r = stack.pop
-              l = stack.pop
-              e.attach l
-              e.attach r
+              e = Ast::BinExpr.new(token)
+              e.rexpr = stack.pop
+              e.lexpr = stack.pop
               stack.push e
-          else
-            raise InternalError
           end
-        else
-          stack.push token
         end
       }
       stack.first or unexpected_token_error read, "expression"
-      parent.attach stack.first
-      stack.first
     end
 
     # Parses list of words (cmd, env, user). Note: Called from the shunter to
@@ -241,22 +252,23 @@ module Prick::Lang
 #     puts "parse_simple_expr"
       case peek.kind
         when :CMD, :ENV, :USER
-          expr = Ast::RuntimeExpr.new(nil, read)
-          parse_idents(expr)
+          expr = Ast::RuntimeExpr.new(read)
+          expr.words = parse_idents
         when :SCHEMA
-          expr = Ast::ReferenceExpr.new(nil, read)
-          Ast::Reference.new(expr, readkind(:IDENT))
+          expr = Ast::ReferenceExpr.new(read)
+          expr.ref = Ast::Reference.new(readkind :IDENT)
         when :OBJECT
-          expr = Ast::ReferenceExpr.new(nil, read)
-          Ast::Reference.new(expr, readkind(:REF, :IDENT))
+          expr = Ast::ReferenceExpr.new(read)
+          expr.ref = Ast::Reference.new(readkind :REF, :IDENT)
         when :RESOURCE
-          expr = Ast::ReferenceExpr.new(nil, read)
-          Ast::Reference.new(expr, readkind(:REF, :IDENT))
+          expr = Ast::ReferenceExpr.new(read)
+          expr.ref = Ast::Reference.new(readkind :REF, :IDENT )
         when :VERSION
-          expr = Ast::VersionExpr.new(nil, read)
+          expr = Ast::VersionExpr.new(read)
           while VERSION_OPERATORS.include?(peek.kind)
-            match = Ast::VersionMatch.new(expr, read)
-            ver = Ast::Ver.new(match, readkind(:VER))
+            match = Ast::VersionMatch.new(read)
+            match.version = Ast::Ver.new(readkind(:VER))
+            expr.matches << match
           end
           !expr.matches.empty? or unexpected_token_error peek, "version operator"
       else
@@ -265,66 +277,67 @@ module Prick::Lang
       expr
     end
 
-    def parse_values(parent)
-      readwhile { parse_value? parent }
+    def parse_values
+      readwhile { parse_value? }
     end
 
-    def parse_ruby(parent)
+    def parse_ruby
       not_implemented_error "#parse_ruby"
     end
 
     # Parse a list of files. Return array of File objects. Raise an error if
     # the array is empty and :check is true
     #
-    def parse_files(parent, check: true)
+    def parse_files(check: true)
 #     puts "#parse_files"
       check_expected "files" do
         r = []
         while !@tokenizer.eof? && (token = peek) && token.kind == :FILE
-          r << Ast::File.new(parent, read)
+          r << Ast::File.new(read)
         end
-        next nil if r.empty?
-        r
+        check && r.empty? ? nil : r # nil triggers enclosing #check_expected
       end
     end
 
-    def parse_ident?(parent) = peek&.kind == :IDENT ? Ast::Ident.new(parent, read) : nil
-    def parse_ident(parent) = Ast::Ident.new(parent, readkind(:IDENT))
+    def parse_ident? = peek&.kind == :IDENT ? Ast::Ident.new(read) : nil
+    def parse_ident = Ast::Ident.new(readkind(:IDENT))
 
-    def parse_idents?(parent) = readwhile? { parse_ident? parent }
-    def parse_idents(parent) = check_expected("identifier") { readwhile { parse_ident? parent } }
+    def parse_idents? = readwhile? { parse_ident? }
+    def parse_idents = check_expected("identifier") { readwhile { parse_ident? } }
 
-    def parse_refs(parent)
-      readkinds(:IDENT, :REF).map { Ast::Reference.new(parent, _1) }
+    def parse_refs
+      readkinds(:IDENT, :REF).map { Ast::Reference.new _1 }
     end
 
     # Parse a space-separated list of values. Values are IDENT, REF, or a version match
-    def parse_value?(parent)
+    def parse_value?
       case peek.kind
         when :IDENT, :REF
-          Ast::Reference.new(parent, read)
+          Ast::Reference.new(read)
         when :VER # Default '==' operator
-          ver = read
-          oper = Token.new(ver.file, ver.lineno, ver.charno, "==", :EQEQ)
-          value = Ast::VersionMatch.new(parent, oper)
-          Ast::Ver.new(value, ver)
-          value
+          tk = read
+          oper = Token.new(tk.file, tk.lineno, tk.charno, "==", :EQEQ)
+          match = Ast::VersionMatch.new(oper)
+          match.version = Ast::Ver.new(tk)
+          match
         when *VERSION_OPERATORS
-          value = Ast::VersionMatch.new(parent, read)
-          Ast::Ver.new(value, readkind(:VER))
-          value
+          match = Ast::VersionMatch.new(read)
+          match.version = Ast::Ver.new(readkind(:VER))
+          match
       else
         nil
       end
     end
 
-    def parse_constant(parent)
-      Ast::Const.new(parent, readkind(*CONSTANTS))
+    def parse_constant
+      Ast::Const.new(readkind(*CONSTANTS))
     end
 
     #
     # S H U N T I N G
     #
+
+    # Returns a reversed Polish notation list of SimpleExpression objects and operator tokens
     def shunt_exprs
 #     puts "#shunt_exprs"
       stack = []
@@ -384,31 +397,6 @@ module Prick::Lang
       kinds.include? peek&.kind or return nil
       read
     end
-
-#   KEYWORD_RE = /(?<keyword>#{KEYWORD_PATTERN})/
-#   PUNCT_RE = /(?<punct>#{PUNCT_PATTERN})/
-#   DIR_RE = /(?<dir>#{DIR_PATTERN})/
-#   FILE_RE = /(?<path>#{DIR_PATTERN})?(?<file>#{FILE_PATTERN}\.(?<ext>#{EXT_PATTERN}))/
-#   PATH_RE = /TODO/
-#   REF_RE = /(?<ref>#{REF_PATTERN})/
-#   IDENT_RE = /(?<ident>#{IDENT_PATTERN})/
-#   VERSION_RE = /(?<version>#{VERSION_PATTERN})/
-#
-#   KIND_RES = {
-#     KEYWORD: KEYWORD_RE,
-#     PUNCT: PUNCT_RE,
-#     DIR: DIR_RE,
-#     FILE: FILE_RE,
-#     PATH: PATH_RE,
-#     REF: REF_RE,
-#     IDENT: IDENT_RE,
-#     VERSION: VERSION_RE
-#   }
-
-
-#   def peekkind(*kinds, **opts)
-#     @tokenizer.peekkind()
-#   end
 
     # Note: Returns an empty list if no token was found
     def readkinds?(*kinds, **opts)

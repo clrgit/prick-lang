@@ -4,9 +4,6 @@ require './lib/prick/lang/ast.sig.rb'
 describe "Prick::Lang" do
   using String::Text
 
-  it "something" do
-  end
-
   describe "Parser" do
     def file = "file.txt" # Considered a constant
 
@@ -232,7 +229,7 @@ describe "Prick::Lang" do
               end
             )
             expect(sig l).to eq %(
-              If VERSION >=("1.2.3")
+              If VERSION >=(1.2.3)
                 Block
                   File a.sql
             ).align
@@ -245,7 +242,7 @@ describe "Prick::Lang" do
               end
             )
             expect(sig l).to eq %(
-              If VERSION >=("1.2.3") <("4.5.6")
+              If VERSION >=(1.2.3) <(4.5.6)
                 Block
                   File a.sql
             ).align
@@ -277,13 +274,13 @@ describe "Prick::Lang" do
             )
             expect(sig l).to eq %(
               Case VERSION
-                When ==("1.2.3")
+                When ==(1.2.3)
                   Block
                     File a.sql
             ).align
           end
 
-          it "with single version expression when-values" do
+          it "with single version expression when-values X" do
             l = %(
               case version
                 when >=1.2.3
@@ -292,7 +289,7 @@ describe "Prick::Lang" do
             )
             expect(sig l).to eq %(
               Case VERSION
-                When >=("1.2.3")
+                When >=(1.2.3)
                   Block
                     File a.sql
             ).align
@@ -322,7 +319,7 @@ describe "Prick::Lang" do
             )
             expect(sig l).to eq %(
               Case VERSION
-                When ~>("1.2.3"), <("4.5.6")
+                When ~>(1.2.3), <(4.5.6)
                   Block
                     File a.sql
             ).align

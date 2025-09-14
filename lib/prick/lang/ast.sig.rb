@@ -22,42 +22,50 @@ module Prick::Lang
       end
     end
 
+    class Nodes
+      def sig(nodes = children)
+        nodes.each &:sig
+      end
+    end
+
     class Decl
-      def signame = "#{Token::TOKENS[kind]} #{ident.name.inspect}"
+      def signame = "#{Token::TOKENS[kind]} #{ident.value.inspect}"
       def sig = super([block])
     end
 
     class Provide
-      def signame = ident.name
+      def signame = ident.value
       def sig = puts sigtitle
     end
 
     class Require
       def sig
-        puts "#{sigtitle} #{refs.map(&:ref).join(", ")}"
+        puts "#{sigtitle} #{refs.map(&:value).join(", ")}"
       end
+    end
+
+    class Source
+      def sig(nodes = children) = nodes.each &:sig
     end
 
     class Phase
       def signame = Token::TOKENS[kind]
     end
 
-    class SourceCommand
+    class ExternalCommand
       def sigclass = kind.to_s.capitalize
       def signame = source ? source.split("\n").join("; ") : ""
     end
 
     class CallCommand
       def sigclass = kind.to_s.capitalize
-      def sig = puts "#{sigtitle} #{refs.map(&:ref).join(", ")}"
+      def sig = puts "#{sigtitle} #{refs.map(&:value).join(", ")}"
     end
 
     class If
       def sig
         keyword = "If"
         for if_then in if_thens
-#         $stderr.puts if_then.class
-#         $stderr.puts if_then.expr.class
           puts "#{keyword} #{if_then.expr.source}"
           keyword = "Elsif"
           indent { if_then.then_.sig }
@@ -104,12 +112,12 @@ module Prick::Lang
     end
 
     class RuntimeExpr
-      def source = "#{kind}(#{words.map(&:name).join(', ')})"
+      def source = "#{kind}(#{words.map(&:value).join(', ')})"
     end
 
     class ReferenceExpr
       def sig = source
-      def source = "#{kind}(#{ref.ref})"
+      def source = "#{kind}(#{ref.value})"
     end
 
     class VersionExpr
@@ -117,6 +125,7 @@ module Prick::Lang
     end
 
     class Value
+      def signame = value
     end
 
     class File
@@ -124,25 +133,22 @@ module Prick::Lang
     end
 
     class Ident
-      def sigtitle = token.text
     end
 
     class Reference
-      def signame = token.text
       def sigtitle = "Reference(#{token.text.inspect})"
     end
 
     class Ver
-      def signame = token.text
       def sigtitle = "Ver(#{token.text.inspect})"
     end
 
     class VersionMatch
-      def sigtitle = "#{oper}(#{version.signame.inspect})"
+      def sigtitle = "#{oper}(#{version.value})"
     end
 
     class Const
-      def signame = name.upcase
+      def signame = value.upcase
     end
   end
 end
