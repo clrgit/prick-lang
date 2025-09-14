@@ -1,9 +1,7 @@
 
 module Prick::Lang
   module Ast
-    class Node
-    end
-
+    class Node < Part; end
     class Nodes < Node; end
     class Stmt < Node; end
     class Block < Stmt; end
@@ -36,9 +34,7 @@ module Prick::Lang
     class Word < Value; end
     class Const < Value; end
 
-    class Node
-      include Tree
-
+    class Node < Part
       def self.classname = self.to_s.sub(/.*::/, "")
       def classname = self.class.classname
 
@@ -66,73 +62,11 @@ module Prick::Lang
 
       forward_to :token, :lineno, :charno, :kind, :file
 
-      # Map from class to [sym, klass, element klass]
-      @@PARTS = {}
-
-      def self.part(sym, constraint = Node)
-        constrain sym, Symbol
-        constrain constraint, Class, [Class]
-
-        attr_reader sym
-
-        element_klass = nil
-        if constraint.is_a?(Array)
-          klass = Nodes
-          element_klass = constraint.first
-          define_method(:"#{sym}=") { |node|
-            if node.nil?
-              assign(sym, nil)
-            else
-              if node.is_a? Nodes
-                node.nil? || node.is_a?(Nodes) or
-                    raise ArgumentError, "Expected a Nodes object, got #{node.class}"
-                node.nil? || node.element_klass < element_klass or
-                    raise ArgumentError, "Expected a Nodes of #{element_klass} objects, " +
-                                         "got Nodes of #{node.element_klass}"
-                assign(sym, node)
-
-              elsif node.is_a? Array
-                nodes = Nodes.new(nil, element_klass)
-                nodes.concat node
-                assign(sym, nodes)
-
-              else
-                raise ArgumentError, "Expected #{element_klass} objects, got #{node.class}"
-              end
-            end
-            self
-          }
-        else
-          klass = constraint
-          define_method(:"#{sym}=") { |node|
-            node.is_a?(klass) or
-                raise ArgumentError, "Expected #{klass} object, got #{node.class}"
-            self.assign(sym, node)
-          }
-        end
-
-        (@@PARTS[self] ||= []) << [sym, klass, element_klass]
-      end
-
-      def get_part(sym) = self.instance_variable_get(:"@#{sym}")
-
-      def initialize_parts
-        indent {
-          for sym, klass, element_klass in @@PARTS[self.class] || []
-            if klass == Nodes
-              if get_part(sym).nil?
-                assign(sym, Nodes.new(nil, element_klass))
-              end
-            end
-          end
-        }
-      end
-
       def initialize(token)
         constrain token, Token, nil
         @token = token
         Tree.initialize(self)
-        initialize_parts
+        super()
       end
     end
 
@@ -169,7 +103,6 @@ module Prick::Lang
 
     class Program < Node
       part :block, Block
-#     attr_accessor :block
       def initialize(file)
         super Token.new(file, 1, 1, "", :PROGRAM)
       end
@@ -177,7 +110,6 @@ module Prick::Lang
 
     class Decl < Stmt
       forward_to :token, :kind # Symbol
-#     forward_to :ident, :name
       part :ident, Ident
       part :block, Block
     end
