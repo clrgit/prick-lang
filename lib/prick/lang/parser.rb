@@ -3,7 +3,7 @@ module Prick::Lang
   class Parser
     using String::Text
     include ErrorFunctions
-    class ParserError < Prick::Lang::Error; end
+#   class ParserError < Prick::Lang::Error; end # FIXME Not used
 
     CONSTANTS = [:ENV, :CMD, :USER, :VERSION, :SCHEMA, :OBJECT, :RESOURCE]
     COMMANDS = [:EXEC, :EVAL, :RUBY, :SQL, :CALL]
@@ -41,6 +41,7 @@ module Prick::Lang
       if !@tokenizer.eof?
         unexpected_token_error "end of file"
       end
+      @ast.build_tree
       @ast
     end
 
@@ -96,9 +97,25 @@ module Prick::Lang
 #     puts "#parse_block"
       check_expected "block" do
         block = Ast::Block.new(token) # Note that token may be nil, it is assigned later if so
-        block.stmts = parse_stmts
+#       indent {
+#       puts "--------------"
+#       p block.stmts
+#       p block.stmts.class
+#       puts "--------------"
+
+#       p block.stmts.empty?
+        stmts = parse_stmts
+#       p stmts
+        block.stmts = stmts
+#       p block.stmts
+#       block.stmts = parse_stmts
+#       p block.stmts.empty?
+#       p block.stmts
+#       p :BING
         next nil if block.stmts.empty? && check
-        block.token ||= block.start_token # Default token to start token
+#       p :BANG
+#       }
+         block.token ||= block.start_token # Default token to start token
         block
       end
     end

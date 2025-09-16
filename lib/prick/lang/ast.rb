@@ -1,6 +1,7 @@
 
 module Prick::Lang
   module Ast
+    # FIXME Fix this
     class Node < Part; end
     class Nodes < Node; end
     class Stmt < Node; end
@@ -25,11 +26,11 @@ module Prick::Lang
     class RuntimeExpr < SimpleExpr; end
     class ReferenceExpr < SimpleExpr; end
     class VersionExpr < SimpleExpr; end
-    class VersionMatch < Node; end
     class Value < Node; end
     class File < Value; end
     class Reference < Value; end
     class Ver < Value; end
+    class VersionMatch < Value; end
     class Ident < Value; end
     class Word < Value; end
     class Const < Value; end
@@ -72,24 +73,11 @@ module Prick::Lang
 
     # Array of nodes. Token may be nil; it defaults to #start_token
     class Nodes < Node
-      # Redefine token to default to #start_token. We check empty? to avoid
-      # endless recursion in #start_token
-      def token = @token || (empty? ? nil : start_token)
-
-      attr_reader :element_klass
+      include Parts
 
       def initialize(token, element_klass)
         super token
-        @element_klass = element_klass
-      end
-
-      forward_to :@children, :each, :map
-
-      def <<(node)
-        !node.nil? or raise ArgumentError
-        node.class <= element_klass or
-            raise ArgumentError, "Expected #{element_klass.classname}, got #{node.classname}"
-        self.attach node
+        Parts.initialize(self, element_klass)
       end
     end
 
@@ -199,11 +187,6 @@ module Prick::Lang
       part :matches, [VersionMatch]
     end
 
-    class VersionMatch < Node
-      def oper = @token.text
-      part :version, Ver
-    end
-
     class Value < Node
       def value = @token.text
       def literal = @token.text
@@ -216,6 +199,11 @@ module Prick::Lang
     end
 
     class Reference < Value
+    end
+
+    class VersionMatch < Value
+      def oper = @token.text
+      part :version, Ver
     end
 
     class Ver < Value # a version value. See Version

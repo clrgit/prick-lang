@@ -17,7 +17,7 @@ module Prick::Lang
             if klass == Nodes
               puts "#{sym}: #{klass.classname}[#{element_klass.classname}] = ["
               indent {
-                value.children.each { |v|
+                value.each { |v|
                   print "- "
                   indent(bol: false) { v.dump_parts }
                 }

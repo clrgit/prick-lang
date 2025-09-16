@@ -43,8 +43,10 @@ describe "Prick::Lang" do
 
       context "it parses" do
         context "files" do
-          it "with one file" do
+          it "with one file X" do
             l = %(file.sql)
+#           call(l).dump_parts
+#           exit
             expect(sig l).to eq "File file.sql"
           end
           it "with multiple files" do

@@ -182,6 +182,9 @@ module Prick::Lang
     attr_accessor :kind # Symbol. Can mutate from keyword to ident
     attr_accessor :text # String
 
+    # Formatted reference for error messages
+    def location() = "#{file} #{lineno}:#{charno}"
+
     # Value of token. Used by simple expressions to accumulate arguments
     attr_accessor :value
 
