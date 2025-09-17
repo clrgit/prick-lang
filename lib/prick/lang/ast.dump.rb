@@ -58,6 +58,7 @@ module Prick::Lang
     end
 
     class Nodes
+      def dump() = children.each(&:dump)
       def inspect()
         "#<#{[classname, title].compact.join(' ')} " +
         "element_klass:#{element_klass.classname} size:#{children.size}>"
@@ -68,9 +69,11 @@ module Prick::Lang
       def title = @token.kind.to_s.downcase
     end
 
-    class SourceCommand
-      def title = kind.downcase
-      def dump_children = indent { puts source }
+    class ExternalCommand # Wrong name because 'sql commands gets inlined - back to SourceCommand
+      def title = kind.to_s.downcase + (multiline? ? "" : " #{source}")
+      def dump_children
+        indent { puts source } if multiline?
+      end
     end
 
     class Expr

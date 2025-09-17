@@ -38,7 +38,7 @@ module Prick::Lang
 
     def parse
       @ast = parse_program
-      if !@tokenizer.eof?
+      if !@tokenizer.peek? # Can't use #eof? because we may have to scan through comments
         unexpected_token_error "end of file"
       end
       @ast.build_tree
@@ -80,7 +80,7 @@ module Prick::Lang
     end
 
     def parse_stmts(check: true)
-#     puts "#parse_stmts"
+#     puts "#parse_stmts(check: #{check})"
       check_expected "statement" do
         stmts = []
         while stmt = parse_stmt
@@ -97,25 +97,9 @@ module Prick::Lang
 #     puts "#parse_block"
       check_expected "block" do
         block = Ast::Block.new(token) # Note that token may be nil, it is assigned later if so
-#       indent {
-#       puts "--------------"
-#       p block.stmts
-#       p block.stmts.class
-#       puts "--------------"
-
-#       p block.stmts.empty?
-        stmts = parse_stmts
-#       p stmts
-        block.stmts = stmts
-#       p block.stmts
-#       block.stmts = parse_stmts
-#       p block.stmts.empty?
-#       p block.stmts
-#       p :BING
+        block.stmts = parse_stmts
         next nil if block.stmts.empty? && check
-#       p :BANG
-#       }
-         block.token ||= block.start_token # Default token to start token
+        block.token ||= block.start_token # Default token to start token
         block
       end
     end

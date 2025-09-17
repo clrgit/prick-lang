@@ -34,7 +34,7 @@ module Prick::Lang
     # Indent of current or given line
     def indent(l = line) = l && l[/\A */].size
 
-    # Last read token
+    # Last read token. Note that this does not reflect the current state
     attr_reader :token
 
     # Token of the last read error
@@ -47,7 +47,7 @@ module Prick::Lang
       constrain file, String
       constrain lines, [String], nil
       @file = file
-      @lines = (lines || IO.readlines(file)).map(&:rstrip)
+      @lines = (lines || IO.readlines(file)).map(&:rstrip).take_while { _1 !~ /^__END__$/ }
       trimlines
 
       # Current state
@@ -237,20 +237,20 @@ module Prick::Lang
     end
 
     def dump
+      puts "Tokenizer"
       Kernel.indent {
-        puts "Tokenizer"
-        puts "  file: #{compiler.file}"
-        puts "  eof?: #{eof?.inspect}"
-        puts "  bol?: #{bol?.inspect}"
-        puts "  eol?: #{eol?.inspect}"
-        puts "  index: #{@index.inspect}"
-        puts "  pos: #{@pos.inspect}"
-        puts "  line: #{line.inspect}"
-        puts "  rest: #{line&.[](@pos..-1).inspect}"
-        puts "  indent: #{@indent.inspect}"
-        puts "  token: #{token.inspect}"
-        puts "  error: #{error.inspect}"
-        puts "  peek_error: #{peek.inspect}"
+        puts "file: #{file}"
+        puts "eof?: #{eof?.inspect}"
+        puts "bol?: #{bol?.inspect}"
+        puts "eol?: #{eol?.inspect}"
+        puts "index: #{@index.inspect}"
+        puts "pos: #{@pos.inspect}"
+        puts "line: #{line.inspect}"
+        puts "rest: #{line&.[](@pos..-1).inspect}"
+        puts "indent: #{@indent.inspect}"
+        puts "token: #{token.inspect}"
+        puts "error: #{error.inspect}"
+        puts "peek_error: #{peek.inspect}"
       }
     end
 
@@ -291,6 +291,7 @@ module Prick::Lang
     # Return index of first non blank line including the current line. Ignore
     # comment-only lines unless :comment is true.  Returns lines.size on eof
     def scanlines(index = @index, comment: false)
+#     puts "#scanlines(#{index}, comment: #{comment})"
       re = (!comment ? Token::COMMENT_LINE_RE : Token::BLANK_LINE_RE)
       offset = @lines[index..-1].find_index { |l| !re.match(l) }
       (offset ? index + offset : @lines.size)

@@ -6,13 +6,15 @@ module Prick::Lang
     class AnalyzerError < Prick::Lang::Error; end
 
     def file = @ast.file
+    attr_reader :parser
     attr_reader :ast
 
-    def initialize(ast)
-      @ast = ast
+    def initialize(parser)
+      @parser = parser
     end
 
     def analyze
+      @ast = parser.ast
       puts "#analyze"; indent {
         analyze_program(ast)
       }

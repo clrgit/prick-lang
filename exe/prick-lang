@@ -13,6 +13,10 @@ SPEC = %(
     Throw exceptions instead of using ShellOpts error message. Useful to
     pinpoint the source of an error when developing
 
+  -d,dump=tokens|ast|idr?
+    Dump debug. Default is 'ast'
+
+
   Syntax
 
     PROGRAM ::= BLOCK
@@ -123,11 +127,21 @@ SPEC = %(
 )
 
 opts, args = ShellOpts.process(SPEC, ARGV)
-
 USE_EXCEPTION = opts.exception?
-
+ShellOpts.exception = USE_EXCEPTION
 file = args.expect(1)
 
+if opts.dump?
+  kind = opts.dump || "ast"
+  Prick::Lang::DUMP_KINDS.include?(kind) or
+      ShellOpts::error "Illegal value for --dump '#{kind}'"
+  Prick::Lang.dump(file, kind)
+  exit
+end
+
+
+puts "TODO"
+exit
 compiler = Prick::Lang::Compiler.new(file)
 
 begin

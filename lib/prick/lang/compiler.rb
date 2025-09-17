@@ -13,8 +13,8 @@ module Prick::Lang
 
     def initialize(file, lines = nil)
       @file = file
-      @tokenizer = Tokenizer.new(self, lines)
-      @parser = Parser.new(self)
+      @tokenizer = Tokenizer.new(file, lines)
+      @parser = Parser.new(@tokenizer)
       @analyzer = Analyzer.new(self)
     end
 
@@ -54,9 +54,11 @@ module Prick::Lang
         @ast = @parser.parse
       end
 
-      time "Analyzing" do
-        @idr = @analyzer.analyze
-      end
+#     @ast.dump
+
+#     time "Analyzing" do
+#       @idr = @analyzer.analyze
+#     end
 
 #     puts "Dumping"
 #     program.dump

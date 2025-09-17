@@ -24,6 +24,37 @@ module Prick::Lang
   class InternalError < Error; end
   class TokenizerError < Error; end
   class EofError < Error; end # Not an error but used as a signal
+
+  def self.install_token_listener(tokens)
+    Token.alias_method(:orig_initialize, :initialize)
+    Token.define_method(:initialize) { |*args| orig_initialize(*args); tokens << self; }
+  end
+
+  DUMP_KINDS = %w(tokens ast dir)
+
+  def self.dump(file, lines = nil, kind)
+    tokenizer = Tokenizer.new(file, lines)
+    parser = Parser.new(tokenizer)
+    case kind
+      when "token", "tokens"
+        tokens = []
+        install_token_listener(tokens)
+        parser.parse
+        puts "Processed #{tokens.size} tokens"
+        indent { tokens.each &:dump }
+
+      when "ast", nil
+        parser.parse.dump
+
+      when "idr"
+        analyzer = Analyzer.new(parser)
+        parser.parse
+        idr = analyzer.analyze
+        idr.dump
+    else
+      raise ArgumentError
+    end
+  end
 end
 
 require_relative './lang/token.rb'

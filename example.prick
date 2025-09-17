@@ -57,3 +57,7 @@ schema my_schema {
   #call my_function
 }
 
+__END__
+
+}
+

@@ -194,6 +194,7 @@ module Prick::Lang
 
     def to_s = @text
     def inspect = "#<Token:#{kind} #{lineno}:#{charno} #{text.inspect}>"
+    def dump = puts "#{kind} #{lineno}:#{charno} #{text.inspect}"
   end
 
   class DirToken < Token
