@@ -54,11 +54,9 @@ module Prick::Lang
         @ast = @parser.parse
       end
 
-#     @ast.dump
-
-#     time "Analyzing" do
-#       @idr = @analyzer.analyze
-#     end
+      time "Analyzing" do
+        @idr = @analyzer.analyze
+      end
 
 #     puts "Dumping"
 #     program.dump

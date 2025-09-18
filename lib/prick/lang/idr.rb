@@ -1,53 +1,83 @@
 
+module Prick::Lang
+  module Idr
+    class AbstractNode
+      attr_accessor :prev # Node. Previous node. May be nil
+      attr_reader :ast # Ast::Node
+      def token = ast.token
+      attr_reader :deps # Node. Dependencies in addition to #prev. In reality either one or none object
 
-
-
-
-    class Node
-      attr_reader :deps
-      def flatten = [self]
+      def initialize(prev, ast)
+        @prev = prev
+        @ast = ast
+      end
     end
 
+    class UnresolvedNode < AbstractNode
+    end
+
+    # Artificial node used for anchoring
+#   class Anchor < AbstractNode
+#     attr_reader :uid
+#   end
+
+    class Node < AbstractNode
+      attr_accessor :node # First node. Default equal to self
+    end
+
+    class Program < Node
+    end
+
+    # Can be a schema, provide, or function
     class Resource < Node
-      attr_reader :ident # String
-      attr_reader :uid # String
-      attr_reader :nodes # [nodes]
-      def flatten = nodes.flat_map(&:flatten)
+      attr_accessor :ident # String
+      attr_accessor :uid # String
+      attr_accessor :nodes # [Node]
+      def node = nodes.first
+      attr_accessor :head # Entry node, only used by Schema. Embedded objects depend on head. FIXME: They do?
+      attr_accessor :tail # Last node. External objects depend on tail. Equal to :head for simple objects
     end
 
     # TODO: End-of-schema-marker (or use schema itself - like other resources)
     class Schema < Resource
-      attr_reader :decl # Decl
-      attr_reader :functions # { uid => Function }
-
-      def flatten = [decl] + super
+      attr_accessor :functions # {uid=>Function}
     end
 
-    class Decl < Resource # Schema declaration
-      def command = nodes.first # Has only a schema command as child
+    class Provide < Resource
+      def initialize(prev, ast, schema)
+        constrain ast, Ast::Provide
+        super(prev, ast)
+        @ident = ast.ident
+        @uid = ast.uid
+      end
     end
 
     class Require < Node
-      attr_reader :resource
+      attr_accessor :resource
     end
 
     class Command < Node
-      attr_reader :kind
+      attr_accessor :kind
+      def is_referenced?() = raise
     end
 
-    class SchemaCommand < Command
+    class FileCommand < Command
+    end
+
+    class InlineCommand < Command
+    end
+
+    class SchemaCommand < InlineCommand
     end
 
     class SourceCommand < Command
-      attr_reader :source
+      attr_accessor :source
     end
 
     class CallCommand < Command
     end
-
-    # osv.
-
-
+  end
+end
 
 
 

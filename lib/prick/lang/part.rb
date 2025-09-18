@@ -1,6 +1,6 @@
 module Prick::Lang
   module Ast
-    # An trimmed-down Array of Part objects
+    # Acts as a trimmed-down Array of Part objects
     module Parts
       attr_reader :element_klass
       forward_to :@children, :each, :map, :empty?
@@ -17,6 +17,7 @@ module Prick::Lang
         @children = parts
       end
 
+      # TODO Remove?
       def <<(node)
         !node.nil? or raise ArgumentError
         node.is_a? element_klass or unexpected_error element_klass, node
@@ -28,6 +29,7 @@ module Prick::Lang
         @children.each { |part|
           part.build_tree
           part.instance_variable_set(:@parent, self)
+#         part.instance_variable_set(:@parent, self.parent)
         }
       end
     end
@@ -37,8 +39,9 @@ module Prick::Lang
       include Tree
 
       # Map from class to array of [sym, klass, element klass] tuples, one for
-      # each part object
-      @@PARTS = {}
+      # each part object. #self.inherited guarantees that @@PARTS will never be
+      # nil for a class derived from Part
+      @@PARTS = { Part => [] }
 
       # :call-seq:
       #   part ident, klass = Part
@@ -60,19 +63,12 @@ module Prick::Lang
           define_method(sym) { get_part(sym).children }
 
           define_method(method) { |nodes|
-#           puts "#{method}(#{nodes.inspect}) #{self.classname}"
-#           puts "  BEFORE #{empty?} #{self.is_a?(Parts)}"
-#           p   uts "    #{get_part(sym).inspect}"
-#           puts "    empty? #{get_part(sym).empty?}"
             case nodes
               when Array; get_part(sym).replace nodes
               when Nodes; get_part(sym).replace nodes.children
             else
               unexpected_error(element_klass, node)
             end
-#           puts "  AFTER #{empty?}"
-#           puts "    #{get_part(sym).inspect}"
-#           puts "    empty? #{get_part(sym).empty?}"
           }
         else
           klass = constraint
@@ -87,20 +83,23 @@ module Prick::Lang
         (@@PARTS[self] ||= []) << [sym, klass, element_klass]
       end
 
+      def self.parts() = @@PARTS[self]
       def get_part(sym) = self.instance_variable_get(:"@#{sym}")
 
       def initialize
 #       puts "Part#initialize #{self.class.classname}"
         # Create Nodes part objects
-        for sym, klass, element_klass in @@PARTS[self.class] || []
+        for sym, klass, element_klass in @@PARTS[self.class]
           if klass == Nodes
             if get_part(sym).nil?
               self.instance_variable_set(:"@#{sym}", Nodes.new(nil, element_klass))
-#             p :BINGBING
-#             assign(sym, Nodes.new(nil, element_klass))
             end
           end
         end
+      end
+
+      def self.inherited(subklass)
+        @@PARTS[subklass] = (@@PARTS[self] ||= []).dup
       end
 
       def build_tree

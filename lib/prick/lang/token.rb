@@ -106,7 +106,15 @@ module Prick::Lang
 
     # List of all token kinds
     KINDS = TOKENS.keys
-#
+
+    # List of phase kinds
+    PHASES = [:INIT, :TERM, :META, :SEED, :AUTH]
+
+    # List of identifier kinds
+    IDENTS = [:IDENT] + PHASES
+
+    REFS = [:IDENT, :REF]
+
 #   TOKEN_KIND_KINDS = TOKENS.select { _2 }.keys
 #   KEYWORD_KINDS = TOKENS.select { _2.to_s =~ /^\w+$/ }.keys
 #   PUNCT_KINDS = TOKEN_KIND_KINDS - KEYWORD_KINDS

@@ -2,18 +2,6 @@
 # Schema
 schema my_schema {
 
-  # Phase
-  init {
-    # If statement
-    if version ~> 1.2 && ( env prod || cmd build )
-      a.sql
-    elsif ! env prod
-      b.sql
-    else
-      c.sql
-    end
-  }
-
   # Function
   function my_function {
     # Case statment
@@ -27,6 +15,24 @@ schema my_schema {
     end
   }
 
+  # Phase
+  init {
+    # If statement
+    if version ~> 1.2 && ( env prod || cmd build )
+      a.sql
+    elsif ! env prod
+      b.sql
+    else
+      c.sql
+    end
+  }
+
+  # Provide
+  a.sql
+  provide has_a
+  b.sql
+  provide has_b # has_b depends on has_a that depends on the schema
+
   # Make
   exec |
     if [ file1.sql -nt file.rb -o file2.sql -nt data.txt ]; then
@@ -38,11 +44,13 @@ schema my_schema {
   # Require
   require another_schema
   require my_schema.resource
-  require a.b.c
+  require a.b c.d.e
 
   # Files
   r.rb
   p.psql
+
+  t1.sql t2.sql t3.sql
 
   # Commands
   exec ls -l

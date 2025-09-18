@@ -1,40 +1,6 @@
 
 module Prick::Lang
   module Ast
-    # FIXME Fix this
-    class Node < Part; end
-    class Nodes < Node; end
-    class Stmt < Node; end
-    class Block < Stmt; end
-    class Program < Node; end
-    class Decl < Stmt; end
-    class Provide < Stmt; end
-    class Require < Stmt; end
-    class Phase < Stmt; end
-    class Command < Stmt; end
-    class Source < Command; end
-    class ExternalCommand < Command; end
-    class CallCommand < Command; end
-    class If < Stmt; end
-    class IfThen < Node; end
-    class Case < Stmt; end
-    class When < Node; end
-    class Expr < Node; end
-    class UnExpr < Expr; end
-    class BinExpr < Expr; end
-    class SimpleExpr < Expr; end
-    class RuntimeExpr < SimpleExpr; end
-    class ReferenceExpr < SimpleExpr; end
-    class VersionExpr < SimpleExpr; end
-    class Value < Node; end
-    class File < Value; end
-    class Reference < Value; end
-    class Ver < Value; end
-    class VersionMatch < Value; end
-    class Ident < Value; end
-    class Word < Value; end
-    class Const < Value; end
-
     class Node < Part
       def self.classname = self.to_s.sub(/.*::/, "")
       def classname = self.class.classname
@@ -43,9 +9,6 @@ module Prick::Lang
       attr_reader :children # [Node] mostly initialized by the analyzer
 
       forward_to :@children, :empty?
-
-      # All nodes have a start and stop token (they can be the same). The start
-      # token is equal to #token by default
 
       # All nodes have a token that identifies the node and a start and stop
       # token. The three tokens are often identical but eg. binary operators
@@ -76,85 +39,51 @@ module Prick::Lang
       include Parts
 
       def initialize(token, element_klass)
-        super token
+        super(token)
         Parts.initialize(self, element_klass)
       end
     end
 
-    class Stmt < Node
+    #
+    # V A L U E S
+    #
+
+    class Value < Node
+      def value = @token.text
+      def literal = @token.text
+      def to_s = value.to_s
     end
 
-    # A block is an Nodes object with elements restricted to statements
-    class Block < Stmt
-      part :stmts, [Stmt]
+    class File < Value
+      forward_to :@token, :path, :dirname, :filename, :extname
+      def value = @token.path
     end
 
-    class Program < Node
-      part :block, Block
-      def initialize(file)
-        super Token.new(file, 1, 1, "", :PROGRAM)
-      end
+    class Reference < Value
+      attr_accessor :uid # Assigned by the analyzer
     end
 
-    class Decl < Stmt
-      forward_to :token, :kind # Symbol
-      part :ident, Ident
-      part :block, Block
+    class Ver < Value # a version value. See Version
+      def value() @value ||= Semver.new(literal) end
     end
 
-    class Provide < Stmt
-      part :ident, Ident
+    class VersionMatch < Value
+      def oper = @token.text
+      part :version, Ver
     end
 
-    class Require < Stmt
-      part :refs, [Reference]
+    class Ident < Value
     end
 
-    class Phase < Stmt
-      def name = @token.text
-      part :block, Block
+    class Word < Value
     end
 
-    class Command < Stmt; end
-
-    # Sequence of .sql/.psql files
-    class Source < Command
-      part :files, [File]
+    class Const < Value
     end
 
-    # exec/eval
-    class ExternalCommand < Command
-      attr_accessor :source # Array of source lines. Assigned after initialization
-
-      # True iff source consists of multiple lines
-      def multiline? = @source =~ /\n/
-    end
-
-    # call
-    class CallCommand < Command
-      part :refs, [Reference]
-    end
-
-    class If < Stmt
-      part :if_thens, [IfThen]
-      part :else_, Block
-    end
-
-    class IfThen < Node
-      part :expr, Expr
-      part :then_, Block
-    end
-
-    class Case < Stmt
-      part :const, Const
-      part :whens, [When]
-      part :else_, Block
-    end
-
-    class When < Node
-      part :values, [Value]
-      part :then_, Block
-    end
+    #
+    # E X P R E S S I O N S
+    #
 
     class Expr < Node
     end
@@ -180,43 +109,111 @@ module Prick::Lang
 
     # eg. 'schema app'
     class ReferenceExpr < SimpleExpr
-      part :ref, Reference
+      part :ref, Reference # TODO: Rename reference
     end
 
     class VersionExpr < SimpleExpr # the 'version' keyword. See Ver
       part :matches, [VersionMatch]
     end
 
-    class Value < Node
-      def value = @token.text
-      def literal = @token.text
-      def to_s = value.to_s
+    #
+    # S T A T E M E N T S
+    #
+
+    class Stmt < Node
     end
 
-    class File < Value
-      forward_to :@token, :path, :dirname, :filename, :extname
-      def value = @token.path
+    # A block is an Nodes object with elements restricted to statements
+    class Block < Stmt
+      part :stmts, [Stmt]
     end
 
-    class Reference < Value
+    class Provide < Stmt
+      part :ident, Reference # Always initialized with a single identifier
     end
 
-    class VersionMatch < Value
-      def oper = @token.text
-      part :version, Ver
+    class Require < Stmt
+      part :references, [Reference]
     end
 
-    class Ver < Value # a version value. See Version
-      def value() @value ||= Semver.new(literal) end
+    #
+    # D E C L A R A T I O N S
+    #
+
+    class Decl < Stmt
+      part :ident, Reference
+      part :block, Block
     end
 
-    class Ident < Value
+    class Function < Decl
     end
 
-    class Word < Value
+    class Phase < Function
     end
 
-    class Const < Value
+    class Schema < Decl
+    end
+
+    #
+    # C O M M A N D S
+    #
+
+    class Command < Stmt; end
+
+    # Sequence of .sql/.psql files
+    class Source < Command
+      part :files, [File]
+    end
+
+    # exec/eval
+    class ExternalCommand < Command
+      attr_accessor :source # Array of source lines. Assigned after initialization
+
+      # True iff source consists of multiple lines
+      def multiline? = @source =~ /\n/
+    end
+
+    # call
+    class CallCommand < Command
+      part :refs, [Reference]
+    end
+
+    #
+    # C O N T R O L   S T A T E M E N T S
+    #
+
+    class Control < Stmt; end
+
+    class IfThen < Node
+      part :expr, Expr
+      part :then_, Block
+    end
+
+    class If < Control
+      part :if_thens, [IfThen]
+      part :else_, Block
+    end
+
+    class When < Node
+      part :values, [Value]
+      part :then_, Block
+    end
+
+    class Case < Control
+      part :const, Const
+      part :whens, [When]
+      part :else_, Block
+    end
+
+    #
+    # P R O G R A M
+    #
+
+    class Program < Node
+      part :block, Block
+      def initialize(file)
+        super Token.new(file, 1, 1, "", :PROGRAM)
+      end
     end
   end
 end

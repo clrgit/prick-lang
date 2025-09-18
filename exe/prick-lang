@@ -131,6 +131,7 @@ USE_EXCEPTION = opts.exception?
 ShellOpts.exception = USE_EXCEPTION
 file = args.expect(1)
 
+# Handle dump option
 if opts.dump?
   kind = opts.dump || "ast"
   Prick::Lang::DUMP_KINDS.include?(kind) or
@@ -139,11 +140,8 @@ if opts.dump?
   exit
 end
 
-
-puts "TODO"
-exit
+# Compile
 compiler = Prick::Lang::Compiler.new(file)
-
 begin
   compiler.compile
 rescue => ex

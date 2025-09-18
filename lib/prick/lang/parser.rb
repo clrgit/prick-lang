@@ -61,15 +61,17 @@ module Prick::Lang
     end
 
     def parse_stmt
-#     puts "#parse_stmt"
+      puts "#parse_stmt"
+      puts "  peek: #{peek.inspect}"
       case peek&.kind
-        when :SCHEMA, :FUNCTION; parse_decl
+        when :SCHEMA; parse_decl(Ast::Schema, read)
+        when :FUNCTION; parse_decl(Ast::Function, read)
         when :OPTIONS; parse_options
         when :PROVIDE; parse_provide
         when :REQUIRE; parse_require
         when :IF; parse_if
         when :CASE; parse_case
-        when :INIT, :TERM, :META, :SEEDS, :AUTH; parse_phase
+        when :INIT, :TERM, :META, :SEEDS, :AUTH; parse_decl(Ast::Phase, peek)
         when :EXEC, :EVAL, :SQL; parse_command
         when :CALL; parse_call
         when :RUBY; not_implemented_error "'ruby' command"
@@ -80,7 +82,8 @@ module Prick::Lang
     end
 
     def parse_stmts(check: true)
-#     puts "#parse_stmts(check: #{check})"
+      puts "#parse_stmts(check: #{check})"
+      puts "  peek: #{peek.inspect}"
       check_expected "statement" do
         stmts = []
         while stmt = parse_stmt
@@ -104,67 +107,30 @@ module Prick::Lang
       end
     end
 
-    # Parse a block expression
-    #
-    #   { ... }
-    #   FILE...
-    #   COMMAND
-    #
-    def parse_block_argument
-      check_expected %w(block command file) do |token|
-        if token.kind == :BRACE_BEGIN
-          block = parse_block(read, check: false)
-          block.stop_token = readkind(:BRACE_END)
-        else # Create a one-statement block
-          block = Ast::Block.new(token)
-          case token.kind
-            when :FILE;
-              source = Ast::Source.new(token)
-              source.files.concat(parse_files)
-              block.stmts << source
-            when *COMMANDS; block.stmts << parse_command
-          else
-            nil
-          end
-        end
-        block
-      end
-    end
-
-    def parse_call
-      call = Ast::CallCommand.new(read)
-      readkinds(:REF, :IDENT).each { call.refs << Ast::Reference.new(_1) }
-      call
-    end
-
-    # Schema or function declaration
-    def parse_decl
-#     puts "parse_decl"
-      decl = Ast::Decl.new(read)
-      decl.ident = parse_ident
-      decl.block = parse_block_argument
+    # Schema, phase, or function declarations. Uses that they have the same
+    # parts
+    def parse_decl(klass, token)
+#     puts "#parse_decl(#{klass.classname}, #{token.text.inspect})"
+#     puts "  token: #{token.inspect}"
+      decl = klass.new(token)
+      decl.ident = parse_name
+      token = readkind(:BRACE_BEGIN)
+      decl.block = parse_block(token, check: false)
+      decl.block.stop_token = readkind(:BRACE_END)
       decl
     end
 
     def parse_provide
       provide = Ast::Provide.new(read)
-      provide.ident = parse_ident
+      provide.ident = parse_name
       provide
     end
 
     def parse_require
 #     puts "#parse_require"
       require_ = Ast::Require.new(read)
-      readkinds(:REF, :IDENT).each { require_.refs << Ast::Reference.new(_1) }
+      require_.references = parse_references
       require_
-    end
-
-    # init, data, meta, etc. phases
-    def parse_phase
-#     puts "parse_phase"
-      phase = Ast::Phase.new(read)
-      phase.block = parse_block_argument
-      phase
     end
 
     def parse_command
@@ -184,6 +150,13 @@ module Prick::Lang
       source = Ast::Source.new peek
       source.files = parse_files
       source
+    end
+
+    def parse_call
+      call = Ast::CallCommand.new(read)
+      call.references = parse_references
+#     readkinds(:REF, :IDENT).each { call.references << Ast::Reference.new(_1) }
+      call
     end
 
     def parse_if
@@ -257,13 +230,13 @@ module Prick::Lang
           expr.words = parse_idents
         when :SCHEMA
           expr = Ast::ReferenceExpr.new(read)
-          expr.ref = Ast::Reference.new(readkind :IDENT)
+          expr.ref = Ast::Reference.new(readkind *Token::IDENTS)
         when :OBJECT
           expr = Ast::ReferenceExpr.new(read)
-          expr.ref = Ast::Reference.new(readkind :REF, :IDENT)
+          expr.ref = Ast::Reference.new(readkind *Token::REFS)
         when :RESOURCE
           expr = Ast::ReferenceExpr.new(read)
-          expr.ref = Ast::Reference.new(readkind :REF, :IDENT )
+          expr.ref = Ast::Reference.new(readkind *Token::REFS)
         when :VERSION
           expr = Ast::VersionExpr.new(read)
           while VERSION_OPERATORS.include?(peek.kind)
@@ -300,20 +273,27 @@ module Prick::Lang
       end
     end
 
-    def parse_ident? = peek&.kind == :IDENT ? Ast::Ident.new(read) : nil
-    def parse_ident = Ast::Ident.new(readkind(:IDENT))
+    def parse_ident? = Token::IDENTS.include?(peek&.kind) ? Ast::Ident.new(read) : nil
+    def parse_ident = Ast::Ident.new(readkind(*Token::IDENTS))
 
     def parse_idents? = readwhile? { parse_ident? }
     def parse_idents = check_expected("identifier") { readwhile { parse_ident? } }
 
-    def parse_refs
-      readkinds(:IDENT, :REF).map { Ast::Reference.new _1 }
-    end
+    # Single-component reference used in declarations. It parsed as a Reference object
+    # because we later want to compute the uid
+    def parse_name = Token::IDENTS.include?(peek&.kind) ? Ast::Reference.new(read) : nil
+    def parse_name? = Ast::Reference.new(readkind(Token::IDENTS))
+
+    def parse_reference? = Token::REFS.include?(peek.kind) ? Ast::Reference.new(read) : nil
+    def parse_reference = Ast::Reference.new(readkind(*Token::REFS))
+
+    def parse_references? = readwhile? { parse_reference? }
+    def parse_references = check_expected("reference") { readwhile { parse_reference? } }
 
     # Parse a space-separated list of values. Values are IDENT, REF, or a version match
     def parse_value?
       case peek.kind
-        when :IDENT, :REF
+        when *Token::REFS
           Ast::Reference.new(read)
         when :VER # Default '==' operator
           tk = read
@@ -395,6 +375,9 @@ module Prick::Lang
     def readtext?(indent, **opts) = @tokenizer.readtext(indent, **opts)
 
     def readkind?(*kinds, **opts)
+      puts "#readkind?(#{kinds.inspect}, #{opts.inspect})"
+      puts "  peek: #{peek.inspect}"
+      puts "  peek.kind: #{peek&.kind.inspect}"
       kinds.include? peek&.kind or return nil
       read
     end
@@ -475,5 +458,32 @@ module Prick::Lang
     end
   end
 end
+
+    # Parse a block expression
+    #
+    #   { ... }
+    #   FILE...
+    #   COMMAND
+    #
+#   def parse_block_argument
+#     check_expected %w(block command file) do |token|
+#       if token.kind == :BRACE_BEGIN
+#         block = parse_block(read, check: false)
+#         block.stop_token = readkind(:BRACE_END)
+#       else # Create a one-statement block
+#         block = Ast::Block.new(token)
+#         case token.kind
+#           when :FILE;
+#             source = Ast::Source.new(token)
+#             source.files.concat(parse_files)
+#             block.stmts << source
+#           when *COMMANDS; block.stmts << parse_command
+#         else
+#           nil
+#         end
+#       end
+#       block
+#     end
+#   end
 
 
