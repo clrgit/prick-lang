@@ -61,8 +61,8 @@ module Prick::Lang
     end
 
     def parse_stmt
-      puts "#parse_stmt"
-      puts "  peek: #{peek.inspect}"
+#     puts "#parse_stmt"
+#     puts "  peek: #{peek.inspect}"
       case peek&.kind
         when :SCHEMA; parse_decl(Ast::Schema, read)
         when :FUNCTION; parse_decl(Ast::Function, read)
@@ -82,8 +82,8 @@ module Prick::Lang
     end
 
     def parse_stmts(check: true)
-      puts "#parse_stmts(check: #{check})"
-      puts "  peek: #{peek.inspect}"
+#     puts "#parse_stmts(check: #{check})"
+#     puts "  peek: #{peek.inspect}"
       check_expected "statement" do
         stmts = []
         while stmt = parse_stmt
@@ -315,6 +315,50 @@ module Prick::Lang
     end
 
     #
+    # T O K E N I Z E R  I N T E R F A C E
+    #
+
+    # Functions from tokenizer with error handling
+    #
+    def peek(**opts) = @tokenizer.peek(**opts) or error(@tokenizer.error_token)
+    def peek?(**opts) = @tokenizer.peek(**opts)
+
+    def read(**opts) = @tokenizer.read(**opts) or error(@tokenizer.error_token)
+    def read?(**opts) = @tokenizer.read(**opts)
+
+    def readline?(**opts) = @tokenizer.readline(**opts)
+    def readline(**opts) = @tokenizer.readline(**opts) or error(@tokenizer.error_token)
+
+    def readtext?(indent, **opts) = @tokenizer.readtext(indent, **opts)
+    def readtext(indent, **opts) = @tokenizer.readtext(indent, **opts) or error(@tokenizer.error_token)
+
+    def readkind?(*kinds, **opts) = kinds.include?(peek&.kind) ? read : nil
+    def readkind(*kinds, **opts) = readkind?(*kinds, **opts) or unexpected_token_error kinds
+    # Note: Returns an empty list if no token was found
+    def readkinds?(*kinds, **opts)
+      a = []
+      while kinds.include? peek(**opts)&.kind
+        a << read(**opts)
+      end
+      a
+    end
+    def readkinds(*kinds, **opts) = [readkind(*kinds)] + readkinds?(kinds, **opts)
+
+    # Return nil if empty
+    def readwhile(&block) = (r = readwhile?(&block)).empty? ? nil : r
+
+    # Note: Returns an empty list if no token was found
+    def readwhile?(&block)
+      a = []
+      r = yield
+      while r
+        a << r
+        r = yield
+      end
+      a
+    end
+
+    #
     # S H U N T I N G
     #
 
@@ -349,58 +393,6 @@ module Prick::Lang
       end
 
       output + stack.reverse
-    end
-
-    #
-    # T O K E N I Z E R  I N T E R F A C E
-    #
-
-    # Functions from tokenizer with error handling
-    # TODO: Check if **opts is actually used
-    def peek(**opts) = @tokenizer.peek(**opts) or error(@tokenizer.error_token)
-    def read(**opts) = @tokenizer.read(**opts) or error(@tokenizer.error_token)
-    def readline(**opts) = @tokenizer.readline(**opts) or error(@tokenizer.error_token)
-    def readtext(indent, **opts) = @tokenizer.readtext(indent, **opts) or error(@tokenizer.error_token)
-    def readkind(*kinds, **opts) = readkind?(*kinds, **opts) or unexpected_token_error kinds
-    def readkinds(*kinds, **opts) = [readkind(*kinds)] + readkinds?(kinds, **opts)
-
-    # Return nil if empty
-    def readwhile(&block) = (r = readwhile?(&block)).empty? ? nil : r
-
-    # Functions from tokenizer that accepts a nil return. FIXME this sacrifices
-    # run-time performance for code clarity
-    def peek?(**opts) = @tokenizer.peek(**opts)
-    def read?(**opts) = @tokenizer.read(**opts)
-    def readline?(**opts) = @tokenizer.readline(**opts)
-    def readtext?(indent, **opts) = @tokenizer.readtext(indent, **opts)
-
-    def readkind?(*kinds, **opts)
-      puts "#readkind?(#{kinds.inspect}, #{opts.inspect})"
-      puts "  peek: #{peek.inspect}"
-      puts "  peek.kind: #{peek&.kind.inspect}"
-      kinds.include? peek&.kind or return nil
-      read
-    end
-
-    # Note: Returns an empty list if no token was found
-    def readkinds?(*kinds, **opts)
-      kinds = Array(kinds).flatten
-      a = []
-      while kinds.include? peek(**opts)&.kind
-        a << read(**opts)
-      end
-      a
-    end
-
-    # Note: Returns an empty list if no token was found
-    def readwhile?(&block)
-      a = []
-      r = yield
-      while r
-        a << r
-        r = yield
-      end
-      a
     end
 
     #
