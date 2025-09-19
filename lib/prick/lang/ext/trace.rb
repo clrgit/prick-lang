@@ -1,5 +1,6 @@
 require 'indented_io'
 
+
 # Currently used to avoid polluting Kernel with helper methods
 module Trace
   def self.render_arg(arg)
@@ -16,6 +17,11 @@ module Trace
   end
 end
 
+trace = TracePoint(:return) { |tp|
+  puts "Method: #{tp.method_id}"
+}
+trace.enable
+
 module Kernel
   @@TRACES = []
 
@@ -23,20 +29,23 @@ module Kernel
     stack = caller.map { |l| l =~ /^.*:.*:in `(\w+)'$/; $1 }.compact
     function = stack.first
 
-    if function == "analyze_provide"
-      $stderr.puts "-----------------------------------"
-      $stderr.puts "> stack"
-      $stderr.indent { |f| f.puts stack }
-      $stderr.puts "> function: #{function.inspect}"
-      $stderr.puts "> @@TRACES: #{@@TRACES.inspect}"
+#   if function == "analyze_provide"
+#     $stderr.puts "-----------------------------------"
+#     $stderr.puts "> stack"
+#     $stderr.indent { |f| f.puts stack }
+#     $stderr.puts "> function: #{function.inspect}"
+#     $stderr.puts "> @@TRACES: #{@@TRACES.inspect}"
+#   end
+
+    if @@TRACES.first == function
+      @@TRACES.shift
+      undent
     end
 
     traces = []
     trace_i = 0
     for entry in stack
-      if entry == function
-        ;
-      elsif entry == @@TRACES[trace_i]
+      if entry == @@TRACES[trace_i]
         traces << entry
         trace_i += 1
       end
@@ -44,9 +53,9 @@ module Kernel
 
     undent_levels = @@TRACES.size - traces.size
     @@TRACES = [function] + traces
-    if function == "analyze_provide"
-      $stderr.puts "> @@TRACES: #{@@TRACES.inspect}"
-    end
+#   if function == "analyze_provide"
+#     $stderr.puts "> @@TRACES: #{@@TRACES.inspect}"
+#   end
     undent_levels.times { Kernel.undent }
 
     puts "##{function}#{Trace.render_args *args, **opts}"
