@@ -16,6 +16,9 @@ SPEC = %(
   -d,dump=tokens|ast|idr?
     Dump debug. Default is 'ast'
 
+  -t,trace
+    Enable tracer. Used for debugging
+
 
   Syntax
 
@@ -128,6 +131,7 @@ SPEC = %(
 
 opts, args = ShellOpts.process(SPEC, ARGV)
 USE_EXCEPTION = opts.exception?
+USE_TRACE = opts.trace?
 ShellOpts.exception = USE_EXCEPTION
 file = args.expect(1)
 

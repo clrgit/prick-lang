@@ -36,7 +36,7 @@ module Prick::Lang
   def self.dump(file, lines = nil, kind)
     tokenizer = Tokenizer.new(file, lines)
     parser = Parser.new(tokenizer)
-    Trace.enable
+    Trace.enable if USE_TRACE
     case kind
       when "token", "tokens"
         tokens = []
