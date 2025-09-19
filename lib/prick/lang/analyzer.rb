@@ -18,9 +18,10 @@ module Prick::Lang
       @ast = parser.ast
       assign_uids
       @idr = analyze_program(ast)
-      retrace
       @idr
     end
+
+    def inspect() = "<#{self.class}>"
 
   private
     def assign_uids
