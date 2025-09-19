@@ -59,12 +59,12 @@ module Tree
     children.each { _1.propagate &block } if yield(self)
   end
 
-private
+#private
   def trees_recursively(trees, klasses, &expr)
     if klasses.include?(self.class) && (block_given? ? expr.call(self) : true)
       trees << self
     else
-      @children.each { |node| node.trees_recursive(trees, klass, &expr) }
+      @children.each { |node| node.trees_recursively(trees, klasses, &expr) }
     end
     trees
   end
@@ -73,12 +73,12 @@ private
     if klasses.include?(self.class) && (block_given? ? expr.call(self) : true)
       nodes << self
     end
-    @children.each { |node| node.nodes_recursive(nodes, klasses, &expr) }
+    @children.each { |node| node.nodes_recursively(nodes, klasses, &expr) }
     nodes
   end
 
   def visit_recursively(klasses, &block)
-    (klasses.include?(self.class) ? yield(self) : true) and @children.each { _1.visit(klasses, &block) }
+    (klasses.include?(self.class) ? yield(self) : true) and @children.each { _1.visit_recursively(klasses, &block) }
   end
 end
 

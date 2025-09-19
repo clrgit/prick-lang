@@ -141,7 +141,7 @@ module Prick::Lang
     RELDIR_PATTERN = /\.{1,2}\/|\// # initial '/', '../', or './'
     DIR_PATTERN = /#{RELDIR_PATTERN}?(?:#{FILE_PATTERN}\/)+/ # path ending in '/'
     IDENT_PATTERN = /[_a-zA-Z]\w*/ # language identifier
-    REF_PATTERN = /#{IDENT_PATTERN}?(?:\.#{IDENT_PATTERN})+/
+    REF_PATTERN = /#{IDENT_PATTERN}?\.#{IDENT_PATTERN}/
     VER_PATTERN = /\d+(?:\.(\d+)(?:\.(\d+))?)?/
 
     # *_RE regular expressions generate captures

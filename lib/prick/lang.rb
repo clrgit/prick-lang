@@ -17,6 +17,7 @@ using String::Text
 
 require_relative './lang/ext/semver.rb'
 require_relative './lang/ext/tree.rb'
+require_relative './lang/ext/trace.rb' # Debug
 require_relative './lang/error.rb'
 
 module Prick::Lang
@@ -30,7 +31,7 @@ module Prick::Lang
     Token.define_method(:initialize) { |*args| orig_initialize(*args); tokens << self; }
   end
 
-  DUMP_KINDS = %w(tokens ast dir)
+  DUMP_KINDS = %w(tokens ast idr)
 
   def self.dump(file, lines = nil, kind)
     tokenizer = Tokenizer.new(file, lines)
@@ -61,7 +62,7 @@ require_relative './lang/token.rb'
 require_relative './lang/part.rb'
 require_relative './lang/ast.rb'
 require_relative './lang/ast.dump.rb'
-#require_relative './lang/idr.rb'
+require_relative './lang/idr.rb'
 
 require_relative './lang/tokenizer.rb'
 require_relative './lang/parser.rb'

@@ -44,7 +44,7 @@ schema my_schema {
   # Require
   require another_schema
   require my_schema.resource
-  require a.b c.d.e
+  require a.b c.d
 
   # Files
   r.rb

@@ -99,13 +99,13 @@ describe "Prick::Lang" do
 
     describe "::REF_RE" do
       it "matches references" do
-        e :REF_RE, "root.branch.leaf"
+        e :REF_RE, "root.branch"
       end
       it "matches self references" do
         e :REF_RE, ".here"
       end
       it "sets the 'ref' capture" do
-        c :REF_RE, "root.branch.leaf", :ref
+        c :REF_RE, "root.branch", :ref
       end
     end
 
@@ -138,7 +138,7 @@ describe "Prick::Lang" do
         c :TOKEN_RE, "dir/name/file.sql", :ext, "sql"
       end
       it "sets 'ref' capture" do
-        c :TOKEN_RE, "root.branch.leaf", :ref
+        c :TOKEN_RE, "root.branch", :ref
       end
       it "sets 'ident' capture" do
         c :TOKEN_RE, "id", :ident
@@ -180,7 +180,7 @@ describe "Prick::Lang" do
         it "integers" do e "1234.", 7 end
         it "identifiers" do e "ident@", 8 end
         it "references" do
-          s = "root.branch.leaf@error"
+          s = "root.branch@error"
           e s, 3 + s.index('@')
         end
       end

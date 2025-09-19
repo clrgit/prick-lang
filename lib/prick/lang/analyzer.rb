@@ -1,4 +1,4 @@
-__END__
+
 module Prick::Lang
   class Analyzer
     using String::Text
@@ -7,60 +7,71 @@ module Prick::Lang
     def file = @ast.file
     attr_reader :parser
     attr_reader :ast
+    attr_reader :idr
 
     def initialize(parser)
       @parser = parser
     end
 
     def analyze
+      trace
       @ast = parser.ast
-      puts "#analyze"; indent {
-      analyze_program(ast)
-      }
+      assign_uids
+      @idr = analyze_program(ast)
+      retrace
+      @idr
     end
 
   private
-#   def assign_uids
-#     ast.nodes(Ast::Provide, Ast::Require, Ast::Resource
-#   end
-
+    def assign_uids
+      ast.trees(Ast::Schema).each { |default|
+        ast.nodes(Ast::Reference).each { |ref|
+          part1, part2, rest = ref.value.split(".")
+          rest.nil? or error ref, "Illegal name: '#{ref}'"
+          schema = part1
+          name = part2 || part1
+          schema = part2 && part1 || default.ident.value
+          ref.uid = "#{schema}.#{name}"
+        }
+      }
+    end
 
     attr_reader :schema # Current schema
     attr_reader :resources # {uid=>Ast::Resource} - resource may be present/absent or not evaluated
     attr_reader :unresolved_stmts
 
     def analyze_program(ast)
-      puts "#analyze_program"; indent {
-        program = Idr::Program.new(nil, ast)
-        for stmt in ast.block.stmts
-          case stmt
-            when Ast::Decl
-              if stmt.kind == :SCHEMA
-                analyze_schema(program, stmt)
-              end
-          else
-            error stmt, "Expected schema declaration"
-          end
+      trace
+      program = Idr::Program.new(nil, ast)
+      program.schemas = []
+      for stmt in ast.block.stmts
+        case stmt
+          when Ast::Decl
+            if stmt.kind == :SCHEMA
+              program.schemas << analyze_schema(program, stmt)
+            end
+        else
+          error stmt, "Expected schema declaration"
         end
-      }
+      end
+      program
     end
 
-    def analyze_schema(program, ast)
+    def analyze_schema(prev, ast)
+      trace
       constrain ast, Ast::Schema
-      puts "#analyze_schema"; indent {
-      @schema = Schema.new(program, ast)
-      schema_name = s.ident.value
-      ident = ast.ident
-      schema.body = analyze_stmts(schema.head, ast)
+      schema = @schema = Idr::Schema.new(prev, ast)
+      schema.head = Idr::SchemaCommand.new(prev, ast)
+      schema.nodes = [schema.head] + analyze_stmts(schema.head, ast.block)
       @schema = nil
-      }
+      schema
     end
 
     def analyze_stmts(prev, ast)
-      puts "#analyze_stmts"; indent {
+      trace
       constrain ast, Ast::Block
       stmts = []
-      ast.block.each { |stmt|
+      ast.stmts.each { |stmt|
         stmts <<
           case stmt
             when Ast::Provide; analyze_provide(prev, stmt)
@@ -69,20 +80,41 @@ module Prick::Lang
             when Ast::Command; analyze_command(prev, stmt)
             when Ast::Control; analyze_control(prev, stmt)
           else
-            raise ArgumentError
+            # FIXME
+            ;
+#           raise ArgumentError, "#{stmt.inspect}"
           end
         prev = stmts.last
       }
-      }
-      stmts
+      stmts.flatten.compact # 'flatten' because eg. analyze_require returns a list of statments
     end
 
     def analyze_provide(prev, ast)
-      puts "#analyze_provide"
-      provide = Idr::Provide.new(prev, ast, )
-#     provide.head = provide.body =
+      trace
+      constrain ast, Ast::Provide
+      Idr::Provide.new(prev, ast)
+    end
+
+    def analyze_require(prev, ast)
+#     trace
+      constrain ast, Ast::Require
+      ast.references.map { |ref| Idr::Require.new(prev, ref) }
+    end
+
+    def analyze_phase(prev, ast)
+
 
     end
+
+    def analyze_command(prev, ast)
+    end
+
+    def analyze_control(prev, ast)
+    end
+  end
+end
+
+__END__
 
 
 #         case stmt.kind

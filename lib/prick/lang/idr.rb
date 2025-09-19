@@ -1,7 +1,10 @@
 
 module Prick::Lang
   module Idr
-    class AbstractNode
+    class Node
+      def self.classname = self.to_s.sub(/.*::/, "")
+      def classname = self.class.classname
+
       attr_accessor :prev # Node. Previous node. May be nil
       attr_reader :ast # Ast::Node
       def token = ast.token
@@ -11,49 +14,53 @@ module Prick::Lang
         @prev = prev
         @ast = ast
       end
-    end
 
-    class UnresolvedNode < AbstractNode
-    end
-
-    # Artificial node used for anchoring
-#   class Anchor < AbstractNode
-#     attr_reader :uid
-#   end
-
-    class Node < AbstractNode
-      attr_accessor :node # First node. Default equal to self
+      def dump
+        puts self.classname
+      end
     end
 
     class Program < Node
+      attr_accessor :schemas
+      def dump()
+        super;
+        indent { @schemas.each(&:dump) }
+      end
     end
 
     # Can be a schema, provide, or function
     class Resource < Node
-      attr_accessor :ident # String
-      attr_accessor :uid # String
-      attr_accessor :nodes # [Node]
-      def node = nodes.first
-      attr_accessor :head # Entry node, only used by Schema. Embedded objects depend on head. FIXME: They do?
-      attr_accessor :tail # Last node. External objects depend on tail. Equal to :head for simple objects
+      forward_to :"ast.ident", :ident, :uid
+#     def ident() = ast.ident.value
+#     def uid() = ast.ident.uid
     end
 
     # TODO: End-of-schema-marker (or use schema itself - like other resources)
     class Schema < Resource
+      attr_accessor :nodes # [Node]
+      attr_accessor :head # Entry node, only used by Schema. Embedded objects depend on head. FIXME: They do?
+      def tail() = nodes.last # Last node. External objects depend on tail. Equal to :head for simple objects
       attr_accessor :functions # {uid=>Function}
-    end
+      attr_accessor :init, :term, :meta, :seed, :auth # Phase
 
-    class Provide < Resource
-      def initialize(prev, ast, schema)
-        constrain ast, Ast::Provide
-        super(prev, ast)
-        @ident = ast.ident
-        @uid = ast.uid
+      def dump()
+        super
+        indent { @nodes.each(&:dump) }
       end
     end
 
+    class Provide < Resource
+      def dump = puts "#{self.classname} #{uid}"
+    end
+
     class Require < Node
-      attr_accessor :resource
+      forward_to :ast, :ident, :uid
+      def dump = puts "#{self.classname} #{uid}"
+    end
+
+    class Phase < Node
+      forward_to :"ast.ident", :ident, :uid
+      attr_accessor :nodes
     end
 
     class Command < Node
@@ -67,6 +74,7 @@ module Prick::Lang
     class InlineCommand < Command
     end
 
+    # Artificial node that creates a schema
     class SchemaCommand < InlineCommand
     end
 
@@ -76,11 +84,15 @@ module Prick::Lang
 
     class CallCommand < Command
     end
+
+    class UnresolvedCommand < Command
+    end
+
   end
 end
 
 
-
+__END__
 
 
 
