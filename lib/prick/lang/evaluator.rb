@@ -60,6 +60,8 @@ module Prick::Lang
           expr.words.map(&:value).include? runtime[expr.kind]
         when Ast::ReferenceExpr
           uid = expr.ref.uid
+          puts "eval_expr uid: #{uid}"
+
           if oracle.key?(uid)
             oracle[uid]
           else

@@ -72,13 +72,14 @@ module Prick::Lang
 
     # Artificial node that creates a schema
     class SchemaCommand < Command
+      def dump = puts "sql create schema"
     end
 
     class FileCommand < Command
       alias_method :file, :ast
       def path = file.path
 
-      def dump = super(path)
+      def dump = puts "file #{path}"
     end
 
     class ExternalCommand < Command

@@ -47,9 +47,9 @@ schema my_schema {
     provide has_d
   end
 
-# if resource has_c
-#   resource.sql
-# end
+  if resource has_c
+    res.sql
+  end
 
 
   # Make
