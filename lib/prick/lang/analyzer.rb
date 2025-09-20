@@ -6,11 +6,19 @@ module Prick::Lang
 
     def file = @ast.file
     attr_reader :parser
+    attr_reader :evaluator
+    attr_reader :oracle
     attr_reader :ast
     attr_reader :idr
 
     def initialize(parser)
       @parser = parser
+      @oracle = Oracle.new
+      @evaluator = Evaluator.new(oracle)
+    end
+
+    def eval(expr)
+      evaluator.eval(expr)
     end
 
     def analyze
@@ -73,8 +81,9 @@ module Prick::Lang
       constrain ast, Ast::Block
       stmts = []
       ast.stmts.each { |stmt|
-        stmts <<
+        stmts += Array(
           case stmt
+#           when Ast::Block; analyze_stmts(prev, stmt)
             when Ast::Provide; analyze_provide(prev, stmt)
             when Ast::Require; analyze_require(prev, stmt)
             when Ast::Phase; analyze_phase(prev, stmt)
@@ -85,32 +94,72 @@ module Prick::Lang
             ;
 #           raise ArgumentError, "#{stmt.inspect}"
           end
+        )
         prev = stmts.last
       }
-      stmts.flatten.compact # 'flatten' because eg. analyze_require returns a list of statments
+      stmts
     end
 
     def analyze_provide(prev, ast)
-      trace
       constrain ast, Ast::Provide
-      Idr::Provide.new(prev, ast)
+      trace
+      node = Idr::Provide.new(prev, ast)
+      oracle[node.uid] = true
+      node
     end
 
     def analyze_require(prev, ast)
-#     trace
       constrain ast, Ast::Require
+      trace
       ast.references.map { |ref| Idr::Require.new(prev, ref) }
     end
 
+    # TODO Write to oracle
     def analyze_phase(prev, ast)
-
-
+      constrain ast, Ast::Phase
+      trace
+      phase = Idr::Phase.new(schema.head, ast)
+      phase.nodes = analyze_stmts(phase, ast.block)
+      phase
     end
 
     def analyze_command(prev, ast)
+      constrain ast, Ast::Source, Ast::ExternalCommand, Ast::CallCommand
+      trace
+      case ast
+        when Ast::Source; ast.files.map { |file| prev = Idr::FileCommand.new(prev, file) }
+        when Ast::ExternalCommand; Idr::ExternalCommand.new(prev, ast)
+        when Ast::CallCommand; Idr::CallCommand.new(prev, ast)
+      end
     end
 
     def analyze_control(prev, ast)
+      constrain ast, Ast::Control
+      trace
+      case ast
+        when Ast::If; analyze_if prev, ast
+        when Ast::Case; analyze_case prev, ast
+      end
+    end
+
+    def analyze_if(prev, if_)
+      constrain if_, Ast::If
+      trace
+      for if_then in if_.if_thens
+        case eval(if_then.expr)
+          when nil
+            return Idr::Unresolved.new(prev, if_, evaluator.unresolved)
+          when true
+            return analyze_stmts(prev, if_then.then_)
+        end
+      end
+      return analyze_stmts(prev, if_.else_) if if_.else_
+      nil
+    end
+
+    def analyze_case
+      trace
+      nil
     end
   end
 end

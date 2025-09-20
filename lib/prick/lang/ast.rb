@@ -90,12 +90,12 @@ module Prick::Lang
 
     # @token is the operator in expression objects
     class UnExpr < Expr
-      def oper = @token.text
+      def oper = @token.kind
       part :expr, Expr
     end
 
     class BinExpr < Expr
-      def oper = @token.text
+      def oper = @token.kind
       part :lexpr, Expr
       part :rexpr, Expr
     end
@@ -103,11 +103,12 @@ module Prick::Lang
     class SimpleExpr < Expr
     end
 
+    # cmd, env, user
     class RuntimeExpr < SimpleExpr
       part :words, [Ident]
     end
 
-    # eg. 'schema app'
+    # schema, object, resource
     class ReferenceExpr < SimpleExpr
       part :ref, Reference # TODO: Rename reference
     end
@@ -165,7 +166,7 @@ module Prick::Lang
       part :files, [File]
     end
 
-    # exec/eval
+    # exec/eval/sql
     class ExternalCommand < Command
       attr_accessor :source # Array of source lines. Assigned after initialization
 
@@ -173,7 +174,7 @@ module Prick::Lang
       def multiline? = @source =~ /\n/
     end
 
-    # call
+    # call function
     class CallCommand < Command
       part :refs, [Reference]
     end

@@ -18,12 +18,13 @@ schema my_schema {
   # Phase
   init {
     # If statement
-    if version ~> 1.2 && ( env prod || cmd build )
-      a.sql
+#   if version ~> 1.2 && ( env prod || cmd build )
+    if ( env text || cmd build )
+      ia.sql
     elsif ! env prod
-      b.sql
+      ib.sql
     else
-      c.sql
+      ic.sql
     end
   }
 
@@ -33,11 +34,30 @@ schema my_schema {
   b.sql
   provide has_b # has_b depends on has_a that depends on the schema
 
+  # If statement
+  if env prod
+    c.sql
+    provide has_c
+  else
+    provide has_not_c
+  end
+
+  if ! env prod
+    d.sql e.sql
+    provide has_d
+  end
+
+# if resource has_c
+#   resource.sql
+# end
+
+
   # Make
   exec |
     if [ file1.sql -nt file.rb -o file2.sql -nt data.txt ]; then
       something.rb
     fi
+
   file1.sql
   file2.sql
 

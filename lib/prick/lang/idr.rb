@@ -15,9 +15,12 @@ module Prick::Lang
         @ast = ast
       end
 
-      def dump
-        puts self.classname
-      end
+      def dump(*text) = dump_impl(*text)
+      def dumps(*text, nodes) dump_impl(*text); indent { nodes.each &:dump } end
+
+    private
+      # To avoid endless recursion when #dump is redefined
+      def dump_impl(*text) = puts ([self.classname] + text).compact.join(" ")
     end
 
     class Program < Node
@@ -43,24 +46,23 @@ module Prick::Lang
       attr_accessor :functions # {uid=>Function}
       attr_accessor :init, :term, :meta, :seed, :auth # Phase
 
-      def dump()
-        super
-        indent { @nodes.each(&:dump) }
-      end
+      def dump() = dumps @nodes
     end
 
     class Provide < Resource
-      def dump = puts "#{self.classname} #{uid}"
+      def dump = super uid
     end
 
     class Require < Node
       forward_to :ast, :ident, :uid
-      def dump = puts "#{self.classname} #{uid}"
+      def dump = super uid
     end
 
     class Phase < Node
-      forward_to :"ast.ident", :ident, :uid
+      def ident = ast.ident.value
+      def uid = ast.ident.uid
       attr_accessor :nodes
+      def dump = dumps uid, @nodes
     end
 
     class Command < Node
@@ -68,26 +70,36 @@ module Prick::Lang
       def is_referenced?() = raise
     end
 
-    class FileCommand < Command
-    end
-
-    class InlineCommand < Command
-    end
-
     # Artificial node that creates a schema
-    class SchemaCommand < InlineCommand
+    class SchemaCommand < Command
     end
 
-    class SourceCommand < Command
-      attr_accessor :source
+    class FileCommand < Command
+      alias_method :file, :ast
+      def path = file.path
+
+      def dump = super(path)
+    end
+
+    class ExternalCommand < Command
+      forward_to :ast, :source
+
+      def dump
+        command = ast.kind.downcase
+        puts "#{command} #{ast.multiline? ? "..." : source}"
+      end
     end
 
     class CallCommand < Command
     end
 
-    class UnresolvedCommand < Command
+    class Unresolved < Node
+      attr_reader :unresolved # Ast::Resource
+      def initialize(prev, ast, unresolved)
+        super prev, ast
+        @unresolved = unresolved
+      end
     end
-
   end
 end
 
