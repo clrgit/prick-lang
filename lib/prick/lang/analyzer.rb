@@ -8,6 +8,7 @@ module Prick::Lang
     attr_reader :parser
     attr_reader :evaluator
     attr_reader :oracle
+    attr_reader :unresolved # [Idr::Unresolved]
     attr_reader :ast
     attr_reader :idr
 
@@ -25,7 +26,20 @@ module Prick::Lang
       trace
       @ast = parser.ast
       assign_uids
+      @unresolved = []
       @idr = analyze_program(ast)
+
+      puts "Unresolved"
+#     p unresolved.class
+#     p unresolved
+#     p unresolved.first.class
+#     p unresolved.first.unresolved.class
+#     p unresolved.first.unresolved.uid
+
+      indent { puts unresolved.map { |node| node.unresolved.uid } }
+
+
+
       @idr
     end
 
@@ -34,7 +48,7 @@ module Prick::Lang
   private
     def assign_uids
       ast.trees(Ast::Schema).each { |default|
-        ast.nodes(Ast::Reference).each { |ref|
+        ast.nodes(Ast::Reference).each { |ref| # FIXME Turns 'require schema' into 'require current_schema.schema'
           part1, part2, rest = ref.value.split(".")
           rest.nil? or error ref, "Illegal name: '#{ref}'"
           schema = part1
@@ -148,7 +162,9 @@ module Prick::Lang
       for if_then in if_.if_thens
         case eval(if_then.expr)
           when nil
-            return Idr::Unresolved.new(prev, if_, evaluator.unresolved)
+            node = Idr::Unresolved.new(prev, if_, evaluator.unresolved)
+            @unresolved << node
+            return node
           when true
             return analyze_stmts(prev, if_then.then_)
         end

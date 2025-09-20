@@ -162,7 +162,7 @@ module Prick::Lang
     class Command < Stmt; end
 
     # Sequence of .sql/.psql files
-    class Source < Command
+    class Source < Command # TODO: Rename FileCommand
       part :files, [File]
     end
 

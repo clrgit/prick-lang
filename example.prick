@@ -51,6 +51,12 @@ schema my_schema {
     res.sql
   end
 
+  if resource has_d
+    res2.sql
+  else
+    not_res2.sql
+  end
+
 
   # Make
   exec |

@@ -18,6 +18,8 @@ module Prick::Lang
       def dump(*text) = dump_impl(*text)
       def dumps(*text, nodes) dump_impl(*text); indent { nodes.each &:dump } end
 
+      def inspect = "<#{self.classname}>"
+
     private
       # To avoid endless recursion when #dump is redefined
       def dump_impl(*text) = puts ([self.classname] + text).compact.join(" ")
@@ -95,11 +97,15 @@ module Prick::Lang
     end
 
     class Unresolved < Node
-      attr_reader :unresolved # Ast::Resource
+      attr_reader :unresolved # Ast::Reference
+      def uid = unresolved.uid
+
       def initialize(prev, ast, unresolved)
         super prev, ast
         @unresolved = unresolved
       end
+
+      def dump() = super(uid)
     end
   end
 end
