@@ -18,6 +18,7 @@ using String::Text
 require_relative './lang/ext/semver.rb'
 require_relative './lang/ext/tree.rb'
 require_relative './lang/ext/trace.rb' # Debug
+require_relative './lang/common.rb'
 require_relative './lang/error.rb'
 
 module Prick::Lang

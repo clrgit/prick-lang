@@ -2,8 +2,7 @@
 module Prick::Lang
   module Ast
     class Node < Part
-      def self.classname = self.to_s.sub(/.*::/, "")
-      def classname = self.class.classname
+      include ClassFunctions
 
       attr_reader :parent # Node or nil
       attr_reader :children # [Node] mostly initialized by the analyzer

@@ -2,8 +2,13 @@
 module Prick::Lang
   module Idr
     class Node
-      def self.classname = self.to_s.sub(/.*::/, "")
-      def classname = self.class.classname
+      include Tree
+      include ClassFunctions
+
+#     def self.classname = self.to_s.sub(/.*::/, "")
+#     def classname = self.class.classname
+
+
 
       attr_accessor :prev # Node. Previous node. May be nil
       attr_reader :ast # Ast::Node
