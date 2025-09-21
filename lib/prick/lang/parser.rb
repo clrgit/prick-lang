@@ -451,31 +451,4 @@ module Prick::Lang
   end
 end
 
-    # Parse a block expression
-    #
-    #   { ... }
-    #   FILE...
-    #   COMMAND
-    #
-#   def parse_block_argument
-#     check_expected %w(block command file) do |token|
-#       if token.kind == :BRACE_BEGIN
-#         block = parse_block(read, check: false)
-#         block.stop_token = readkind(:BRACE_END)
-#       else # Create a one-statement block
-#         block = Ast::Block.new(token)
-#         case token.kind
-#           when :FILE;
-#             source = Ast::Source.new(token)
-#             source.files.concat(parse_files)
-#             block.stmts << source
-#           when *COMMANDS; block.stmts << parse_command
-#         else
-#           nil
-#         end
-#       end
-#       block
-#     end
-#   end
-
 

@@ -10,7 +10,6 @@ module Prick::Lang
       end
 
       def replace(parts)
-#       puts "Parts#replace(#{parts.inspect}) #{self.class}"
         parts.each { |part|
           part.is_a?(element_klass) or unexpected_error element_klass, part
         }
@@ -38,7 +37,7 @@ module Prick::Lang
       include ErrorFunctions
       include Tree
 
-      # Map from class to array of [sym, klass, element klass] tuples, one for
+      # Map from class to array of [sym, klass, element klass] tuples - one for
       # each part object. #self.inherited guarantees that @@PARTS will never be
       # nil for a class derived from Part
       @@PARTS = { Part => [] }

@@ -131,9 +131,10 @@ SPEC = %(
 
 opts, args = ShellOpts.process(SPEC, ARGV)
 USE_EXCEPTION = opts.exception?
-USE_TRACE = opts.trace?
+Trace.enable if opts.trace?
 ShellOpts.exception = USE_EXCEPTION
 file = args.expect(1)
+
 
 # Handle dump option
 if opts.dump?
