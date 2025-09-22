@@ -1,5 +1,4 @@
 module Prick::Lang
-  module Ast
     # Acts as a trimmed-down Array of Part objects
     module Parts
       attr_reader :element_klass
@@ -7,6 +6,10 @@ module Prick::Lang
 
       def self.initialize(this, element_klass)
         this.instance_variable_set(:@element_klass, element_klass)
+      end
+
+      def self.included?(mod)
+
       end
 
       def replace(parts)
@@ -41,6 +44,17 @@ module Prick::Lang
       # each part object. #self.inherited guarantees that @@PARTS will never be
       # nil for a class derived from Part
       @@PARTS = { Part => [] }
+
+
+      # The class that derivv
+      @@ROOT_CLASS = nil
+
+      # Map from @@ROOT_PART class
+      @@ARRAY_PART = nil
+
+
+
+#     def self.root_class = @@ROOT_PART[
 
       # :call-seq:
       #   part ident, klass = Part
@@ -87,6 +101,7 @@ module Prick::Lang
 
       def initialize
 #       puts "Part#initialize #{self.class.classname}"
+        Tree.initialize(self)
         # Create Nodes part objects
         for sym, klass, element_klass in @@PARTS[self.class]
           if klass == Nodes
@@ -110,52 +125,4 @@ module Prick::Lang
         end
       end
     end
-  end
 end
-
-__END__
-
-      def self.part0(sym, constraint = Part)
-        constrain sym, Symbol
-        constrain constraint, Class, [Class]
-
-        attr_reader sym
-
-        element_klass = nil
-        if constraint.is_a?(Array)
-          klass = Nodes
-          element_klass = constraint.first
-          define_method(:"#{sym}=") { |node|
-            if node.nil?
-              assign(sym, nil)
-            else
-              if node.is_a? Nodes
-                node.nil? || node.is_a?(Nodes) or
-                    raise ArgumentError, "Expected a Nodes object, got #{node.class}"
-                node.nil? || node.element_klass < element_klass or
-                    raise ArgumentError, "Expected a Nodes of #{element_klass} objects, " +
-                                         "got Nodes of #{node.element_klass}"
-                assign(sym, node)
-
-              elsif node.is_a? Array
-                nodes = Nodes.new(nil, element_klass)
-                nodes.concat node
-                assign(sym, nodes)
-              else
-                raise ArgumentError, "Expected #{element_klass} objects, got #{node.class}"
-              end
-            end
-            self
-          }
-        else
-          klass = constraint
-          define_method(:"#{sym}=") { |node|
-            node.is_a?(klass) or
-                raise ArgumentError, "Expected #{klass} object, got #{node.class}"
-            self.assign(sym, node)
-          }
-        end
-
-        (@@PARTS[self] ||= []) << [sym, klass, element_klass]
-      end
-

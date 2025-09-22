@@ -5,7 +5,7 @@ module Prick::Lang
       include ClassFunctions
 
       attr_reader :parent # Node or nil
-      attr_reader :children # [Node] mostly initialized by the analyzer
+      attr_reader :children # [Node]
 
       forward_to :@children, :empty?
 
@@ -28,15 +28,13 @@ module Prick::Lang
       def initialize(token)
         constrain token, Token, nil
         @token = token
-        Tree.initialize(self)
         super()
       end
     end
 
-    # Array of nodes. Token may be nil; it defaults to #start_token
+    # Array of nodes. Token may be nil, defaults to #start_token
     class Nodes < Node
       include Parts
-
       def initialize(token, element_klass)
         super(token)
         Parts.initialize(self, element_klass)

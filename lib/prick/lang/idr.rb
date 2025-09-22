@@ -1,23 +1,15 @@
 
 module Prick::Lang
   module Idr
-    class Node
-      include Tree
+    class Node < Part
       include ClassFunctions
 
-#     def self.classname = self.to_s.sub(/.*::/, "")
-#     def classname = self.class.classname
-
-
-
-      attr_accessor :prev # Node. Previous node. May be nil
       attr_reader :ast # Ast::Node
       def token = ast.token
-      attr_reader :deps # Node. Dependencies in addition to #prev. In reality either one or none object
 
-      def initialize(prev, ast)
-        @prev = prev
+      def initialize(parent, ast)
         @ast = ast
+        Tree.initialize(self, parent)
       end
 
       def dump(*text) = dump_impl(*text)
@@ -30,8 +22,17 @@ module Prick::Lang
       def dump_impl(*text) = puts ([self.classname] + text).compact.join(" ")
     end
 
+    class Nodes < Node
+      include Parts
+      def initialize(token, element_klass)
+        super(token)
+        Parts.initialize(self, element_klass)
+      end
+    end
+
     class Program < Node
-      attr_accessor :schemas
+      part schemas, [Schema]
+      def initialize(ast) = super(nil, ast)
       def dump()
         super;
         indent { @schemas.each(&:dump) }
@@ -41,17 +42,28 @@ module Prick::Lang
     # Can be a schema, provide, or function
     class Resource < Node
       forward_to :"ast.ident", :ident, :uid # FIXME Does this work?
+      part :block, [Node] # Command|Require
     end
 
     # TODO: End-of-schema-marker (or use schema itself - like other resources)
     class Schema < Resource
-      attr_accessor :nodes # [Node]
-      attr_accessor :head # Entry node, only used by Schema. Embedded objects depend on head. FIXME: They do?
-      def tail() = nodes.last # Last node. External objects depend on tail. Equal to :head for simple objects
-      attr_accessor :functions # {uid=>Function}
-      attr_accessor :init, :term, :meta, :seed, :auth # Phase
+      part :head, Command
+      part :functions, [Function]
+      Token::PHASES.each { |phase| part phase, Phase }
 
-      def dump() = dumps @nodes
+      def dump()
+        head.dump
+        functions.each(&:dump)
+        Token::PHASES.each(&:dump)
+        block.each(&:dump)
+      end
+    end
+
+    class Phase < Resource
+      def dump = dumps uid, @nodes
+    end
+
+    class Function < Resource
     end
 
     class Provide < Resource
@@ -63,16 +75,8 @@ module Prick::Lang
       def dump = super uid
     end
 
-    class Phase < Node
-      def ident = ast.ident.value
-      def uid = ast.ident.uid
-      attr_accessor :nodes
-      def dump = dumps uid, @nodes
-    end
-
     class Command < Node
       attr_accessor :kind
-      def is_referenced?() = raise
     end
 
     # Artificial node that creates a schema
