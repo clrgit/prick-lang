@@ -1,128 +1,167 @@
 module Prick::Lang
-    # Acts as a trimmed-down Array of Part objects
-    module Parts
-      attr_reader :element_klass
-      forward_to :@children, :each, :map, :empty?
+  # Acts as a trimmed-down Array of Part objects
+  module Parts
+    attr_reader :element_klass
+    forward_to :@children, :each, :map, :empty?
 
-      def self.initialize(this, element_klass)
-        this.instance_variable_set(:@element_klass, element_klass)
-      end
+    def self.initialize(this, element_klass)
+      this.instance_variable_set(:@element_klass, element_klass)
+    end
 
-      def self.included?(mod)
+    def replace(parts)
+      parts.each { |part|
+        part.is_a?(element_klass) or unexpected_error element_klass, part
+      }
+      @children = parts
+    end
 
-      end
+    # TODO Remove?
+    def <<(node)
+      !node.nil? or raise ArgumentError
+      node.is_a? element_klass or unexpected_error element_klass, node
+      @children << node
+    end
 
-      def replace(parts)
-        parts.each { |part|
-          part.is_a?(element_klass) or unexpected_error element_klass, part
-        }
-        @children = parts
-      end
+    def build_tree
+      @children.each { |part|
+        part.build_tree
+        part.instance_variable_set(:@parent, self)
+      }
+    end
 
-      # TODO Remove?
-      def <<(node)
-        !node.nil? or raise ArgumentError
-        node.is_a? element_klass or unexpected_error element_klass, node
-        @children << node
-      end
+    def self.included(other)
+      other.root.define_singleton_method(:array) { other }
+    end
+  end
 
-      def build_tree
-#       puts "#{self.classname}#build_tree"
-        @children.each { |part|
-          part.build_tree
-          part.instance_variable_set(:@parent, self)
-#         part.instance_variable_set(:@parent, self.parent)
-        }
+  class PartMap
+    attr_reader :whole
+
+    def initialize(whole)
+      @whole = whole
+      @klass = whole.class
+    end
+
+    def key?(ident) = @klass.part? ident
+
+    def [](ident)
+      @klass.part? ident or
+          raise ArgumentError, "Unknown member of #{@klass.classname}: #{ident}"
+      @whole.send(ident)
+    end
+
+    def []=(ident, value)
+      @klass.part? ident or
+          raise ArgumentError, "Unknown member of #{whole.classname}: #{ident}"
+      @whole.send(:"#{ident}=", value)
+    end
+  end
+
+  class Part
+    include ErrorFunctions
+    include Tree
+
+    alias_method :whole, :parent
+    attr_reader :parts
+
+    def initialize
+      # Initialize as a Tree node
+      Tree.initialize(self)
+
+      # Setup hash interface to part objects
+      @parts = PartMap.new(self)
+
+      # Create array part objects
+      for ident, element_klass in @@ARRAY_PARTS[self.class] || []
+        if parts[ident].nil?
+          self.instance_variable_set(:"@#{ident}", self.class.array.new(nil, element_klass))
+        end
       end
     end
 
-    class Part
-      include ErrorFunctions
-      include Tree
+    def self.root? = root() == self
+    def self.array? = array() == self
+    def self.part?(ident) = @@PARTS[self].key?(ident)
+    def self.parts() = @@PARTS[self] # Symbol => Class
 
-      # Map from class to array of [sym, klass, element klass] tuples - one for
-      # each part object. #self.inherited guarantees that @@PARTS will never be
-      # nil for a class derived from Part
-      @@PARTS = { Part => [] }
+    #
+    def get_part(ident) =
 
-
-      # The class that derivv
-      @@ROOT_CLASS = nil
-
-      # Map from @@ROOT_PART class
-      @@ARRAY_PART = nil
-
-
-
-#     def self.root_class = @@ROOT_PART[
-
-      # :call-seq:
-      #   part ident, klass = Part
-      #   part ident, [klass]
-      #
-      # Register a part object
-      #
-      def self.part(sym, constraint = Part)
-        constrain sym, Symbol
-        constrain constraint, Class, [Class]
-
-        method = :"#{sym}="
-        member = :"@#{sym}"
-
-        if constraint.is_a?(Array)
-          klass = Nodes
-          element_klass = constraint.first
-
-          define_method(sym) { get_part(sym).children }
-
-          define_method(method) { |nodes|
-            case nodes
-              when Array; get_part(sym).replace nodes
-              when Nodes; get_part(sym).replace nodes.children
-            else
-              unexpected_error(element_klass, node)
-            end
-          }
-        else
-          klass = constraint
-          element_klass = nil
-          attr_reader sym
-          define_method(method) { |node|
-            node.is_a?(klass) or unexpected_error klass, node
-            self.instance_variable_set(member, node)
-          }
-        end
-
-        (@@PARTS[self] ||= []) << [sym, klass, element_klass]
+    def build_tree
+#     puts "#{self.classname}#build_tree"
+      for ident, klass, element_klass in @@PARTS[self.class] || []
+        part = parts[ident] or next
+        part.build_tree
+        attach(part)
       end
+    end
 
-      def self.parts() = @@PARTS[self]
-      def get_part(sym) = self.instance_variable_get(:"@#{sym}")
+    # :call-seq:
+    #   part ident, klass = Part
+    #   part ident, [klass]
+    #
+    # Register a part object and create accessor methods
+    #
+    def self.part(ident, constraint = Part)
+      constrain ident, Symbol
+      constrain constraint, Class, [Class]
 
-      def initialize
-#       puts "Part#initialize #{self.class.classname}"
-        Tree.initialize(self)
-        # Create Nodes part objects
-        for sym, klass, element_klass in @@PARTS[self.class]
-          if klass == Nodes
-            if get_part(sym).nil?
-              self.instance_variable_set(:"@#{sym}", Nodes.new(nil, element_klass))
-            end
+      method = :"#{ident}="
+      member = :"@#{ident}"
+
+      if constraint.is_a?(Array)
+#       self.array? or raise ArgumentError, "#{root.classname} does not define an array type"
+        klass = self.array
+        element_klass = constraint.first
+
+        # Define reader method
+        define_method(ident) { self.instance_variable_get(:"@#{ident}") }
+
+        # Define writer method
+        define_method(method) { |nodes|
+          this = self.instance_variable_get(:"@#{ident}")
+          case nodes
+            when Array; this.replace nodes
+            when Nodes; this.replace nodes.children
+          else
+            unexpected_error(element_klass, nodes)
           end
-        end
+        }
+      else
+        klass = constraint
+        element_klass = nil
+
+        # Define reader method
+        attr_reader ident
+
+        # Define writer method
+        define_method(method) { |node|
+          node.is_a?(klass) or unexpected_error klass, node.class
+          self.instance_variable_set(member, node)
+        }
       end
 
-      def self.inherited(subklass)
-        @@PARTS[subklass] = (@@PARTS[self] ||= []).dup
-      end
+      (@@PARTS[self] ||= {})[ident] = klass
+#     if element_klass
+#       (@@ARRAY_PARTS[self] ||= {})[ident] = element_klass
+#     end
+      (@@ARRAY_PARTS[self] ||= {})[ident] = element_klass if element_klass
+    end
 
-      def build_tree
-#       puts "#{self.classname}#build_tree"
-        for sym, klass, element_klass in @@PARTS[self.class] || []
-          part = get_part(sym) or next
-          part.build_tree
-          attach(part)
-        end
+    def self.inherited(klass)
+      if self == Part # Only consider top-level classes
+        klass.define_singleton_method(:root) { klass }
+        klass.define_singleton_method(:array) { nil } # Default implementation. Initialized by M::included
       end
     end
+
+    # Map from Class to map from Symbol to Class
+    @@PARTS = { Part => {} } # { Class => { Symbol => klass }
+
+    # Map from Class to map from attribute to element type. Only array
+    # attributes are included
+    @@ARRAY_PARTS = { Part => {} } # { Class => { Symbol => element_klass } }
+
+  end
 end
+
