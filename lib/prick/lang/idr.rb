@@ -30,50 +30,9 @@ module Prick::Lang
       end
     end
 
-    class Program < Node
-      part schemas, [Schema]
-      def initialize(ast) = super(nil, ast)
-      def dump()
-        super;
-        indent { @schemas.each(&:dump) }
-      end
-    end
-
-    # Can be a schema, provide, or function
-    class Resource < Node
-      forward_to :"ast.ident", :ident, :uid # FIXME Does this work?
-      part :block, [Node] # Command|Require
-    end
-
-    # TODO: End-of-schema-marker (or use schema itself - like other resources)
-    class Schema < Resource
-      part :head, Command
-      part :functions, [Function]
-      Token::PHASES.each { |phase| part phase, Phase }
-
-      def dump()
-        head.dump
-        functions.each(&:dump)
-        Token::PHASES.each(&:dump)
-        block.each(&:dump)
-      end
-    end
-
-    class Phase < Resource
-      def dump = dumps uid, @nodes
-    end
-
-    class Function < Resource
-    end
-
-    class Provide < Resource
-      def dump = super uid
-    end
-
-    class Require < Node
-      forward_to :ast, :ident, :uid
-      def dump = super uid
-    end
+    #
+    # C O M M A N D S
+    #
 
     class Command < Node
       attr_accessor :kind
@@ -102,6 +61,64 @@ module Prick::Lang
 
     class CallCommand < Command
     end
+
+
+    #
+    # R E S O U R C E
+    #
+
+    # Can be a schema, provide, or function
+    class Resource < Node
+      forward_to :"ast.ident", :ident, :uid # FIXME Does this work?
+      part :block, [Node] # Command|Require
+    end
+
+    class Provide < Resource
+      def dump = super uid
+    end
+
+    class Require < Node
+      forward_to :ast, :ident, :uid
+      def dump = super uid
+    end
+
+    class Phase < Resource
+      def dump = dumps uid, @nodes
+    end
+
+    class Function < Resource
+    end
+
+    # TODO: End-of-schema-marker (or use schema itself - like other resources)
+    class Schema < Resource
+      part :head, Command
+      part :functions, [Function]
+      Token::PHASES.each { |phase| part phase.downcase, Phase }
+
+      def dump()
+        head.dump
+        functions.each(&:dump)
+        Token::PHASES.each(&:dump)
+        block.each(&:dump)
+      end
+    end
+
+    #
+    # P R O G R A M
+    #
+
+    class Program < Node
+      part :schemas, [Schema]
+      def initialize(ast) = super(nil, ast)
+      def dump()
+        super;
+        indent { @schemas.each(&:dump) }
+      end
+    end
+
+    #
+    # U N R E S O L V E D
+    #
 
     class Unresolved < Node
       attr_reader :unresolved # Ast::Reference

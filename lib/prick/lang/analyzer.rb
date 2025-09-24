@@ -65,7 +65,7 @@ module Prick::Lang
 
     def analyze_program(ast)
       trace
-      program = Idr::Program.new(nil, ast)
+      program = Idr::Program.new(ast)
       program.schemas = []
       for stmt in ast.block.stmts
         case stmt

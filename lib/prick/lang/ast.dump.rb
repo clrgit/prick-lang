@@ -7,15 +7,15 @@ module Prick::Lang
 
       def dump() dump_title; dump_children; end
       def dump_title = puts [classname, title].join(' ')
-      def dump_children = Kernel.indent { children.each &:dump }
+      def dump_children = Kernel.indent { parts.each &:dump }
 
       def dump_parts
         puts self.classname
         indent {
-          for sym, klass, element_klass in @@PARTS[self.class] || []
+          for sym, klass in @@PARTS[self.class] || []
             value = get_part(sym)
-            if klass == Nodes
-              puts "#{sym}: #{klass.classname}[#{element_klass.classname}] = ["
+            if klass == Node.array
+              puts "#{sym}: #{klass.classname}[#{@@ARRAY_PARTS[self.class][sym].classname}] = ["
               indent {
                 value.each { |v|
                   print "- "

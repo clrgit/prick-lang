@@ -21,6 +21,15 @@ require_relative './lang/ext/trace.rb' # Debug
 require_relative './lang/common.rb'
 require_relative './lang/error.rb'
 
+require_relative './lang/token.rb'
+require_relative './lang/part.rb'
+require_relative './lang/ast.rb'
+require_relative './lang/ast.dump.rb'
+require_relative './lang/idr.rb'
+require_relative './lang/oracle.rb'
+
+p Prick::Lang::Part
+
 module Prick::Lang
   class Error < StandardError; end
   class InternalError < Error; end
@@ -35,6 +44,7 @@ module Prick::Lang
   DUMP_KINDS = %w(tokens ast idr)
 
   def self.dump(file, lines = nil, kind)
+
     tokenizer = Tokenizer.new(file, lines)
     parser = Parser.new(tokenizer)
     case kind
@@ -47,6 +57,8 @@ module Prick::Lang
 
       when "ast", nil
         parser.parse.dump
+        puts
+        Ast::Node.dump_model
 
       when "idr"
         analyzer = Analyzer.new(parser)
@@ -58,13 +70,6 @@ module Prick::Lang
     end
   end
 end
-
-require_relative './lang/token.rb'
-require_relative './lang/part.rb'
-require_relative './lang/ast.rb'
-require_relative './lang/ast.dump.rb'
-require_relative './lang/idr.rb'
-require_relative './lang/oracle.rb'
 
 require_relative './lang/tokenizer.rb'
 require_relative './lang/parser.rb'

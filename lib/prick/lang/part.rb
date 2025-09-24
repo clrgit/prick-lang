@@ -44,6 +44,8 @@ module Prick::Lang
 
     def key?(ident) = @klass.part? ident
 
+    def each(&block) whole.children.each(&block) end
+
     def [](ident)
       @klass.part? ident or
           raise ArgumentError, "Unknown member of #{@klass.classname}: #{ident}"
@@ -73,6 +75,7 @@ module Prick::Lang
 
       # Create array part objects
       for ident, element_klass in @@ARRAY_PARTS[self.class] || []
+        next if element_klass.nil?
         if parts[ident].nil?
           self.instance_variable_set(:"@#{ident}", self.class.array.new(nil, element_klass))
         end
@@ -83,9 +86,14 @@ module Prick::Lang
     def self.array? = array() == self
     def self.part?(ident) = @@PARTS[self].key?(ident)
     def self.parts() = @@PARTS[self] # Symbol => Class
-
-    #
-    def get_part(ident) =
+    def self.klassname(ident)
+      klass = parts[ident]
+      if klass == Array
+        "[#{@@ARRAY_PARTS[self][ident].classname}]"
+      else
+        klass.classname
+      end
+    end
 
     def build_tree
 #     puts "#{self.classname}#build_tree"
@@ -142,9 +150,6 @@ module Prick::Lang
       end
 
       (@@PARTS[self] ||= {})[ident] = klass
-#     if element_klass
-#       (@@ARRAY_PARTS[self] ||= {})[ident] = element_klass
-#     end
       (@@ARRAY_PARTS[self] ||= {})[ident] = element_klass if element_klass
     end
 
@@ -152,16 +157,30 @@ module Prick::Lang
       if self == Part # Only consider top-level classes
         klass.define_singleton_method(:root) { klass }
         klass.define_singleton_method(:array) { nil } # Default implementation. Initialized by M::included
+      else
+        # Copy parent's attributes
+        @@PARTS[klass] = @@PARTS[self].dup
+        @@ARRAY_PARTS[klass] = @@ARRAY_PARTS[self].dup
       end
+    end
+
+    def self.dump_model
+      @@PARTS.each { |part, parts|
+        puts part.classname
+        indent {
+          (@@PARTS[part] || []).each { |ident, klass|
+            puts "#{ident} #{klass.classname}"
+          }
+        }
+      }
     end
 
     # Map from Class to map from Symbol to Class
     @@PARTS = { Part => {} } # { Class => { Symbol => klass }
 
-    # Map from Class to map from attribute to element type. Only array
-    # attributes are included
+    # Map from Class to map from attribute to element type. Element type is nil
+    # for non-array parts
     @@ARRAY_PARTS = { Part => {} } # { Class => { Symbol => element_klass } }
-
   end
 end
 

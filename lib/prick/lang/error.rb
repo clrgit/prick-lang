@@ -52,7 +52,7 @@ module Prick::Lang
                   [curr.file, curr.lineno, curr.charno]
                 end
             else
-              raise ArgumentError
+              [nil, nil, nil]
             end
           end
         when Integer;
