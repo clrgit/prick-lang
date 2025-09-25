@@ -7,52 +7,73 @@ module Prick::Lang
 
       def dump() dump_title; dump_children; end
       def dump_title = puts [classname, title].join(' ')
-      def dump_children = Kernel.indent { parts.each &:dump }
+      def dump_children = Kernel.indent { parts.each { |k,v| v.dump if !v.nil?  }
 
-      def dump_parts
-        puts self.classname
-        indent {
-          for sym, klass in @@PARTS[self.class] || []
-            value = get_part(sym)
-            if klass == Node.array
-              puts "#{sym}: #{klass.classname}[#{@@ARRAY_PARTS[self.class][sym].classname}] = ["
-              indent {
-                value.each { |v|
-                  print "- "
-                  indent(bol: false) { v.dump_parts }
-                }
-              }
-              puts "]"
+#       p parts.keys
+#       puts "before loop"
+#       parts.each { |k,v|
+#         puts "in loop"
+#         p k
+#         v.dump
+#       }
+#       puts "after"
 
-            elsif (@@PARTS[klass] || []).empty? || value.nil?
-              if element_klass
-                puts "#{sym}: #{klass.classname}[#{element_klass.classname}] = #{value.inspect || 'nil'}"
-              else
-                puts "#{sym}: #{klass.classname} = #{value.inspect || 'nil'}"
-              end
+#       puts "SELF: #{self.class}"
+#       puts "      #{parts.class}"
+#       parts.each { |k,v|
+#         puts " >> #{k.inspect}"
+#         puts "    #{v.inspect}"
+#       }
 
-            else
-              print "sym: "
-              value.dump_parts
-            end
-          end
-        }
-      end
+#       parts.each &:dump_part
+      }
 
-      def self.dump_parts
-        for key, parts in @@PARTS
-          puts key.classname
-          indent {
-            for sym, klass, element_klass in parts
-              if element_klass
-                puts "#{sym}: #{klass.classname}[#{element_klass}]"
-              else
-                puts "#{sym}: #{klass.classname}"
-              end
-            end
-          }
-        end
-      end
+#     def dump_parts
+#       puts self.classname
+#       indent {
+#         for sym, klass in @@PARTS[self.class] || []
+#           # value = get_part(sym)
+#           value = parts[sym]
+#           puts "#{value.inspect} (#{value.class})"
+#           if klass == Node.array
+#             puts "#{sym}: #{klass.classname}[#{@@ARRAY_PARTS[self.class][sym].classname}] = ["
+#             indent {
+#               value.each { |v|
+#                 print "- "
+#                 indent(bol: false) { v.dump_parts }
+#               }
+#             }
+#             puts "]"
+#
+#           elsif (@@PARTS[klass] || []).empty? || value.nil?
+#             if element_klass
+#               puts "#{sym}: #{klass.classname}[#{element_klass.classname}] = #{value.inspect || 'nil'}"
+#             else
+#               puts "#{sym}: #{klass.classname} = #{value.inspect || 'nil'}"
+#             end
+#
+#           else
+#             print "sym: "
+#             value.dump_parts
+#           end
+#         end
+#       }
+#     end
+#
+#     def self.dump_parts
+#       for key, parts in @@PARTS
+#         puts key.classname
+#         indent {
+#           for sym, klass, element_klass in parts
+#             if element_klass
+#               puts "#{sym}: #{klass.classname}[#{element_klass}]"
+#             else
+#               puts "#{sym}: #{klass.classname}"
+#             end
+#           end
+#         }
+#       end
+#     end
 
       def inspect() = "#<#{[classname, title].compact.join(' ')}>"
     end
@@ -88,9 +109,14 @@ module Prick::Lang
       def title = token.text
     end
 
-    class ReferenceExpr
-      def title = ref.token.text
+    class RuntimeExpr
+      def dump = puts "#{self.classname} #{ident} #{words.map(&:to_s).join(', ')}"
     end
+
+    class ReferenceExpr
+      def dump = puts "#{self.classname} #{ref}"
+    end
+
   end
 end
 

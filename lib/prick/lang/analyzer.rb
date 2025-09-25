@@ -32,13 +32,8 @@ module Prick::Lang
       @unresolved = []
       @idr = analyze_program(ast)
 
-      @idr.dump
-
-      oracle.dump
-      puts "---------------------------------------"
-
       while !oracle.unknown.empty?
-        oracle.falsify_unknown
+        oracle.mark_unknown_absent
 
         # Find and re-compile unresolved nodes
         @idr.schemas.each { |schema|
@@ -50,9 +45,11 @@ module Prick::Lang
             end
           }.flatten
         }
-
-        oracle.dump
       end
+
+      @idr.build_tree
+
+#     analyze_references
 
       @idr
     end
@@ -60,6 +57,14 @@ module Prick::Lang
     def inspect() = "<#{self.class}>"
 
   private
+    def analyze_references
+      provides = @idr.trees(Idr::Provide).map { |node| [node.uid, node] }.to_h
+      @idr.trees(Idr::Require).each { |node|
+        provides.include?(node.uid) or error node, "Unknown resource '#{node.uid}'"
+      }
+    end
+
+
     def assign_uids
       ast.trees(Ast::Schema).each { |default|
         ast.nodes(Ast::Reference).each { |ref| # FIXME Turns 'require schema' into 'require current_schema.schema'

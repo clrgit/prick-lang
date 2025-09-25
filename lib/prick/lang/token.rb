@@ -39,6 +39,7 @@ module Prick::Lang
       ENV: "env",
       CMD: "cmd",
       USER: "user",
+      VAR: "var",
       OBJECT: "object",
       RESOURCE: "resource",
       VERSION: "version", # Version keyword, see also :VER
@@ -70,7 +71,6 @@ module Prick::Lang
       # Literals
       FILE: nil,
       DIR: nil,
-      VAR: nil,
       VER: nil, # Version number, see also :VERSION
 
       # Text literals

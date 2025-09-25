@@ -70,6 +70,7 @@ module Prick::Lang
     end
 
     class Ident < Value
+      def to_sym = @token.text.to_sym
     end
 
     class Word < Value
@@ -102,6 +103,7 @@ module Prick::Lang
 
     # cmd, env, user
     class RuntimeExpr < SimpleExpr
+      part :ident, Ident
       part :words, [Ident]
     end
 

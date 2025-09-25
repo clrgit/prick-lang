@@ -19,6 +19,9 @@ SPEC = %(
   -t,trace
     Enable tracer. Used for debugging
 
+  +v,var=ASSIGNMENT
+    Add a key/value to the compile time set of constants. ASSIGNMENT has the
+    format "NAME=VALUE". Eg. "--var=site=home" or "-v site=home"
 
   Syntax
 
@@ -143,20 +146,27 @@ Trace.enable if opts.trace?
 ShellOpts.exception = USE_EXCEPTION
 file = args.expect(1)
 
+VARIABLES = {}
+if opts.var?
+  opts.var.each { |litt|
+    litt =~ /^(\w+)=(\S*)$/ or ShellOpts::error "Illegal value for --var '#{litt}'"
+    VARIABLES[$1.to_sym] = $2
+  }
+end
 
 # Handle dump option
 if opts.dump?
   kind = opts.dump || "ast"
   Prick::Lang::DUMP_KINDS.include?(kind) or
       ShellOpts::error "Illegal value for --dump '#{kind}'"
-  Prick::Lang.dump(file, kind)
+  Prick::Lang.dump(file, kind, VARIABLES)
   exit
 end
 
 # Compile
 compiler = Prick::Lang::Compiler.new(file)
 begin
-  compiler.compile
+  compiler.compile(variables)
 rescue => ex
   raise Prick::Lang::ErrorFunctions.pretty_backtrace!(ex)
 end

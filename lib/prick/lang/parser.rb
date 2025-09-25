@@ -5,7 +5,7 @@ module Prick::Lang
     include ErrorFunctions
 #   class ParserError < Prick::Lang::Error; end # FIXME Not used
 
-    CONSTANTS = [:ENV, :CMD, :USER, :VERSION, :SCHEMA, :OBJECT, :RESOURCE]
+    CONSTANTS = [:ENV, :CMD, :USER, :VAR, :VERSION, :SCHEMA, :OBJECT, :RESOURCE]
     COMMANDS = [:EXEC, :EVAL, :RUBY, :SQL, :CALL]
 
     # Map from operator token kind to tuple of priority, associtivity (:left
@@ -227,6 +227,11 @@ module Prick::Lang
       case peek.kind
         when :CMD, :ENV, :USER
           expr = Ast::RuntimeExpr.new(read)
+          expr.ident = Ast::Ident.new(expr.token)
+          expr.words = parse_idents
+        when :VAR
+          expr = Ast::RuntimeExpr.new(read)
+          expr.ident = Ast::Ident.new(readkind(:IDENT, :CMD, :ENV, :USER))
           expr.words = parse_idents
         when :SCHEMA
           expr = Ast::ReferenceExpr.new(read)

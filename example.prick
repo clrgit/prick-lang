@@ -1,4 +1,9 @@
 
+#schema another_schema {
+# another_schema.sql
+# provicde has_another_schema
+#}
+
 # Schema
 schema my_schema {
 
@@ -50,11 +55,28 @@ schema my_schema {
     res.sql
   end
 
-# if var env prod
-#   var_env_prod.sql
-# else
-#   not_var_env_prod.sql
-# end
+  TESTING_BUILT_IN_VARS.sql
+  if var env prod
+    var_env_prod.sql
+  else
+    not_var_env_prod.sql
+  end
+
+  TESTING_COMMAND_LINE_VARS.sql
+  if var cmd_var not_a_value cmd_value
+    var_cmd_var.sql
+  else
+    not_var_cmd_var.sql
+  end
+
+  TESTING_COMMAND_LINE_NOT_VARS.sql
+  if var not_cmd_var not_cmd_value
+    var_not_cmd_var.sql
+  else
+    not_var_not_cmd_var.sql
+  end
+
+
 
 # case var prod
 #   when prod
@@ -63,6 +85,7 @@ schema my_schema {
 #     oops.sql
 # end
 
+  TESTING_UNRESOLVED_IF_STATEMENT.sql
   # Unresolved if-statement
   before_unresolved.sql
   if resource has_d
@@ -101,7 +124,8 @@ schema my_schema {
 
   # Require
   require another_schema
-  require my_schema.resource
+  require another_schema.has_another_schema
+  require my_schema.has_a
   require a.b c.d
 
   # Files

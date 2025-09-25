@@ -39,9 +39,9 @@ module Prick::Lang
     Token.define_method(:initialize) { |*args| orig_initialize(*args); tokens << self; }
   end
 
-  DUMP_KINDS = %w(tokens ast idr)
+  DUMP_KINDS = %w(tokens ast idr oracle)
 
-  def self.dump(file, lines = nil, kind)
+  def self.dump(file, lines = nil, kind, variables)
     tokenizer = Tokenizer.new(file, lines)
     parser = Parser.new(tokenizer)
     case kind
@@ -54,15 +54,22 @@ module Prick::Lang
 
       when "ast", nil
         parser.parse.dump
-        puts
-        Ast::Node.dump_model
+#       Ast::Node.dump_model
 
       when "idr"
-        oracle = Oracle.new("build", "prod", "me")
+        oracle = Oracle.new({ cmd: "build", env: "prod", user: "me" }.merge(variables))
         analyzer = Analyzer.new(parser, oracle)
         parser.parse
         idr = analyzer.analyze
         idr.dump
+
+      when "oracle"
+        oracle = Oracle.new({ cmd: "build", env: "prod", user: "me" }.merge(variables))
+        analyzer = Analyzer.new(parser, oracle)
+        parser.parse
+        analyzer.analyze
+        oracle.dump
+
     else
       raise ArgumentError
     end

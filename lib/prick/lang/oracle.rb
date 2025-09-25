@@ -1,16 +1,11 @@
 
 module Prick::Lang
-  # Global knowledge
-  #
-  # Runtime values are symbols - :cmd, :env, :user and Resources are strings,
-  # eg. 'schema.provide_resource'
-  #
   class Oracle
-    # Runtime constants
-    attr_reader :constants # Symbol => String
-    def cmd = @constants[:cmd]
-    def env = @constants[:env]
-    def user = @constants[:user]
+    # Runtime variables
+    attr_reader :variables # Symbol => String
+    def cmd = @variables[:cmd] # FIXME Not needed any longer
+    def env = @variables[:env]
+    def user = @variables[:user]
 
     # Resources
     attr_reader :resources
@@ -24,8 +19,8 @@ module Prick::Lang
     def known?(uid) = !entry(uid).nil?
     def unknown?(uid) = entry(uid).nil?
 
-    def initialize(cmd, env, user)
-      @constants = { cmd: cmd, env: env, user: user }
+    def initialize(variables)
+      @variables = variables
       @resources = {}
     end
 
@@ -39,14 +34,14 @@ module Prick::Lang
 
     # Return uids of true/false/nil entries
 
-    def falsify_unknown
+    def mark_unknown_absent
       unknown.each { |key| @resources[key] = false }
     end
 
     def dump
       puts "Oracle"
       indent {
-        puts "constants"; indent { puts constants.map { |k,v| "#{k}: #{v}" } }
+        puts "variables"; indent { puts variables.map { |k,v| "#{k}: #{v}" } }
         puts "resources:"
         indent {
           puts "present: #{present.inspect}"

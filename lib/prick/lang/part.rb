@@ -2,7 +2,7 @@ module Prick::Lang
   # Acts as a trimmed-down Array of Part objects
   module Parts
     attr_reader :element_klass
-    forward_to :@children, :each, :map, :flat_map, :empty?
+    forward_to :@children, :first, :each, :map, :flat_map, :empty?, :size
 
     def self.initialize(this, element_klass)
       this.instance_variable_set(:@element_klass, element_klass)
@@ -83,6 +83,8 @@ module Prick::Lang
       end
     end
 
+    def self.all_parts = @@PARTS
+
     def self.root? = root() == self
     def self.array? = array() == self
     def self.part?(ident) = @@PARTS[self].key?(ident)
@@ -150,12 +152,14 @@ module Prick::Lang
         }
       end
 
-      (@@PARTS[self] ||= {})[ident] = klass
-      (@@ARRAY_PARTS[self] ||= {})[ident] = element_klass if element_klass
+      @@PARTS[self][ident] = klass
+      @@ARRAY_PARTS[self][ident] = element_klass if element_klass
     end
 
     def self.inherited(klass)
       if self == Part # Only consider top-level classes
+        @@PARTS[klass] = {}
+        @@ARRAY_PARTS[klass] = {}
         klass.define_singleton_method(:root) { klass }
         klass.define_singleton_method(:array) { nil } # Default implementation. Initialized by M::included
       else
