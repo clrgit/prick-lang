@@ -47,11 +47,6 @@ module Prick::Lang
 
     def inspect = "<Parser: #{file}>"
 
-#   def dump
-#     puts self.class
-#     indent { puts "file: #{file}" }
-#   end
-
   protected
     def parse_program
 #     puts "#parse_program"

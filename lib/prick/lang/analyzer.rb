@@ -8,7 +8,6 @@ module Prick::Lang
     attr_reader :parser
     attr_reader :evaluator
     attr_reader :oracle
-    attr_reader :unresolved # [Idr::Unresolved]
     attr_reader :ast
     attr_reader :idr
 
@@ -29,7 +28,6 @@ module Prick::Lang
       trace
       @ast = parser.ast
       assign_uids
-      @unresolved = []
       @idr = analyze_program(ast)
 
       while !oracle.unknown.empty?
@@ -80,7 +78,6 @@ module Prick::Lang
 
     attr_reader :schema # Current schema
     attr_reader :resources # {uid=>Ast::Resource} - resource may be present/absent or not evaluated
-    attr_reader :unresolved_stmts
 
     def analyze_program(ast)
       trace
@@ -183,7 +180,6 @@ module Prick::Lang
         case eval(if_then.expr)
           when nil
             node = Idr::Unresolved.new(if_, evaluator.unresolved)
-            @unresolved << node
             return node
           when true
             return analyze_stmts(if_then.then_)

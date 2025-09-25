@@ -5,77 +5,11 @@ module Prick::Lang
     class Node
       def title = nil
 
+      def inspect() = "#<#{[classname, title].compact.join(' ')}>"
+
       def dump() dump_title; dump_children; end
       def dump_title = puts [classname, title].join(' ')
-      def dump_children = Kernel.indent { parts.each { |k,v| v.dump if !v.nil?  }
-
-#       p parts.keys
-#       puts "before loop"
-#       parts.each { |k,v|
-#         puts "in loop"
-#         p k
-#         v.dump
-#       }
-#       puts "after"
-
-#       puts "SELF: #{self.class}"
-#       puts "      #{parts.class}"
-#       parts.each { |k,v|
-#         puts " >> #{k.inspect}"
-#         puts "    #{v.inspect}"
-#       }
-
-#       parts.each &:dump_part
-      }
-
-#     def dump_parts
-#       puts self.classname
-#       indent {
-#         for sym, klass in @@PARTS[self.class] || []
-#           # value = get_part(sym)
-#           value = parts[sym]
-#           puts "#{value.inspect} (#{value.class})"
-#           if klass == Node.array
-#             puts "#{sym}: #{klass.classname}[#{@@ARRAY_PARTS[self.class][sym].classname}] = ["
-#             indent {
-#               value.each { |v|
-#                 print "- "
-#                 indent(bol: false) { v.dump_parts }
-#               }
-#             }
-#             puts "]"
-#
-#           elsif (@@PARTS[klass] || []).empty? || value.nil?
-#             if element_klass
-#               puts "#{sym}: #{klass.classname}[#{element_klass.classname}] = #{value.inspect || 'nil'}"
-#             else
-#               puts "#{sym}: #{klass.classname} = #{value.inspect || 'nil'}"
-#             end
-#
-#           else
-#             print "sym: "
-#             value.dump_parts
-#           end
-#         end
-#       }
-#     end
-#
-#     def self.dump_parts
-#       for key, parts in @@PARTS
-#         puts key.classname
-#         indent {
-#           for sym, klass, element_klass in parts
-#             if element_klass
-#               puts "#{sym}: #{klass.classname}[#{element_klass}]"
-#             else
-#               puts "#{sym}: #{klass.classname}"
-#             end
-#           end
-#         }
-#       end
-#     end
-
-      def inspect() = "#<#{[classname, title].compact.join(' ')}>"
+      def dump_children = Kernel.indent { parts.each { |k,v| v.dump if !v.nil?  } }
     end
 
     class Nodes
@@ -116,7 +50,6 @@ module Prick::Lang
     class ReferenceExpr
       def dump = puts "#{self.classname} #{ref}"
     end
-
   end
 end
 
