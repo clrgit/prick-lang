@@ -17,8 +17,7 @@ schema my_schema {
 
   # Phase
   init {
-    # If statement
-#   if version ~> 1.2 && ( env prod || cmd build )
+    # If statement with constant expression
     if ( env text || cmd build )
       ia.sql
     elsif ! env prod
@@ -51,11 +50,44 @@ schema my_schema {
     res.sql
   end
 
+# if var env prod
+#   var_env_prod.sql
+# else
+#   not_var_env_prod.sql
+# end
+
+# case var prod
+#   when prod
+#     case_var_prod.sql
+#   else
+#     oops.sql
+# end
+
+  # Unresolved if-statement
+  before_unresolved.sql
   if resource has_d
-    res2.sql
+    has_res_d.sql
+    if resource has_e
+      has_res_e.sql
+    else
+      not_res_e.sql
+    end
   else
-    not_res2.sql
+    not_res_d.sql
+    if resource has_f
+      has_res_f.sql
+    else
+      not_res_f.sql
+    end
   end
+  after_unresolved.sql
+
+  before_parallel.sql
+  if ! resource has_d
+    not_res_d_2.sql
+    provide has_f
+  end
+  after_parallel.sql
 
 
   # Make

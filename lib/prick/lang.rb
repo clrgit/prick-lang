@@ -28,8 +28,6 @@ require_relative './lang/ast.dump.rb'
 require_relative './lang/idr.rb'
 require_relative './lang/oracle.rb'
 
-p Prick::Lang::Part
-
 module Prick::Lang
   class Error < StandardError; end
   class InternalError < Error; end
@@ -44,7 +42,6 @@ module Prick::Lang
   DUMP_KINDS = %w(tokens ast idr)
 
   def self.dump(file, lines = nil, kind)
-
     tokenizer = Tokenizer.new(file, lines)
     parser = Parser.new(tokenizer)
     case kind
@@ -61,7 +58,8 @@ module Prick::Lang
         Ast::Node.dump_model
 
       when "idr"
-        analyzer = Analyzer.new(parser)
+        oracle = Oracle.new("build", "prod", "me")
+        analyzer = Analyzer.new(parser, oracle)
         parser.parse
         idr = analyzer.analyze
         idr.dump

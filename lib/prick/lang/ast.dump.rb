@@ -87,6 +87,10 @@ module Prick::Lang
     class Const
       def title = token.text
     end
+
+    class ReferenceExpr
+      def title = ref.token.text
+    end
   end
 end
 

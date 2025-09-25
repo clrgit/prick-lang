@@ -70,6 +70,7 @@ module Prick::Lang
       # Literals
       FILE: nil,
       DIR: nil,
+      VAR: nil,
       VER: nil, # Version number, see also :VERSION
 
       # Text literals
@@ -95,6 +96,7 @@ module Prick::Lang
       REF: "reference",
       FILE: "file",
       DIR: "directory",
+      VAR: "variable",
       VER: "version number",
       WORD: "file",
       LINE: "text",

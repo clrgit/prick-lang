@@ -88,7 +88,8 @@ SPEC = %(
       | BLOCK
 
     EXPR ::=
-        SIMPLE-EXPR
+        CONSTANT-EXPR
+      | RESOURCE-EXPR
       | ! EXPR
       | EXPR && EXPR
       | EXPR || EXPR
@@ -96,14 +97,21 @@ SPEC = %(
 
     # 'env', 'cmd', and 'user' or's their arguments together, 'version' and's
     # them
-    SIMPLE-EXPR ::=
+    CONSTANT-EXPR ::=
         env IDENT+
       | cmd IDENT+
       | user IDENT+
-      | schema IDENT
+      | version VER_EXPR+
+      | var IDENT IDENT+
+
+    RESOURCE-EXPR ::=
+        schema IDENT
       | object REF
       | resource REF
-      | version VER_EXPR+
+
+    IDENT-EXPR ::=
+      IDENT IDENT-OP
+      IDENT ==|!= IDENT-OR-STRING
 
     VAR-EXPR ::= env | cmd | user | version | schema | object | resource
 

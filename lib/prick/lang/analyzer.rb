@@ -12,13 +12,16 @@ module Prick::Lang
     attr_reader :ast
     attr_reader :idr
 
-    def initialize(parser)
+    def runtime = { CMD: "build", ENV: "prod", USER: "me" }
+
+    def initialize(parser, oracle)
       @parser = parser
-      @oracle = Oracle.new
+      @oracle = oracle
       @evaluator = Evaluator.new(oracle)
     end
 
     def eval(expr)
+      trace expr
       evaluator.eval(expr)
     end
 
@@ -29,16 +32,27 @@ module Prick::Lang
       @unresolved = []
       @idr = analyze_program(ast)
 
-#     while !@unresolved.empty?
-#       for node in unresolved
-#         oracle[node.uid] = false
-#       end
-#       for node in
-#       idr = analyze_unresolved
-#
-#     puts
-#     puts "Unresolved"
-#     indent { puts unresolved.map { |node| node.unresolved.uid } }
+      @idr.dump
+
+      oracle.dump
+      puts "---------------------------------------"
+
+      while !oracle.unknown.empty?
+        oracle.falsify_unknown
+
+        # Find and re-compile unresolved nodes
+        @idr.schemas.each { |schema|
+          schema.block = schema.block.flat_map { |node|
+            if node.is_a?(Idr::Unresolved)
+              analyze_unresolved(node)
+            else
+              node
+            end
+          }.flatten
+        }
+
+        oracle.dump
+      end
 
       @idr
     end
@@ -111,7 +125,6 @@ module Prick::Lang
 #           raise ArgumentError, "#{stmt.inspect}"
           end
         )
-        prev = stmts.last
       }
       stmts
     end
@@ -143,7 +156,7 @@ module Prick::Lang
       constrain ast, Ast::Source, Ast::ExternalCommand, Ast::CallCommand
       trace
       case ast
-        when Ast::Source; ast.files.map { |file| prev = Idr::FileCommand.new(file) }
+        when Ast::Source; ast.files.map { |file| Idr::FileCommand.new(file) }
         when Ast::ExternalCommand; Idr::ExternalCommand.new(ast)
         when Ast::CallCommand; Idr::CallCommand.new(ast)
       end
@@ -181,9 +194,10 @@ module Prick::Lang
     end
 
     def analyze_unresolved(node)
-      prev = node.prev
+      trace
+      constrain node, Idr::Unresolved
       ast = node.ast
-      # next? FIXME
+      analyze_control(ast)
     end
   end
 end

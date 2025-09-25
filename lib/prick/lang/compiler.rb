@@ -6,6 +6,7 @@ module Prick::Lang
     attr_reader :file
     attr_reader :tokenizer
     attr_reader :parser
+    attr_reader :oracle
     attr_reader :analyzer
 
     attr_reader :ast # Ast::Program
@@ -15,7 +16,8 @@ module Prick::Lang
       @file = file
       @tokenizer = Tokenizer.new(file, lines)
       @parser = Parser.new(@tokenizer)
-      @analyzer = Analyzer.new(self)
+      @oracle = Oracle.new # TODO
+      @analyzer = Analyzer.new(self, oracle)
     end
 
     def ftime(time, limit: "ms")

@@ -2,7 +2,7 @@ module Prick::Lang
   # Acts as a trimmed-down Array of Part objects
   module Parts
     attr_reader :element_klass
-    forward_to :@children, :each, :map, :empty?
+    forward_to :@children, :each, :map, :flat_map, :empty?
 
     def self.initialize(this, element_klass)
       this.instance_variable_set(:@element_klass, element_klass)

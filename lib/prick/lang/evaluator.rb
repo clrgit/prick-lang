@@ -58,10 +58,11 @@ module Prick::Lang
             raise InternalError
           end
         when Ast::RuntimeExpr
-          expr.words.map(&:value).include? runtime[expr.kind]
+          expr.words.map(&:value).include? oracle.send(expr.kind.downcase.to_sym)
+
         when Ast::ReferenceExpr
           uid = expr.ref.uid
-          if oracle.key?(uid)
+          if oracle.known?(uid)
             oracle[uid]
           else
             raise StopEvaluation.new(expr.ref)
