@@ -56,6 +56,9 @@ describe "Tree" do
     it "returns subtrees that satisfy the constraint" do
       expect(make.trees { %w(c d e).include? _1.name }.map(&:name)).to eq %w(c d)
     end
+    it "excludes the root node" do
+      expect(make.trees { %w(root c d e).include? _1.name }.map(&:name)).to eq %w(c d)
+    end
     context "with a klass argument" do
       it "only considers nodes of that class" do
         expect(make.trees(subklass) { %w(a c d e).include? _1.name }.map(&:name)).to eq %w(c e)
@@ -89,3 +92,5 @@ describe "Tree" do
     end
   end
 end
+
+

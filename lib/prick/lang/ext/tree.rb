@@ -39,15 +39,25 @@ module Tree
     a
   end
 
-  def trees(*klass, &expr) = trees_recursively([], klass, &expr)
-  def nodes(*klass, &expr) = nodes_recursively([], klass, &expr)
-  def visit(*klass, &block) = visit_recursively(klass, &block)
+  def trees(*klass, &expr)
+    klasses = klass_expr(klass)
+    acc = []
+    @children.each { |node| node.trees_impl(acc, klasses, &expr) }
+    acc
+  end
 
-#   klasses = [Object] if expr.empty?
-#   visit_recursively(klasses, &block)
-#   (expr.include?(self.class) ? yield(self) : true) and @children.each { _1.visit(expr, &block) }
-#   (self.is_a?(klass) ? yield(self) : true) and @children.each { _1.visit(klass, &block) }
-# end
+  def nodes(*klass, &expr)
+    klasses = klass_expr(klass)
+    acc = []
+    @children.each { |node| node.nodes_impl(acc, klasses, &expr) }
+    acc
+  end
+
+# def trees(*klass, &expr) = trees_recursively([], klass_expr(klass), &expr)
+# def nodes(*klass, &expr) = nodes_recursively([], klass_expr(klass), &expr)
+# def trees(*klass, &expr) = @children.flat_map { _1.trees_recursively([], klass_expr(klass), &expr) }
+# def nodes(*klass, &expr) = @children.flat_map { nodes_recursively([], klass_expr(klass), &expr) }
+  def visit(*klass, &block) = visit_recursively(klass_expr(klass), &block)
 
   # bottom-up
   def accumulate(&block)
@@ -59,26 +69,28 @@ module Tree
     children.each { _1.propagate &block } if yield(self)
   end
 
+
 #private
-  def trees_recursively(trees, klasses, &expr)
-    if klasses.include?(self.class) && (block_given? ? expr.call(self) : true)
-      trees << self
+  def klass_expr(klasses) = klasses.empty? ? [Tree] : klasses
+
+  def trees_impl(acc, klasses, &expr)
+    if klasses.any? { self.class <= _1 } && (block_given? ? expr.call(self) : true)
+      acc << self
     else
-      @children.each { |node| node.trees_recursively(trees, klasses, &expr) }
+      @children.each { |node| node.trees_impl(acc, klasses, &expr) }
     end
-    trees
   end
 
-  def nodes_recursively(nodes, klasses, &expr)
-    if klasses.include?(self.class) && (block_given? ? expr.call(self) : true)
-      nodes << self
+  def nodes_impl(acc, klasses, &expr)
+    if klasses.any? { self.class <= _1 } && (block_given? ? expr.call(self) : true)
+      acc << self
     end
-    @children.each { |node| node.nodes_recursively(nodes, klasses, &expr) }
-    nodes
+    @children.each { |node| node.nodes_impl(acc, klasses, &expr) }
   end
 
   def visit_recursively(klasses, &block)
-    (klasses.include?(self.class) ? yield(self) : true) and @children.each { _1.visit_recursively(klasses, &block) }
+    (klasses.any? { self.class <= _1 } ? yield(self) : true) and
+      @children.each { _1.visit_recursively(klasses, &block) }
   end
 end
 

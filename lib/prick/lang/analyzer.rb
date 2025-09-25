@@ -27,7 +27,7 @@ module Prick::Lang
     def analyze
       trace
       @ast = parser.ast
-      assign_uids
+#     assign_uids
       @idr = analyze_program(ast)
 
       while !oracle.unknown.empty?
@@ -45,8 +45,20 @@ module Prick::Lang
         }
       end
 
+      oracle.dump
+      exit
+
       @idr.build_tree
 
+      @idr.trees(Idr::Schema).each { |schema|
+        puts "schema: #{schema.inspect}"
+        puts schema.block.size
+        puts "  resources: #{schema.trees(Idr::Resource).size}"
+        puts "  provides : #{schema.trees(Idr::Provide).size}"
+        puts schema.block.each(&:class)
+      }
+
+      analyze_resource
 #     analyze_references
 
       @idr
@@ -55,6 +67,15 @@ module Prick::Lang
     def inspect() = "<#{self.class}>"
 
   private
+    def analyze_resource
+      trace
+      @idr.trees(Idr::Schema).each { |schema|
+        schema.trees(Idr::Resource).each { |resource|
+          resource.schema = schema
+        }
+      }
+    end
+
     def analyze_references
       provides = @idr.trees(Idr::Provide).map { |node| [node.uid, node] }.to_h
       @idr.trees(Idr::Require).each { |node|
@@ -135,7 +156,7 @@ module Prick::Lang
       constrain ast, Ast::Provide
       trace
       node = Idr::Provide.new(ast)
-      oracle[node.uid] = true
+#     oracle[node.uid] = true
       node
     end
 

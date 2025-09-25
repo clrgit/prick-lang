@@ -92,7 +92,6 @@ module Prick::Lang
     # :check is true (the default)
     #
     def parse_block(token = nil, check: true)
-#     puts "#parse_block"
       check_expected "block" do
         block = Ast::Block.new(token) # Note that token may be nil, it is assigned later if so
         block.stmts = parse_stmts

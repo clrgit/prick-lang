@@ -1,8 +1,8 @@
 
-#schema another_schema {
-# another_schema.sql
-# provicde has_another_schema
-#}
+schema another_schema {
+  another_schema.sql
+  provide has_another_schema
+}
 
 # Schema
 schema my_schema {

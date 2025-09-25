@@ -71,16 +71,14 @@ module Prick::Lang
 
     # Can be a schema, provide, or function
     class Resource < Node
-      forward_to :"ast.ident", :ident, :uid # FIXME Does this work?
+      forward_to :ast, :ident
+#     forward_to :"ast.ident", :ident, :uid # FIXME Does this work?
+      attr_accessor :schema # Schema
+      def uid = [schema.uid, ident.value].join(".")
       part :block, [Node] # Command|Require
     end
 
     class Provide < Resource
-      def dump = super uid
-    end
-
-    class Require < Node
-      forward_to :ast, :ident, :uid
       def dump = super uid
     end
 
@@ -97,6 +95,8 @@ module Prick::Lang
       part :functions, [Function]
       Token::PHASES.each { |phase| part phase.downcase, Phase }
 
+      def uid = ast.ident.to_s
+
       def dump()
         head.dump
         functions.each(&:dump)
@@ -108,6 +108,14 @@ module Prick::Lang
         }
         block.each(&:dump)
       end
+    end
+
+    #
+    # R E Q U I R E
+    #
+    class Require < Node
+      def uid = ast.value
+      def dump = super uid
     end
 
     #
