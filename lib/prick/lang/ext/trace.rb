@@ -37,6 +37,9 @@ module Trace
     @@TRACERS[key].disable if @@TRACER_COUNTS[key] == 0
   end
 
+  def self.puts(*args) Kernel.puts(*args) if enabled? end
+  def self.p(*args) Kernel.p(*args) if enabled? end
+
   def self.render_arg(arg)
     arg.is_a?(Hash) ? arg.to_s[1..-2] : arg.inspect
   end

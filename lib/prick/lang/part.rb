@@ -43,8 +43,9 @@ module Prick::Lang
     end
 
     def key?(ident) = @klass.part? ident
+    def keys() = @klass.parts.keys
 
-    def each(&block) whole.children.each(&block) end
+    def each(&block) = keys.each { |ident| yield ident, whole.send(ident) }
 
     def [](ident)
       @klass.part? ident or
@@ -63,8 +64,8 @@ module Prick::Lang
     include ErrorFunctions
     include Tree
 
-    alias_method :whole, :parent
-    attr_reader :parts
+    alias_method :whole, :parent # Only valid after #build_tree has run
+    attr_reader :parts # PartMap
 
     def initialize
       # Initialize as a Tree node

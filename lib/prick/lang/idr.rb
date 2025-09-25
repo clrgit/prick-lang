@@ -7,9 +7,10 @@ module Prick::Lang
       attr_reader :ast # Ast::Node
       def token = ast.token
 
-      def initialize(parent, ast)
+      def initialize(ast)
+        constrain ast, Ast::Node if !ast.nil?
+        super()
         @ast = ast
-        Tree.initialize(self, parent)
       end
 
       def dump(*text) = dump_impl(*text)
@@ -24,9 +25,13 @@ module Prick::Lang
 
     class Nodes < Node
       include Parts
-      def initialize(token, element_klass)
-        super(token)
+
+      # #ast is initially nil butand then redefined to the ast of the first node
+      def ast = @ast || children.first&.ast
+
+      def initialize(ast, element_klass)
         Parts.initialize(self, element_klass)
+        super(ast)
       end
     end
 
@@ -46,13 +51,11 @@ module Prick::Lang
     class FileCommand < Command
       alias_method :file, :ast
       def path = file.path
-
       def dump = puts "file #{path}"
     end
 
     class ExternalCommand < Command
       forward_to :ast, :source
-
       def dump
         command = ast.kind.downcase
         puts "#{command} #{ast.multiline? ? "..." : source}"
@@ -61,7 +64,6 @@ module Prick::Lang
 
     class CallCommand < Command
     end
-
 
     #
     # R E S O U R C E
@@ -83,7 +85,7 @@ module Prick::Lang
     end
 
     class Phase < Resource
-      def dump = dumps uid, @nodes
+      def dump = dumps uid, @block
     end
 
     class Function < Resource
@@ -98,7 +100,12 @@ module Prick::Lang
       def dump()
         head.dump
         functions.each(&:dump)
-        Token::PHASES.each(&:dump)
+        Token::PHASES.each { |phase|
+          ident = phase.downcase.to_sym
+          if !parts[ident].nil?
+            parts[ident].dump
+          end
+        }
         block.each(&:dump)
       end
     end
@@ -109,9 +116,8 @@ module Prick::Lang
 
     class Program < Node
       part :schemas, [Schema]
-      def initialize(ast) = super(nil, ast)
       def dump()
-        super;
+        super
         indent { @schemas.each(&:dump) }
       end
     end
@@ -124,9 +130,9 @@ module Prick::Lang
       attr_reader :unresolved # Ast::Reference
       def uid = unresolved.uid
 
-      def initialize(prev, ast, unresolved)
+      def initialize(ast, unresolved)
         constrain unresolved, Ast::Reference
-        super prev, ast
+        super ast
         @unresolved = unresolved
       end
 
@@ -134,4 +140,5 @@ module Prick::Lang
     end
   end
 end
+
 
