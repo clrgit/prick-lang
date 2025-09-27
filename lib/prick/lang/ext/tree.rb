@@ -1,4 +1,30 @@
 
+#
+# a
+#   b
+#     c
+#     d
+# e
+#   f
+#
+
+# pairs(true, true)
+#   ab
+#   bc
+#   bd
+#   ae
+#   ef
+#
+# pairs(true, [bf]
+#   ab
+#   ef
+
+
+
+
+
+
+
 module Tree
   attr_reader :parent
   attr_reader :children
@@ -31,10 +57,26 @@ module Tree
 
   def map(&block)
     a = []
-    each { |node| a << yield(node) }
+    self.each { |node| a << yield(node) }
     a
   end
 
+  def pairs(*klass, &expr)
+    acc = []
+    pairs_impl(acc, klass_expr(klass), nil, &expr)
+    acc
+  end
+
+  def pairs_impl(acc, klasses, parent, &expr)
+    if klasses.any? { self.class <= _1 } && (block_given? ? expr.call(self) : true)
+      acc << [parent, self]
+      parent = self
+    end
+    @children.each { _1.pairs_impl(acc, klasses, parent, &expr) }
+  end
+
+  # Return subtrees of any of the given classes and for which expr yields true.
+  # The expression defaults to true and classes are considered by default
   def trees(*klass, &expr)
     klasses = klass_expr(klass)
     acc = []
@@ -68,6 +110,14 @@ module Tree
 
 #private
   def klass_expr(klasses) = klasses.empty? ? [Tree] : klasses
+
+# def pairs_impl(acc) nodes.map { |
+#
+#   @children.each { |node|
+#     acc << [self, node]
+#     node.pairs_impl(acc)
+#   }
+# end
 
   def trees_impl(acc, klasses, &expr)
     if klasses.any? { self.class <= _1 } && (block_given? ? expr.call(self) : true)

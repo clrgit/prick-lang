@@ -1,5 +1,7 @@
 
 describe "Tree" do
+  using String::Text
+
   let(:klass) {
     Class.new do
       include Tree
@@ -21,13 +23,26 @@ describe "Tree" do
     end
   }
 
+  let(:rootklass) {
+    Class.new(klass) do; end
+  }
+
+
   let(:subklass) {
-    Class.new(klass) do
-    end
+    Class.new(klass) do; end
   }
 
   def make
-    root = klass.new("root", nil)
+    # root
+    #   a
+    #     b
+    #     c
+    #   d
+    #     e
+    #       f
+    #         g
+    #
+    root = rootklass.new("root", nil)
     a = klass.new("a", root)
     b = klass.new("b", a)
     c = subklass.new("c", a)
@@ -49,6 +64,52 @@ describe "Tree" do
   describe "#map" do
     it "iterates nodes recursively" do
       expect(make.map(&:name)).to eq %w(root a b c d e f g)
+    end
+  end
+
+  describe "#pairs" do
+    def render(pairs)
+      pairs.map { |parent, child| "#{parent&.name || 'nil'},#{child.name}" }.join("\n")
+    end
+
+    def call(*klass, &expr)
+      render(make.pairs(*klass, &expr))
+    end
+
+    it "emits parent/child pairs" do
+      expect(call).to eq %(
+        nil,root
+        root,a
+        a,b
+        a,c
+        root,d
+        d,e
+        e,f
+        f,g
+      ).align
+    end
+
+    context "when given a klass expression" do
+      it "emits parent/child pairs matching the expression" do
+        r = call(subklass)
+        expect(r).to eq %(
+          nil,c
+          nil,e
+          e,g
+        ).align
+      end
+    end
+
+    context "when given a block" do
+      it "emits parent/child pairs when the block yields truish" do
+        r = call { |node| %w(root a c g).include?(node.name) }
+        expect(r).to eq %(
+          nil,root
+          root,a
+          a,c
+          root,g
+        ).align
+      end
     end
   end
 
