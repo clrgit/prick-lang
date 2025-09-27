@@ -69,21 +69,24 @@ module Prick::Lang
     # R E S O U R C E
     #
 
-    # Can be a schema, provide, or function
+    # Can be a schema, phase, provide, or function
     class Resource < Node
       forward_to :ast, :ident
-#     forward_to :"ast.ident", :ident, :uid # FIXME Does this work?
-      attr_accessor :schema # Schema
-      def uid = [schema.uid, ident.value].join(".")
+      alias_method :schema, :parent
+      attr_reader :uid
       part :block, [Node] # Command|Require
-    end
-
-    class Provide < Resource
-      def dump = super uid
+      def initialize(ast, uid)
+        super(ast)
+        @uid = uid
+      end
     end
 
     class Phase < Resource
       def dump = dumps uid, @block
+    end
+
+    class Provide < Resource
+      def dump = super uid
     end
 
     class Function < Resource
@@ -91,11 +94,11 @@ module Prick::Lang
 
     # TODO: End-of-schema-marker (or use schema itself - like other resources)
     class Schema < Resource
+      def schema = nil
       part :head, Command
       part :functions, [Function]
       Token::PHASES.each { |phase| part phase.downcase, Phase }
-
-      def uid = ast.ident.to_s
+      def provides() = nil # TODO
 
       def dump()
         head.dump
@@ -114,7 +117,13 @@ module Prick::Lang
     # R E Q U I R E
     #
     class Require < Node
-      def uid = ast.value
+      alias_method :schema, :parent
+      attr_reader :uid
+      def initialize(ast, uid)
+        constrain ast, Ast::Reference
+        super(ast)
+        @uid = uid
+      end
       def dump = super uid
     end
 
@@ -136,12 +145,15 @@ module Prick::Lang
 
     class Unresolved < Node
       attr_reader :unresolved # Ast::Reference
-      def uid = unresolved.uid
 
-      def initialize(ast, unresolved)
+      # The uid of the unresolved resource
+      attr_reader :uid
+
+      def initialize(ast, unresolved, uid)
         constrain unresolved, Ast::Reference
         super ast
         @unresolved = unresolved
+        @uid = uid
       end
 
       def dump() = super(uid)

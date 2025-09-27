@@ -1,6 +1,13 @@
 
 module Prick::Lang
   class Oracle
+    # Current schema. Maintained by the #analyzer
+    attr_accessor :schema
+    def uid(value)
+      l, r = value.split(".")
+      @uid = (r ? [l,r] : [schema.ident, l]).join(".")
+    end
+
     # Runtime variables
     attr_reader :variables # Symbol => String
     def cmd = @variables[:cmd] # FIXME Not needed any longer
@@ -8,7 +15,7 @@ module Prick::Lang
     def user = @variables[:user]
 
     # Resources
-    attr_reader :resources
+    attr_reader :resources # UID String => true/false/nil
     def present = @resources.filter_map { _2 and _1 }
     def absent = @resources.filter_map { ! _2.nil? && ! _2 and _1 }
     def known = @resources.filter_map { !_2.nil? and _1 }
@@ -52,7 +59,10 @@ module Prick::Lang
     end
 
   private
-    def entry(uid) = @resources.key?(uid) ? @resources[uid] : (@resources[uid] = nil)
+    def entry(uid)
+      constrain uid, String
+      @resources.key?(uid) ? @resources[uid] : (@resources[uid] = nil)
+    end
   end
 end
 

@@ -56,19 +56,12 @@ module Prick::Lang
         parser.parse.dump
 #       Ast::Node.dump_model
 
-      when "idr"
+      when "idr", "oracle"
         oracle = Oracle.new({ cmd: "build", env: "prod", user: "me" }.merge(variables))
         analyzer = Analyzer.new(parser, oracle)
         parser.parse
         idr = analyzer.analyze
-        idr.dump
-
-      when "oracle"
-        oracle = Oracle.new({ cmd: "build", env: "prod", user: "me" }.merge(variables))
-        analyzer = Analyzer.new(parser, oracle)
-        parser.parse
-        analyzer.analyze
-        oracle.dump
+        (kind == "idr" ? idr : oracle).dump
 
     else
       raise ArgumentError

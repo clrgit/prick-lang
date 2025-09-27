@@ -65,7 +65,7 @@ module Prick::Lang
           expr.words.map(&:value).include? oracle.variables[expr.ident.to_sym]
 
         when Ast::ReferenceExpr
-          uid = expr.ref.uid
+          uid = oracle.uid(expr.ref.literal)
           if oracle.known?(uid)
             oracle[uid]
           else

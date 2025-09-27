@@ -49,7 +49,11 @@ schema my_schema {
   if ! env prod
     d.sql e.sql
     provide has_d
+  else
+    not_env_prod.sql
   end
+
+  checkpoint.sql
 
   if resource has_c
     res.sql
