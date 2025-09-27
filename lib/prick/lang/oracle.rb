@@ -3,9 +3,20 @@ module Prick::Lang
   class Oracle
     # Current schema. Maintained by the #analyzer
     attr_accessor :schema
+
     def uid(value)
       l, r = value.split(".")
-      @uid = (r ? [l,r] : [schema.ident, l]).join(".")
+      (r ? [l,r] : [schema.ident, l]).join(".")
+    end
+
+    def create_uid(value)
+      uid = self.uid value
+      self[uid] = true
+      uid
+    end
+
+    def resolve_uid(uid, value)
+      @resources.key?(uid) or raise ArgumentError, "Unknown key '#{uid}'"
     end
 
     # Runtime variables
@@ -33,9 +44,14 @@ module Prick::Lang
 
     def [](key) = entry(key)
 
+    # Can assign true/false to nil, and true to false
     def []=(uid, present)
       constrain present, true, false, nil
-      !@resources.key?(uid) or raise ArgumentError "Duplicate key"
+      if value = @resources[uid]
+        !present.nil? && value == false or
+            raise ArgumentError, "Illegal reassignment of key '#{uid}' to #{present.inspect}"
+      end
+      @resources[uid].nil? or
       @resources[uid] = present
     end
 
@@ -53,6 +69,7 @@ module Prick::Lang
         indent {
           puts "present: #{present.inspect}"
           puts "absent: #{absent.inspect}"
+          puts "known: #{known.inspect}"
           puts "unknown: #{unknown.inspect}"
         }
       }

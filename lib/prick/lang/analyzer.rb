@@ -115,10 +115,9 @@ module Prick::Lang
             when Ast::Phase; analyze_phase(stmt)
             when Ast::Command; analyze_command(stmt)
             when Ast::Control; analyze_control(stmt)
+            when Ast::Function; puts "TODO: Function not implemented"
           else
-            # FIXME
-            ;
-#           raise ArgumentError, "#{stmt.inspect}"
+            raise ArgumentError, "#{stmt.inspect}"
           end
         )
       }
@@ -128,7 +127,7 @@ module Prick::Lang
     def analyze_provide(ast)
       constrain ast, Ast::Provide
       trace
-      Idr::Provide.new(ast, oracle.uid(ast.ident.value))
+      Idr::Provide.new(ast, oracle.create_uid(ast.ident.value))
     end
 
     def analyze_require(ast)
@@ -141,7 +140,7 @@ module Prick::Lang
     def analyze_phase(ast)
       constrain ast, Ast::Phase
       trace
-      phase = Idr::Phase.new(ast, oracle.uid(ast.ident.value))
+      phase = Idr::Phase.new(ast, oracle.create_uid(ast.ident.value))
       phase.block = analyze_stmts(ast.block)
       phase
     end
