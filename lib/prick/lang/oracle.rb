@@ -1,22 +1,44 @@
 
 module Prick::Lang
   class Oracle
+    include ErrorFunctions
+
     # Current schema. Maintained by the #analyzer
     attr_accessor :schema
 
-    def uid(value)
-      l, r = value.split(".")
+    def uid(name)
+      l, r = name.split(".")
       (r ? [l,r] : [schema.ident, l]).join(".")
     end
 
-    def create_uid(value)
-      uid = self.uid value
-      self[uid] = true
+    # Add an unknown resource if not present. Return the uid
+    def ensure(value)
+      constrain value, Ast::Value
+      uid = self.uid(value.value)
+      @resources[uid] = nil if !@resources.key?(uid)
       uid
     end
 
-    def resolve_uid(uid, value)
-      @resources.key?(uid) or raise ArgumentError, "Unknown key '#{uid}'"
+    # Add a present resource and return uid. It is an error if the resource is
+    # absent but not if it not known
+    def add(value)
+      constrain value, Ast::Value
+      uid = self.uid(value.value)
+      if !@resources[uid].nil?
+        if @resources[uid]
+          p @resources[uid]
+          error value, "Redefinition of '#{uid}'"
+        else
+          error value, "'#{uid}' has been marked absent"
+        end
+      end
+      @resources[uid] = true
+      uid
+    end
+
+    def resolve_uid(uid, node)
+      constrain node, Idr::Resource
+      @resources[uid] = node
     end
 
     # Runtime variables
@@ -45,21 +67,14 @@ module Prick::Lang
     def [](key) = entry(key)
 
     # Can assign true/false to nil, and true to false
-    def []=(uid, present)
-      constrain present, true, false, nil
-      if value = @resources[uid]
-        !present.nil? && value == false or
-            raise ArgumentError, "Illegal reassignment of key '#{uid}' to #{present.inspect}"
-      end
-      @resources[uid].nil? or
-      @resources[uid] = present
-    end
+#   def []=(uid, present)
+#     constrain present, true, false, nil
+#     !@resources.key?(uid) || !present.nil? && @resources[uid] == false or
+#         raise ArgumentError, "Illegal reassignment of key '#{uid}' to #{present.inspect}"
+#     @resources[uid] = present
+#   end
 
-    # Return uids of true/false/nil entries
-
-    def mark_unknown_absent
-      unknown.each { |key| @resources[key] = false }
-    end
+    def mark_unknown_absent = unknown.each { |key| @resources[key] = false }
 
     def dump
       puts "Oracle"
@@ -67,10 +82,9 @@ module Prick::Lang
         puts "variables"; indent { puts variables.map { |k,v| "#{k}: #{v}" } }
         puts "resources:"
         indent {
-          puts "present: #{present.inspect}"
-          puts "absent: #{absent.inspect}"
-          puts "known: #{known.inspect}"
-          puts "unknown: #{unknown.inspect}"
+          puts "present:"; indent { puts present }
+          puts "absent:"; indent { puts absent }
+          puts "unknown:"; indent { puts unknown }
         }
       }
     end

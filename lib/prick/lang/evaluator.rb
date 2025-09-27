@@ -38,7 +38,7 @@ module Prick::Lang
           expr.value
 
         when Ast::UnExpr
-          value = eval(expr.expr)
+          value = eval_expr(expr.expr)
           case expr.oper
             when :EXCLAIM; !value
           else
@@ -46,8 +46,8 @@ module Prick::Lang
           end
 
         when Ast::BinExpr
-          lval = eval(expr.lexpr)
-          rval = eval(expr.rexpr)
+          lval = eval_expr(expr.lexpr)
+          rval = eval_expr(expr.rexpr)
           case expr.oper
             when :OROR; lval || rval
             when :ANDAND; lval && rval

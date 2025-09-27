@@ -11,10 +11,7 @@ module Tree
   end
 
   def attach(child) @children << child; child.instance_variable_set(:@parent, self) end
-  def detach(child)
-    @children.delete(child)
-    child&.instance_variable_set(:@parent, nil)
-  end
+  def detach(child) = @children.delete(child)&.instance_variable_set(:@parent, nil)
   def retach(child) child.parent&.detach(child); attach(child) end
 
   def concat(nodes) nodes.each { attach _1 }; self end

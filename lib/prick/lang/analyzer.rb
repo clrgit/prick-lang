@@ -28,31 +28,23 @@ module Prick::Lang
       trace
       @ast = parser.ast
       @idr = analyze_program(ast)
-
-      while !oracle.unknown.empty?
-        oracle.mark_unknown_absent
-
-        # Find and re-compile unresolved nodes
-        @idr.schemas.each { |schema|
-          oracle.schema = schema
-          schema.block = schema.block.flat_map { |node|
-            if node.is_a?(Idr::Unresolved)
-              analyze_unresolved(node)
-            else
-              node
-            end
-          }.flatten
-          oracle.schema = nil
-        }
-      end
-
       @idr.build_tree
+
+      analyze_unresolved
+      analyze_resources
+
       @idr
     end
 
     def inspect() = "<#{self.class}>"
 
   private
+    def analyze_resources
+
+
+
+    end
+
 #   def analyze_resource
 #     trace
 #     @idr.trees(Idr::Schema).each { |schema|
@@ -127,22 +119,22 @@ module Prick::Lang
     def analyze_provide(ast)
       constrain ast, Ast::Provide
       trace
-      Idr::Provide.new(ast, oracle.create_uid(ast.ident.value))
-    end
-
-    def analyze_require(ast)
-      constrain ast, Ast::Require
-      trace
-      ast.references.map { |ref| Idr::Require.new(ref, oracle.uid(ref.value)) }
+      provide = Idr::Provide.new(ast, oracle.add(ast.ident))
     end
 
     # TODO Write to oracle
     def analyze_phase(ast)
       constrain ast, Ast::Phase
       trace
-      phase = Idr::Phase.new(ast, oracle.create_uid(ast.ident.value))
+      phase = Idr::Phase.new(ast, oracle.add(ast.ident))
       phase.block = analyze_stmts(ast.block)
       phase
+    end
+
+    def analyze_require(ast)
+      constrain ast, Ast::Require
+      trace
+      ast.references.map { |ref| Idr::Require.new(ref, oracle.ensure(ref)) }
     end
 
     def analyze_command(ast)
@@ -170,7 +162,7 @@ module Prick::Lang
       for if_then in if_.if_thens
         case eval(if_then.expr)
           when nil
-            node = Idr::Unresolved.new(if_, evaluator.unresolved, oracle.uid(evaluator.unresolved.value))
+            node = Idr::Unresolved.new(if_, evaluator.unresolved, oracle.ensure(evaluator.unresolved))
             return node
           when true
             return analyze_stmts(if_then.then_)
@@ -186,11 +178,35 @@ module Prick::Lang
       nil
     end
 
-    def analyze_unresolved(node)
-      trace
-      constrain node, Idr::Unresolved
-      ast = node.ast
-      analyze_control(ast)
+    def analyze_unresolved
+      while true
+        unresolved = false
+        while true
+          progress = false
+          @idr.schemas.each { |schema|
+            oracle.schema = schema
+            schema.block = schema.block.map { |node|
+              if node.is_a?(Idr::Unresolved)
+                if oracle.known?(node.uid)
+                  result = analyze_control(node.ast)
+                  progress = true
+                  unresolved ||= result.is_a?(Idr::Unresolved)
+                  result
+                else
+                  unresolved = true
+                  node
+                end
+              else
+                node
+              end
+            }.flatten
+            oracle.schema = nil
+          }
+          break if !progress
+        end
+        return if !unresolved
+        oracle.mark_unknown_absent
+      end
     end
   end
 end

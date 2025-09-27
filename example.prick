@@ -30,7 +30,11 @@ schema my_schema {
     else
       ic.sql
     end
+    require has_a
   }
+
+  # Require
+  require unknown_schema.unknown_resource
 
   # Provide
   a.sql
@@ -116,6 +120,12 @@ schema my_schema {
   end
   after_parallel.sql
 
+  BEFORE.sql
+  if ! resource some_resource
+#   provide some_resource
+    inner.sql
+  end
+  AFTER.sql
 
   # Make
   exec |

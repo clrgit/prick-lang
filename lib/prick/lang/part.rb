@@ -12,21 +12,25 @@ module Prick::Lang
       parts.each { |part|
         part.is_a?(element_klass) or unexpected_error element_klass, part
       }
-      @children = parts
+      @children.dup.each { detach _1 }
+      parts.each { attach _1 }
+
+#     @children = parts
     end
 
     # TODO Remove?
     def <<(node)
       !node.nil? or raise ArgumentError
       node.is_a? element_klass or unexpected_error element_klass, node
-      @children << node
+      attach(node)
+#     @children << node
     end
 
     def build_tree
-      @children.each { |part|
-        part.build_tree
-        part.instance_variable_set(:@parent, self)
-      }
+#     @children.each { |part|
+#       part.build_tree
+#       part.instance_variable_set(:@parent, self)
+#     }
     end
 
     def self.included(other)
@@ -149,6 +153,8 @@ module Prick::Lang
         define_method(method) { |node|
           node.is_a?(klass) or unexpected_error klass, node.class
           self.instance_variable_set(member, node)
+          self.attach(node)
+          node
         }
       end
 
