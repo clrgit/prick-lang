@@ -37,7 +37,7 @@ module Prick::Lang
           oracle.schema = schema
           schema.block = schema.block.flat_map { |node|
             if node.is_a?(Idr::Unresolved)
-              analyze_unresolved(node) || []
+              analyze_unresolved(node)
             else
               node
             end
@@ -97,7 +97,7 @@ module Prick::Lang
       schema = Idr::Schema.new(ast, ast.ident.value)
       oracle.schema = schema
       schema.head = Idr::SchemaCommand.new(ast)
-      schema.block = [schema.head] + analyze_stmts(ast.block)
+      schema.block = analyze_stmts(ast.block)
       oracle.schema = nil
       schema
     end
