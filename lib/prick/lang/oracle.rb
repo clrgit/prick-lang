@@ -6,9 +6,17 @@ module Prick::Lang
     # Current schema. Maintained by the #analyzer
     attr_accessor :schema
 
+    # Execute block with schema as the current schema. Can't be called recursively
+    def scope(schema, &block)
+      @schema.nil? or raise ArgumentError
+      @schema = schema
+      yield
+      @schema = nil
+    end
+
     def uid(name)
       l, r = name.split(".")
-      (r ? [l,r] : [schema.ident, l]).join(".")
+      (r ? [l,r] : [schema&.ident, l].compact).join(".")
     end
 
     # Add an unknown resource if not present. Return the uid
@@ -21,19 +29,32 @@ module Prick::Lang
 
     # Add a present resource and return uid. It is an error if the resource is
     # absent but not if it not known
-    def add(value)
-      constrain value, Ast::Value
-      uid = self.uid(value.value)
+#   def add(value)
+#     constrain value, Ast::Value
+#     uid = self.uid(value.value)
+#     if !@resources[uid].nil?
+#       if @resources[uid]
+#         error value, "Redefinition of '#{uid}'"
+#       else
+#         error value, "'#{uid}' has been marked absent"
+#       end
+#     end
+#     @resources[uid] = true
+#     uid
+#   end
+
+    def add(ref, &block)
+      constrain ref, Ast::Reference, Ast::Ident
+      uid = self.uid(ref.value)
+      node = yield(uid)
       if !@resources[uid].nil?
         if @resources[uid]
-          p @resources[uid]
           error value, "Redefinition of '#{uid}'"
         else
           error value, "'#{uid}' has been marked absent"
         end
       end
-      @resources[uid] = true
-      uid
+      @resources[uid] = node
     end
 
     def resolve_uid(uid, node)

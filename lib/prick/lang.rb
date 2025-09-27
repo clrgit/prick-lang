@@ -60,8 +60,12 @@ module Prick::Lang
         oracle = Oracle.new({ cmd: "build", env: "prod", user: "me" }.merge(variables))
         analyzer = Analyzer.new(parser, oracle)
         parser.parse
-        idr = analyzer.analyze
-        (kind == "idr" ? idr : oracle).dump
+        if kind == "idr"
+          analyzer.analyze.dump
+        else
+          analyzer.analyze_ast
+          oracle.dump
+        end
 
     else
       raise ArgumentError

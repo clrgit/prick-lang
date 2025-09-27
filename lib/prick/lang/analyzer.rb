@@ -6,8 +6,8 @@ module Prick::Lang
 
     def file = @ast.file
     attr_reader :parser
-    attr_reader :evaluator
     attr_reader :oracle
+    attr_reader :evaluator
     attr_reader :ast
     attr_reader :idr
 
@@ -19,54 +19,43 @@ module Prick::Lang
       @evaluator = Evaluator.new(oracle)
     end
 
-    def eval(expr)
-      trace expr
-      evaluator.eval(expr)
+    def analyze(oracle: true)
+      trace
+      analyze_ast
+      analyze_idr
+      @idr
     end
 
-    def analyze
+    def analyze_ast
       trace
       @ast = parser.ast
       @idr = analyze_program(ast)
       @idr.build_tree
-
       analyze_unresolved
-      analyze_resources
+      @idr
+    end
 
+    def analyze_idr
+      analyze_resources
       @idr
     end
 
     def inspect() = "<#{self.class}>"
 
   private
-    def analyze_resources
-
-
-
+    def eval(expr)
+      trace expr
+      evaluator.eval(expr)
     end
 
-#   def analyze_resource
-#     trace
-#     @idr.trees(Idr::Schema).each { |schema|
-#       schema.trees(Idr::Resource).each { |resource|
-#         resource.schema = schema
-#       }
-#     }
-#   end
 
-#   def analyze_references
-#     provides = @idr.trees(Idr::Provide).map { |node| [node.uid, node] }.to_h
-#     @idr.trees(Idr::Require).each { |node|
-#       provides.include?(node.uid) or error node, "Unknown resource '#{node.uid}'"
-#     }
-#   end
-
-    attr_reader :schema # Current schema
-    attr_reader :resources # {uid=>Ast::Resource} - resource may be present/absent or not evaluated
+    def check_containment
+      @idr.trees
+    end
 
     def analyze_program(ast)
       trace
-      program = Idr::Program.new(ast)
+      program = Idr::Program.new(ast, "::")
       program.schemas = []
       for stmt in ast.block.stmts
         case stmt
@@ -81,16 +70,16 @@ module Prick::Lang
       program
     end
 
-    # Note: Sets @schema while processing contained nodes and resets it to nil
+    # Note: Sets oracle.schema while processing contained nodes and resets it to nil
     # afterwards
     def analyze_schema(ast)
       trace
       constrain ast, Ast::Schema
-      schema = Idr::Schema.new(ast, ast.ident.value)
-      oracle.schema = schema
+      schema = oracle.add(ast.ident) { |uid| Idr::Schema.new(ast, uid) }
       schema.head = Idr::SchemaCommand.new(ast)
-      schema.block = analyze_stmts(ast.block)
-      oracle.schema = nil
+      oracle.scope(schema) {
+        schema.block = analyze_stmts(ast.block)
+      }
       schema
     end
 
@@ -116,17 +105,25 @@ module Prick::Lang
       stmts
     end
 
+#   CONTAINMENTS = {
+#     Program => [Phase, Function, Schema, Require, Provide],
+#     Schema => [Phase, Function],
+#     Phase => [],
+#     Function => []
+#   }
+
+
+
     def analyze_provide(ast)
       constrain ast, Ast::Provide
       trace
-      provide = Idr::Provide.new(ast, oracle.add(ast.ident))
+      provide = oracle.add(ast.ident) { |uid| Idr::Provide.new(ast, uid) }
     end
 
-    # TODO Write to oracle
     def analyze_phase(ast)
       constrain ast, Ast::Phase
       trace
-      phase = Idr::Phase.new(ast, oracle.add(ast.ident))
+      phase = oracle.add(ast.ident) { |uid| Idr::Phase.new(ast, uid) }
       phase.block = analyze_stmts(ast.block)
       phase
     end
@@ -134,7 +131,7 @@ module Prick::Lang
     def analyze_require(ast)
       constrain ast, Ast::Require
       trace
-      ast.references.map { |ref| Idr::Require.new(ref, oracle.ensure(ref)) }
+      ast.references.map { |ref| Idr::Require.new(ref, ref.value) }
     end
 
     def analyze_command(ast)
@@ -184,29 +181,41 @@ module Prick::Lang
         while true
           progress = false
           @idr.schemas.each { |schema|
-            oracle.schema = schema
-            schema.block = schema.block.map { |node|
-              if node.is_a?(Idr::Unresolved)
-                if oracle.known?(node.uid)
-                  result = analyze_control(node.ast)
-                  progress = true
-                  unresolved ||= result.is_a?(Idr::Unresolved)
-                  result
+            oracle.scope(schema) {
+              schema.block = schema.block.map { |node|
+                if node.is_a?(Idr::Unresolved)
+                  if oracle.known?(node.uid)
+                    result = analyze_control(node.ast)
+                    progress = true
+                    unresolved ||= result.is_a?(Idr::Unresolved)
+                    result
+                  else
+                    unresolved = true
+                    node
+                  end
                 else
-                  unresolved = true
                   node
                 end
-              else
-                node
-              end
-            }.flatten
-            oracle.schema = nil
+              }.flatten
+            }
           }
           break if !progress
         end
         return if !unresolved
         oracle.mark_unknown_absent
       end
+    end
+
+    def analyze_resources
+      trace
+      @idr.trees(Idr::Require) { |req|
+        oracle.present?(req.uid) or error req, "Can't find resource '#{req.uid}'"
+        req.node = oracle[req.uid]
+      }
+#     for schema in @idr.schemas
+#       schema.block.each { |node|
+#         if node
+#     end
     end
   end
 end

@@ -22,7 +22,6 @@ module Tree
     detach(child) if self.instance_variable_get(var)
     attach(child) if child
     self.instance_variable_set(var, child)
-    self
   end
 
   def each(&block)

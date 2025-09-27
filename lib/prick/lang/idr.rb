@@ -101,15 +101,38 @@ module Prick::Lang
       def provides() = nil # TODO
 
       def dump()
-        head.dump
-        functions.each(&:dump)
-        Token::PHASES.each { |phase|
-          ident = phase.downcase.to_sym
-          if !parts[ident].nil?
-            parts[ident].dump
-          end
+        puts "Schema #{ident}"
+        indent {
+          puts "head"; indent {
+            head.dump
+          }
+          puts "functions"; indent {
+            functions.each(&:dump)
+          }
+          puts "phases"; indent {
+            Token::PHASES.each { |phase|
+              ident = phase.downcase.to_sym
+              if !parts[ident].nil?
+                parts[ident].dump
+              end
+            }
+          }
+          puts "block"; indent {
+            block.each(&:dump)
+          }
         }
-        block.each(&:dump)
+      end
+    end
+
+    #
+    # P R O G R A M
+    #
+
+    class Program < Schema
+      part :schemas, [Schema]
+      def dump()
+        super
+        indent { @schemas.each(&:dump) }
       end
     end
 
@@ -119,23 +142,16 @@ module Prick::Lang
     class Require < Node
       alias_method :schema, :parent
       attr_reader :uid
+      attr_accessor :node # Required entry node
       def initialize(ast, uid)
         constrain ast, Ast::Reference
         super(ast)
         @uid = uid
       end
-      def dump = super uid
-    end
-
-    #
-    # P R O G R A M
-    #
-
-    class Program < Node
-      part :schemas, [Schema]
-      def dump()
-        super
-        indent { @schemas.each(&:dump) }
+      def dump
+        txt = uid
+        txt += " -> #{node.class}" if node
+        super txt
       end
     end
 

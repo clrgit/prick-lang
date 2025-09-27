@@ -26,13 +26,6 @@ module Prick::Lang
 #     @children << node
     end
 
-    def build_tree
-#     @children.each { |part|
-#       part.build_tree
-#       part.instance_variable_set(:@parent, self)
-#     }
-    end
-
     def self.included(other)
       other.root.define_singleton_method(:array) { other }
     end
@@ -82,7 +75,9 @@ module Prick::Lang
       for ident, element_klass in @@ARRAY_PARTS[self.class] || []
         next if element_klass.nil?
         if parts[ident].nil?
-          self.instance_variable_set(:"@#{ident}", self.class.array.new(nil, element_klass))
+          self.assign(ident, self.class.array.new(nil, element_klass))
+#         attach(array)
+#         self.instance_variable_set(:"@#{ident}", array)
         end
       end
     end
@@ -152,9 +147,7 @@ module Prick::Lang
         # Define writer method
         define_method(method) { |node|
           node.is_a?(klass) or unexpected_error klass, node.class
-          self.instance_variable_set(member, node)
-          self.attach(node)
-          node
+          self.assign(ident, node)
         }
       end
 

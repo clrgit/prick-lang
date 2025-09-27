@@ -30,11 +30,11 @@ schema my_schema {
     else
       ic.sql
     end
-    require has_a
+    require my_schema.has_a
   }
 
   # Require
-  require unknown_schema.unknown_resource
+# require unknown_schema.unknown_resource
 
   # Provide
   a.sql
@@ -59,7 +59,7 @@ schema my_schema {
 
   checkpoint.sql
 
-  if resource has_c
+  if resource my_schema.has_c
     res.sql
   end
 
@@ -96,16 +96,16 @@ schema my_schema {
   TESTING_UNRESOLVED_IF_STATEMENT.sql
   # Unresolved if-statement
   before_unresolved.sql
-  if resource has_d
+  if resource my_schema.has_d
     has_res_d.sql
-    if resource has_e
+    if resource my_schema.has_e
       has_res_e.sql
     else
       not_res_e.sql
     end
   else
     not_res_d.sql
-    if resource has_f
+    if resource my_schema.has_f
       has_res_f.sql
     else
       not_res_f.sql
@@ -114,14 +114,14 @@ schema my_schema {
   after_unresolved.sql
 
   before_parallel.sql
-  if ! resource has_d
+  if ! resource my_schema.has_d
     not_res_d_2.sql
     provide has_f
   end
   after_parallel.sql
 
   BEFORE.sql
-  if ! resource some_resource
+  if ! resource my_schema.some_resource
 #   provide some_resource
     inner.sql
   end
@@ -140,7 +140,7 @@ schema my_schema {
   require another_schema
   require another_schema.has_another_schema
   require my_schema.has_a
-  require a.b c.d
+# require a.b c.d
 
   # Files
   r.rb
