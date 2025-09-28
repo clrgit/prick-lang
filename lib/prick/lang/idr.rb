@@ -12,15 +12,6 @@ module Prick::Lang
         super()
         @ast = ast
       end
-
-      def dump(*text) = dump_impl(*text)
-      def dumps(*text, nodes) dump_impl(*text); indent { nodes.each &:dump } end
-
-      def inspect = "<#{self.classname}>"
-
-    private
-      # To avoid endless recursion when #dump is redefined
-      def dump_impl(*text) = puts ([self.classname] + text).compact.join(" ")
     end
 
     class Nodes < Node
@@ -45,21 +36,15 @@ module Prick::Lang
 
     # Artificial node that creates a schema
     class SchemaCommand < Command
-      def dump = puts "sql create schema"
     end
 
     class FileCommand < Command
       alias_method :file, :ast
       def path = file.path
-      def dump = puts "file #{path}"
     end
 
     class ExternalCommand < Command
       forward_to :ast, :source
-      def dump
-        command = ast.kind.downcase
-        puts "#{command} #{ast.multiline? ? "..." : source}"
-      end
     end
 
     class CallCommand < Command
@@ -82,46 +67,26 @@ module Prick::Lang
     end
 
     class Phase < Resource
-      def dump = dumps uid, @block
+      def schema = raise
     end
 
     class Provide < Resource
-      def dump = super uid
+      def schema_or_phase = raise
     end
 
     class Function < Resource
+      def schema = raise
     end
 
     # TODO: End-of-schema-marker (or use schema itself - like other resources)
     class Schema < Resource
+      def program = raise
+
       def schema = nil
       part :head, Command
       part :functions, [Function]
       Token::PHASES.each { |phase| part phase.downcase, Phase }
       def provides() = nil # TODO
-
-      def dump()
-        puts "Schema #{ident}"
-        indent {
-          puts "head"; indent {
-            head.dump
-          }
-          puts "functions"; indent {
-            functions.each(&:dump)
-          }
-          puts "phases"; indent {
-            Token::PHASES.each { |phase|
-              ident = phase.downcase.to_sym
-              if !parts[ident].nil?
-                parts[ident].dump
-              end
-            }
-          }
-          puts "block"; indent {
-            block.each(&:dump)
-          }
-        }
-      end
     end
 
     #
@@ -130,16 +95,14 @@ module Prick::Lang
 
     class Program < Schema
       part :schemas, [Schema]
-      def dump()
-        super
-        indent { @schemas.each(&:dump) }
-      end
     end
 
     #
     # R E Q U I R E
     #
     class Require < Node
+      def schema_or_phase_or_function = raise
+
       alias_method :schema, :parent
       attr_reader :uid
       attr_accessor :node # Required entry node
@@ -147,11 +110,6 @@ module Prick::Lang
         constrain ast, Ast::Reference
         super(ast)
         @uid = uid
-      end
-      def dump
-        txt = uid
-        txt += " -> #{node.class}" if node
-        super txt
       end
     end
 
@@ -171,10 +129,7 @@ module Prick::Lang
         @unresolved = unresolved
         @uid = uid
       end
-
-      def dump() = super(uid)
     end
   end
 end
-
 

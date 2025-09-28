@@ -154,6 +154,16 @@ module Prick::Lang
     end
 
     #
+    # P R O G R A M
+    #
+
+    class Program < Decl
+      def initialize(file)
+        super Token.new(file, 1, 1, "::", :PROGRAM)
+      end
+    end
+
+    #
     # C O M M A N D S
     #
 
@@ -204,16 +214,6 @@ module Prick::Lang
       part :else_, Block
     end
 
-    #
-    # P R O G R A M
-    #
-
-    class Program < Node
-      part :block, Block
-      def initialize(file)
-        super Token.new(file, 1, 1, "", :PROGRAM)
-      end
-    end
   end
 end
 

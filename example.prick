@@ -2,6 +2,10 @@
 schema another_schema {
   another_schema.sql
   provide has_another_schema
+
+# schema nested_schema {
+#   ups.sql
+# }
 }
 
 # Schema

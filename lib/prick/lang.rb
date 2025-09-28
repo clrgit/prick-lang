@@ -26,6 +26,8 @@ require_relative './lang/part.rb'
 require_relative './lang/ast.rb'
 require_relative './lang/ast.dump.rb'
 require_relative './lang/idr.rb'
+require_relative './lang/idr.dump.rb'
+
 require_relative './lang/oracle.rb'
 
 module Prick::Lang
