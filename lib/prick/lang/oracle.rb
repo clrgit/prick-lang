@@ -3,20 +3,29 @@ module Prick::Lang
   class Oracle
     include ErrorFunctions
 
-    # Current schema. Maintained by the #analyzer
-    attr_accessor :schema
+    # . Maintained by the #analyzer
+    attr_accessor :contexts
 
-    # Execute block with schema as the current schema. Can't be called recursively
-    def scope(schema, &block)
-      @schema.nil? or raise ArgumentError
-      @schema = schema
-      yield
-      @schema = nil
+    # Current containing Resource object
+    def context = @contexts.last
+
+    def initialize(variables)
+      @contexts = []
+      @variables = variables
+      @resources = {}
+    end
+
+    # Execute block with the given context
+    def scope(context, &block)
+      @contexts.push context
+      r = yield
+      @contexts.pop
+      r
     end
 
     def uid(name)
       l, r = name.split(".")
-      (r ? [l,r] : [schema&.ident, l].compact).join(".")
+      (r ? [l,r] : [context&.ident, l].compact).join(".")
     end
 
     # Add an unknown resource if not present. Return the uid
@@ -80,20 +89,7 @@ module Prick::Lang
     def known?(uid) = !entry(uid).nil?
     def unknown?(uid) = entry(uid).nil?
 
-    def initialize(variables)
-      @variables = variables
-      @resources = {}
-    end
-
     def [](key) = entry(key)
-
-    # Can assign true/false to nil, and true to false
-#   def []=(uid, present)
-#     constrain present, true, false, nil
-#     !@resources.key?(uid) || !present.nil? && @resources[uid] == false or
-#         raise ArgumentError, "Illegal reassignment of key '#{uid}' to #{present.inspect}"
-#     @resources[uid] = present
-#   end
 
     def mark_unknown_absent = unknown.each { |key| @resources[key] = false }
 

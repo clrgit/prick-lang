@@ -17,8 +17,15 @@ module Prick::Lang
     class Nodes < Node
       include Parts
 
-      # #ast is initially nil butand then redefined to the ast of the first node
+      # #ast is initially nil but redefined to the ast of the first node
       def ast = @ast || children.first&.ast
+
+      # Outermost Program object
+      def program = @program ||= whole.program
+
+      # Enclosing Schema object. Outermost phases and functions have program
+      # as schema
+      def schema() = @schema ||= whole.schema
 
       def initialize(ast, element_klass)
         Parts.initialize(self, element_klass)
@@ -57,7 +64,6 @@ module Prick::Lang
     # Can be a schema, phase, provide, or function
     class Resource < Node
       forward_to :ast, :ident
-      alias_method :schema, :parent
       attr_reader :uid
       part :block, [Node] # Command|Require
       def initialize(ast, uid)
@@ -67,22 +73,17 @@ module Prick::Lang
     end
 
     class Phase < Resource
-      def schema = raise
     end
 
     class Provide < Resource
-      def schema_or_phase = raise
     end
 
     class Function < Resource
-      def schema = raise
     end
 
     # TODO: End-of-schema-marker (or use schema itself - like other resources)
     class Schema < Resource
-      def program = raise
-
-      def schema = nil
+      def schema = self
       part :head, Command
       part :functions, [Function]
       Token::PHASES.each { |phase| part phase.downcase, Phase }
@@ -94,6 +95,7 @@ module Prick::Lang
     #
 
     class Program < Schema
+      def program = self
       part :schemas, [Schema]
     end
 
