@@ -74,6 +74,32 @@ describe "Prick::Lang" do
         t.peek
         expect(t.instance_eval "@peek_index").to eq 1
       end
+
+      context "when at EOL" do
+        it "returns an EOL token if :eol is true" do
+          l = ["exec "]
+          t = make(l)
+          t.read(eol: true)
+          expect(t.peek(eol: true).kind).to eq :EOL
+        end
+      end
+      context "when at EOF" do
+        it "returns an EOF token if :eof is true" do
+          l = ["exec "]
+          t = make(l)
+          t.read(eof: true)
+          expect(t.peek(eof: true).kind).to eq :EOF
+        end
+        it "returns a EOL and then a EOF if both :eol and :eof is true X" do
+          l = ["exec "]
+          t = make(l)
+          opts = { eol: true, eof: true }
+          t.read
+          expect(t.peek(**opts ).kind).to eq :EOL
+          t.read
+          expect(t.peek(**opts).kind).to eq :EOF
+        end
+      end
     end
 
     describe "#read" do
@@ -175,6 +201,14 @@ describe "Prick::Lang" do
           t = make l
           t.eof!
           expect(t.read(eof: true).kind).to eq :EOF
+        end
+        it "returns a EOL and then a EOF token if both :eol and :eof is true X" do
+          l = ["exec "]
+          t = make(l)
+          opts = { eol: true, eof: true }
+          t.read
+          expect(t.read(**opts ).kind).to eq :EOL
+          expect(t.read(**opts).kind).to eq :EOF
         end
       end
     end

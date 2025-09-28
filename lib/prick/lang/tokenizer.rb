@@ -40,6 +40,9 @@ module Prick::Lang
     # Token of the last read error
     attr_reader :error
 
+    # Last peek'ed token
+    attr_reader :peek_token
+
     # Token of the last peek'ed error
     attr_reader :peek_error
 
@@ -59,10 +62,10 @@ module Prick::Lang
     end
 
     # Return true if at end of file
-    def eof? = @lines.size == @index
+    def eof?(eol: false) = @index >= @lines.size + (eol ? 1 : 0)
 
     # Return true if at end of line. #eol? is also when at end of file
-    def eol? = eof? || @pos == line.size
+    def eol? = eof?(eol: false) || @pos == line.size
 
     # Return true if at beginning of line. #bol? is also true when at end of
     # file (FIXME)
@@ -82,16 +85,15 @@ module Prick::Lang
       return @peek_token if peek?
 
       # Handle initial EOF
-      if eof?
+      if eof?(eol: eol)
         return handle_peek_eox(:EOF, eof)
 
       # Handle initial EOL
       elsif eol?
-        return handle_peek_eox(:EOL, true) if eol
-
         # Move to next line
         @peek_index += 1
         @peek_pos = 0
+        return handle_peek_eox(:EOL, true) if eol
       end
 
       # Scan blank lines
@@ -137,14 +139,25 @@ module Prick::Lang
           end
     end
 
-    def read(eol: false, eof: false, re: TOKEN_RE)
-#     puts "#read"
-      peek(eol: eol, eof: eof, re: re) if !peek?
+    # Return current peek'ed token and move to next token
+    def move
       @index = @peek_index
       @pos = @peek_pos
-      @token = @peek_token; @peek_token = nil
       @error = @peek_error; @peek_error = nil
+      @token = @peek_token; @peek_token = nil
       @token
+    end
+
+    def read(eol: false, eof: false, re: TOKEN_RE)
+      if peek?
+        if eol == false && peek_token&.kind == :EOL
+          move
+          peek(eol: eol, eof: eof, re: re)
+        end
+      else
+        peek(eol: eol, eof: eof, re: re)
+      end
+      move
     end
 
     # Return the rest of the line as a LINE token and advance to the next line
