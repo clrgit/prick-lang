@@ -73,6 +73,8 @@ module Prick::Lang
     end
 
     class Phase < Resource
+      def kind = ast.kind
+      def attr = ast.kind.downcase # Attribute name in enclosing object
     end
 
     class Provide < Resource

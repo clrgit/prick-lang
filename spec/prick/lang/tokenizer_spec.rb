@@ -82,6 +82,12 @@ describe "Prick::Lang" do
           t.read(eol: true)
           expect(t.peek(eol: true).kind).to eq :EOL
         end
+        it "returns the next token if :eol is false" do
+          l = ["exec", "eval"]
+          t = make(l)
+          t.read(eol: false)
+          expect(t.peek(eol: false).kind).to eq :EVAL
+        end
       end
       context "when at EOF" do
         it "returns an EOF token if :eof is true" do

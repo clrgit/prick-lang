@@ -23,7 +23,7 @@ module Prick::Lang
     def line = @lines[@index]
 
     # Rest of current line
-    def rest = @lines[@index][@pos..-1]
+    def rest = @lines[@index]&.[](@pos..-1)
 
     # Current line number (one-based)
     def lineno = @index + 1
@@ -82,18 +82,29 @@ module Prick::Lang
     #
     # Note that #peek has eof default true but #read has eof default false
     def peek(eol: false, eof: true, re: TOKEN_RE)
-      return @peek_token if peek?
+      trace eol: eol, eof: eof
+      if peek?
+        # Ignore peek'ed EOL or EOF token
+        if @peek_token.kind == :EOL && !eol || @peek_token.kind == :EOF && !eof
+          move
+        else
+#         puts "peek_rest: #{line[@peek_pos..-1]}"
+          return @peek_token
+        end
+      end
+
+#     return @peek_token if peek?
 
       # Handle initial EOF
       if eof?(eol: eol)
-        return handle_peek_eox(:EOF, eof)
+        return @peek_token = handle_peek_eox(:EOF, eof)
 
       # Handle initial EOL
       elsif eol?
         # Move to next line
         @peek_index += 1
         @peek_pos = 0
-        return handle_peek_eox(:EOL, true) if eol
+        return @peek_token = handle_peek_eox(:EOL, true) if eol
       end
 
       # Scan blank lines
@@ -112,7 +123,7 @@ module Prick::Lang
       args = [file, @peek_index + 1, match_charno] # First three Token#new arguments
 
       # Handle after-match EOL
-      if @peek_pos == @lines[@peek_index].size
+      if !eol && @peek_pos == @lines[@peek_index].size
         @peek_index += 1
         @peek_pos = 0
       end
@@ -149,15 +160,26 @@ module Prick::Lang
     end
 
     def read(eol: false, eof: false, re: TOKEN_RE)
-      if peek?
-        if eol == false && peek_token&.kind == :EOL
-          move
-          peek(eol: eol, eof: eof, re: re)
-        end
-      else
-        peek(eol: eol, eof: eof, re: re)
-      end
-      move
+      trace eol: eol, eof: eof
+      peek(eol: eol, eof: eof, re: re)
+
+
+#     puts "read(eol: #{eol}, eof: #{eof})"
+#     if peek?
+#       if eol == false && peek_token&.kind == :EOL
+#         move
+#         peek(eol: eol, eof: eof, re: re)
+#       end
+#     else
+#       peek(eol: eol, eof: eof, re: re)
+#     end
+      r = move
+#     puts "  rest: #{rest}"
+#     puts "  peek_token: #{peek_token.inspect}"
+#     puts "  eol?: #{eol?}"
+#     puts "  result: #{r.inspect}"
+
+      r
     end
 
     # Return the rest of the line as a LINE token and advance to the next line
@@ -258,12 +280,13 @@ module Prick::Lang
         puts "eol?: #{eol?.inspect}"
         puts "index: #{@index.inspect}"
         puts "pos: #{@pos.inspect}"
-        puts "line: #{line.inspect}"
+        puts "line: #{@line.inspect}"
         puts "rest: #{line&.[](@pos..-1).inspect}"
         puts "indent: #{@indent.inspect}"
-        puts "token: #{token.inspect}"
-        puts "error: #{error.inspect}"
-        puts "peek_error: #{peek.inspect}"
+        puts "token: #{@token.inspect}"
+        puts "error: #{@error.inspect}"
+        puts "peek_token: #{@peek_token.inspect}"
+        puts "peek_error: #{@peek_error.inspect}"
       }
     end
 

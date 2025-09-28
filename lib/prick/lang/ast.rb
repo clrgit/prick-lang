@@ -184,7 +184,7 @@ module Prick::Lang
 
     # call function
     class CallCommand < Command
-      part :refs, [Reference]
+      part :references, [Reference]
     end
 
     #

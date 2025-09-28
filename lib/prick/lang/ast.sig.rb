@@ -29,7 +29,8 @@ module Prick::Lang
     end
 
     class Decl
-      def signame = "#{Token::TOKENS[kind]} #{ident.value.inspect}"
+#     def signame = [Token::TOKENS[kind], ident&.value].join(" ")
+      def signame = ident&.value
       def sig = super([block])
     end
 
@@ -40,8 +41,13 @@ module Prick::Lang
 
     class Require
       def sig
-        puts "#{sigtitle} #{refs.map(&:value).join(", ")}"
+        puts "#{sigtitle} #{references.map(&:value).join(", ")}"
       end
+    end
+
+    class Program
+#     def signame = "Program"
+#     def sig = puts "Program"
     end
 
     class Source
@@ -59,7 +65,7 @@ module Prick::Lang
 
     class CallCommand
       def sigclass = kind.to_s.capitalize
-      def sig = puts "#{sigtitle} #{refs.map(&:value).join(", ")}"
+      def sig = puts "#{sigtitle} #{references.map(&:value).join(", ")}"
     end
 
     class If
@@ -100,11 +106,12 @@ module Prick::Lang
 
     # @token is the operator in expression objects
     class UnExpr
-      def source = "#{oper}(#{expr.source})"
+#     def source = "#{oper}(#{expr.source})"
+      def source = "#{Token::TOKENS[oper]}(#{expr.source})"
     end
 
     class BinExpr
-      def source = "#{oper}(#{lexpr.source}, #{rexpr.source})"
+      def source = "#{Token::TOKENS[oper]}(#{lexpr.source}, #{rexpr.source})"
     end
 
     class SimpleExpr

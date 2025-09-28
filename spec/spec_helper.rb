@@ -43,3 +43,5 @@ RSpec::Core::Formatters::DocumentationFormatter.prepend FormatterOverrides
 require "string-text"
 
 using String::Text
+
+#Trace.enable

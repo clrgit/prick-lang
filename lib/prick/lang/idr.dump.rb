@@ -1,18 +1,49 @@
 
 module Prick::Lang
+  using String::Text
   module Idr
     class Node
+      DUMP_ORDER = [:head, :init, :term, :meta, :seed, :auth, :functions, :schemas, :block]
+
+      def part_dump_order
+        ordered_parts = DUMP_ORDER & parts.keys
+        remaining_parts = parts.keys - ordered_parts
+        ordered_parts + remaining_parts
+      end
+
       def inspect = "<#{self.classname}>"
 
-      def dump(*text) = dump_impl(*text)
-      def dumps(*text, nodes) dump_impl(*text); indent { nodes.each &:dump } end
+      def dump(text = nil)
+        if !parts.empty?
+          puts "#{text}:" if text
+          indent { dump_parts }
+        else
+          print "#{text}: " if text
+          dump_value
+        end
+      end
 
-    private
-      # To avoid endless recursion when #dump is redefined
-      def dump_impl(*text) = puts ([self.classname] + text).compact.join(" ")
+      def dump_value() = puts "ASDF"
+
+      def dump_parts
+        part_dump_order.map { |attr| [attr, parts[attr]] }.each { |ident, value|
+          next if value.nil? || value.is_a?(Nodes) && value.empty?
+          value.dump(ident)
+        }
+      end
     end
 
     class Nodes
+      def dump(text = nil)
+        if text
+          puts "#{text}:"
+          indent { dump_parts }
+        else
+          dump_parts
+        end
+      end
+
+      def dump_parts = self.each(&:dump)
     end
 
     class Command
@@ -20,99 +51,59 @@ module Prick::Lang
 
     # Artificial node that creates a schema
     class SchemaCommand
-      def dump = puts "sql create schema"
+      def dump_value = puts "sql create schema"
     end
 
     class FileCommand
-      def dump = puts "file #{path}"
+      def dump_value = puts "file #{path}"
     end
 
     class ExternalCommand
-      def dump
+      def dump_value
         command = ast.kind.downcase
-        puts "#{command} #{ast.multiline? ? "..." : source}"
+        if ast.multiline?
+          puts command; indent { puts source }
+        else
+          puts "#{command}: #{source}"
+        end
       end
     end
 
     class CallCommand
+      def dump_value = puts "call #{ident}"
     end
 
     # Can be a schema, phase, provide, or function
     class Resource
+      def dump(text = nil)
+        super(text || ident)
+      end
+
     end
 
     class Phase
-      def dump = dumps uid, @block
     end
 
     class Provide
-      def dump = super uid
+      def dump = puts "provide #{uid}"
     end
 
     class Function
     end
 
     class Schema
-      def dump()
-        puts "Schema #{ident}"
-        indent {
-          dump_head
-          dump_phases
-          dump_functions
-          dump_block
-        }
-      end
-
-      def dump_head
-        if head
-          puts "head"; indent {
-            head.dump
-          }
-        else
-          puts "head: nil"
-        end
-      end
-
-      def dump_functions
-        puts "functions"; indent {
-          functions.each(&:dump)
-        }
-      end
-
-      def dump_phases
-        puts "phases"; indent {
-          Token::PHASES.each { |phase|
-            ident = phase.downcase.to_sym
-            if !parts[ident].nil?
-              parts[ident].dump
-            end
-          }
-        }
-      end
-
-      def dump_block
-        puts "block"; indent {
-          block.each(&:dump)
-        }
-      end
     end
 
     class Program
-      def dump_schemas
-        schemas.each { |schema| schema.dump }
-      end
+      def dump = super("Program")
     end
 
     class Require
-      def dump
-        txt = uid
-        txt += " -> #{node.class}" if node
-        super txt
-      end
+      def dump = puts "require #{uid} -> #{node.classname}"
     end
 
     class Unresolved
-      def dump() = super(uid)
+      def dump() = super "UNRESOLVED #{uid}"
     end
   end
 end

@@ -63,12 +63,13 @@ module Prick::Lang
         analyzer = Analyzer.new(parser, oracle)
         parser.parse
         if kind == "idr"
-          analyzer.analyze.dump
+          idr = analyzer.analyze
+          idr.dump
+#         analyzer.analyze.dump
         else
           analyzer.analyze_ast
           oracle.dump
         end
-
     else
       raise ArgumentError
     end

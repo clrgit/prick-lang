@@ -41,7 +41,6 @@ module Prick::Lang
       if !@tokenizer.peek? # Can't use #eof? because we may have to scan through comments
         unexpected_token_error "end of file"
       end
-      @ast.build_tree
       @ast
     end
 
@@ -49,14 +48,14 @@ module Prick::Lang
 
   protected
     def parse_program
-#     puts "#parse_program"
+      trace
       @ast = Ast::Program.new(file)
       @ast.block = parse_block
       @ast
     end
 
     def parse_stmt
-#     puts "#parse_stmt"
+      trace
 #     puts "  peek: #{peek.inspect}"
       case peek&.kind
         when :SCHEMA; parse_decl(Ast::Schema, read)
@@ -77,8 +76,7 @@ module Prick::Lang
     end
 
     def parse_stmts(check: true)
-#     puts "#parse_stmts(check: #{check})"
-#     puts "  peek: #{peek.inspect}"
+      trace
       check_expected "statement" do
         stmts = []
         while stmt = parse_stmt
@@ -92,6 +90,7 @@ module Prick::Lang
     # :check is true (the default)
     #
     def parse_block(token = nil, check: true)
+      trace token, peek
       check_expected "block" do
         block = Ast::Block.new(token) # Note that token may be nil, it is assigned later if so
         block.stmts = parse_stmts
@@ -101,11 +100,11 @@ module Prick::Lang
       end
     end
 
+
     # Schema, phase, or function declarations. Uses that they have the same
     # parts
     def parse_decl(klass, token)
-#     puts "#parse_decl(#{klass.classname}, #{token.text.inspect})"
-#     puts "  token: #{token.inspect}"
+      trace token
       decl = klass.new(token)
       decl.ident = parse_name
       token = readkind(:BRACE_BEGIN)
@@ -154,7 +153,7 @@ module Prick::Lang
     end
 
     def parse_if
-#     puts "#parse_if"
+      trace
       if_ = Ast::If.new(peek)
       loop do
         if_then = Ast::IfThen.new(read)
@@ -192,7 +191,7 @@ module Prick::Lang
     # Parse an expression. It uses the shunter to compile the source into
     # reverse polish notation that is then converted into an Ast::Expr
     def parse_expr
-#     puts "#parse_expr"
+      trace
       stack = []
       shunt_exprs.each { |token| # Token is either a SimpleExpr or a operator token
         if token.is_a? Ast::SimpleExpr
@@ -217,30 +216,31 @@ module Prick::Lang
     # Parses list of words (cmd, env, user). Note: Called from the shunter to
     # generate simple expressions
     def parse_simple_expr # token should be equal to #peek
-#     puts "parse_simple_expr"
-      case peek.kind
+      trace
+      token = read(eol: true)
+      case token.kind
         when :CMD, :ENV, :USER
-          expr = Ast::RuntimeExpr.new(read)
+          expr = Ast::RuntimeExpr.new(token)
           expr.ident = Ast::Ident.new(expr.token)
           expr.words = parse_idents
         when :VAR
-          expr = Ast::RuntimeExpr.new(read)
+          expr = Ast::RuntimeExpr.new(token)
           expr.ident = Ast::Ident.new(readkind(:IDENT, :CMD, :ENV, :USER))
           expr.words = parse_idents
         when :SCHEMA
-          expr = Ast::ReferenceExpr.new(read)
+          expr = Ast::ReferenceExpr.new(token)
           expr.ref = Ast::Reference.new(readkind *Token::IDENTS)
         when :OBJECT
-          expr = Ast::ReferenceExpr.new(read)
+          expr = Ast::ReferenceExpr.new(token)
           expr.ref = Ast::Reference.new(readkind *Token::REFS)
         when :RESOURCE
-          expr = Ast::ReferenceExpr.new(read)
+          expr = Ast::ReferenceExpr.new(token)
           expr.ref = Ast::Reference.new(readkind *Token::REFS)
         when :VERSION
-          expr = Ast::VersionExpr.new(read)
-          while VERSION_OPERATORS.include?(peek.kind)
-            match = Ast::VersionMatch.new(read)
-            match.version = Ast::Ver.new(readkind(:VER))
+          expr = Ast::VersionExpr.new(token)
+          while VERSION_OPERATORS.include?(peek(eol: true).kind)
+            match = Ast::VersionMatch.new(read(eol: true))
+            match.version =  Ast::Ver.new(readkind(:VER, eol: true))
             expr.matches << match
           end
           !expr.matches.empty? or unexpected_token_error peek, "version operator"
@@ -272,11 +272,19 @@ module Prick::Lang
       end
     end
 
-    def parse_ident? = Token::IDENTS.include?(peek&.kind) ? Ast::Ident.new(read) : nil
-    def parse_ident = Ast::Ident.new(readkind(*Token::IDENTS))
+    def parse_ident?
+      trace
+      return nil if @tokenizer.eol?
+      token = peek(eol: true)
+      Token::IDENTS.include?(token.kind) ? Ast::Ident.new(read(eol: true)) : nil
+    end
+    def parse_ident = Ast::Ident.new(readkind(*Token::IDENTS, eol: true))
 
     def parse_idents? = readwhile? { parse_ident? }
-    def parse_idents = check_expected("identifier") { readwhile { parse_ident? } }
+    def parse_idents
+      trace
+      check_expected("identifier", eol: true) { readwhile { parse_ident? } }
+    end
 
     # Single-component reference used in declarations. It parsed as a Reference object
     # because we later want to compute the uid
@@ -312,7 +320,6 @@ module Prick::Lang
     def parse_constant
       Ast::Const.new(readkind(*CONSTANTS))
     end
-
     #
     # T O K E N I Z E R  I N T E R F A C E
     #
@@ -331,7 +338,7 @@ module Prick::Lang
     def readtext?(indent, **opts) = @tokenizer.readtext(indent, **opts)
     def readtext(indent, **opts) = @tokenizer.readtext(indent, **opts) or error(@tokenizer.error_token)
 
-    def readkind?(*kinds, **opts) = kinds.include?(peek&.kind) ? read : nil
+    def readkind?(*kinds, **opts) = kinds.include?(peek(**opts)&.kind) ? read(**opts) : nil
     def readkind(*kinds, **opts) = readkind?(*kinds, **opts) or unexpected_token_error kinds
     # Note: Returns an empty list if no token was found
     def readkinds?(*kinds, **opts)
@@ -341,7 +348,7 @@ module Prick::Lang
       end
       a
     end
-    def readkinds(*kinds, **opts) = [readkind(*kinds)] + readkinds?(kinds, **opts)
+    def readkinds(*kinds, **opts) = [readkind(*kinds, **opts)] + readkinds?(kinds, **opts)
 
     # Return nil if empty
     def readwhile(&block) = (r = readwhile?(&block)).empty? ? nil : r
@@ -361,27 +368,41 @@ module Prick::Lang
     # S H U N T I N G
     #
 
+    # if a ||
+    #   b
+    # if schema
+    #   a
+
     # Returns a reversed Polish notation list of SimpleExpression objects and operator tokens
     def shunt_exprs
+      trace
 #     puts "#shunt_exprs"
       stack = []
       output = []
       token_args = {} # Map from list operators 'env' and 'cmd' to array of arguments
 
-      while token = peek
+      accept_eol = true
+      while token = tokenizer.peek(eol: true)
         case token.kind
+          when :EOL
+            break if !accept_eol
+            read(eol: true)
           when :PAREN_BEGIN
-            stack.push(read)
+            accept_eol = true
+            stack.push(read(eol: true))
           when :PAREN_END
-            read
+            accept_eol = true
+            read(eol: true)
             while op = stack.pop and op.kind != :PAREN_BEGIN
               output << op
             end
           when *CONSTANTS
+            accept_eol = false
             output << parse_simple_expr
           else
+            accept_eol = false
             oper = OPERATORS[token.kind] or break
-            read
+            read eol: true
             while top = OPERATORS[stack.last&.kind]
               break if oper[:prior] > top[:prior]
               break if oper[:prior] == top[:prior] && oper[:assoc] == :right
@@ -421,8 +442,16 @@ module Prick::Lang
       error token, message
     end
 
-    def check_expected(words, &block)
-      token = peek and r = yield(token) or unexpected_token_error token, words
+    def check_expected(words, eol: false, &block)
+      trace words, eol: eol
+#     token = peek(eol: eol)
+#     if token.kind == :EOL
+#       error token, words
+#     else
+
+#     token = peek(eol: eol)
+
+      token = peek(eol: eol) and token.kind != :EOL and r = yield(token) or unexpected_token_error token, words
       r
     end
 

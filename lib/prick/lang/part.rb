@@ -14,8 +14,6 @@ module Prick::Lang
       }
       @children.dup.each { detach _1 }
       parts.each { attach _1 }
-
-#     @children = parts
     end
 
     # TODO Remove?
@@ -23,7 +21,6 @@ module Prick::Lang
       !node.nil? or raise ArgumentError
       node.is_a? element_klass or unexpected_error element_klass, node
       attach(node)
-#     @children << node
     end
 
     def self.included(other)
@@ -39,8 +36,10 @@ module Prick::Lang
       @klass = whole.class
     end
 
+    def empty?() = @klass.parts.empty?
     def key?(ident) = @klass.part? ident
     def keys() = @klass.parts.keys
+    def values() = @keys.map { whole.send(_1) }
 
     def each(&block) = keys.each { |ident| yield ident, whole.send(ident) }
 
@@ -54,6 +53,10 @@ module Prick::Lang
       @klass.part? ident or
           raise ArgumentError, "Unknown member of #{whole.classname}: #{ident}"
       @whole.send(:"#{ident}=", value)
+    end
+
+    def to_h
+      keys.map { |ident| [ident, whole.send(ident)] }.to_h
     end
   end
 
@@ -94,15 +97,6 @@ module Prick::Lang
         "[#{@@ARRAY_PARTS[self][ident].classname}]"
       else
         klass.classname
-      end
-    end
-
-    def build_tree
-#     puts "#{self.classname}#build_tree"
-      for ident, klass, element_klass in @@PARTS[self.class] || []
-        part = parts[ident] or next
-        part.build_tree
-        attach(part)
       end
     end
 
@@ -151,6 +145,7 @@ module Prick::Lang
         }
       end
 
+      # Register part
       @@PARTS[self][ident] = klass
       @@ARRAY_PARTS[self][ident] = element_klass if element_klass
     end

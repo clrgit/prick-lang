@@ -78,41 +78,6 @@ module Prick::Lang
       }
     end
 
-    # Note: Sets oracle.schema while processing contained nodes and resets it to nil
-    # afterwards
-    def analyze_schema(ast)
-      trace
-      constrain ast, Ast::Schema
-      schema = oracle.add(ast.ident) { |uid| Idr::Schema.new(ast, uid) }
-      schema.head = Idr::SchemaCommand.new(ast)
-      oracle.scope(schema) {
-        schema.block = analyze_stmts(ast.block)
-      }
-      schema
-    end
-
-    def analyze_program(ast)
-      trace
-      program = Idr::Program.new(ast, "::")
-
-      #############################################################################
-      # How to find program of schema, schema of phase, etc.
-
-      program.schemas = []
-      program
-      for stmt in ast.block.stmts
-        case stmt
-          when Ast::Decl
-            if stmt.kind == :SCHEMA
-              program.schemas << analyze_schema(stmt)
-            end
-        else
-          error stmt, "Expected schema declaration"
-        end
-      end
-      program
-    end
-
     def analyze_stmts(ast)
       trace
       constrain ast, Ast::Block
@@ -136,14 +101,29 @@ module Prick::Lang
       stmts
     end
 
-#   CONTAINMENTS = {
-#     Program => [Phase, Function, Schema, Require, Provide],
-#     Schema => [Phase, Function, Require, Provide],
-#     Phase => [Require, Provide],
-#     Function => []
-#   }
+    def analyze_program(ast)
+      trace
+      constrain ast, Ast::Program
+      program = Idr::Program.new(ast, "::")
+      oracle.scope(program) {
+        program.block = analyze_stmts(ast.block)
+      }
+      program
+    end
 
-
+    # Note: Sets oracle.schema while processing contained nodes and resets it to nil
+    # afterwards
+    def analyze_schema(ast)
+      trace
+      constrain ast, Ast::Schema
+      schema = oracle.add(ast.ident) { |uid| Idr::Schema.new(ast, uid) }
+      oracle.context.schemas << schema
+      schema.head = Idr::SchemaCommand.new(ast)
+      oracle.scope(schema) {
+        schema.block = analyze_stmts(ast.block)
+      }
+      []
+    end
 
     def analyze_provide(ast)
       constrain ast, Ast::Provide
@@ -155,8 +135,11 @@ module Prick::Lang
       constrain ast, Ast::Phase
       trace
       phase = oracle.add(ast.ident) { |uid| Idr::Phase.new(ast, uid) }
-      phase.block = analyze_stmts(ast.block)
-      phase
+      oracle.context.parts[phase.attr] = phase
+      oracle.scope(phase) {
+        phase.block = analyze_stmts(ast.block)
+      }
+      []
     end
 
     def analyze_require(ast)

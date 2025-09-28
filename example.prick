@@ -1,4 +1,13 @@
 
+
+if env prod
+  schema prod_schema {
+    prod_schema.sql
+  }
+end
+
+__END__
+
 schema another_schema {
   another_schema.sql
   provide has_another_schema
