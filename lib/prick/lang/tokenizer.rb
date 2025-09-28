@@ -74,9 +74,6 @@ module Prick::Lang
     # True if we have a peek'ed token
     def peek? = !@peek_token.nil? || !@peek_error.nil?
 
-#   # Indent of peek'ed line
-#   def peek_indent(l = @lines[@peek_index]) = l && l[/\A */].size
-
     # Return nil if no regular token was found but return EolToken/EofToken if
     # :eol/:eof is true and at the end of line/file
     #
@@ -85,15 +82,12 @@ module Prick::Lang
       trace eol: eol, eof: eof
       if peek?
         # Ignore peek'ed EOL or EOF token
-        if @peek_token.kind == :EOL && !eol || @peek_token.kind == :EOF && !eof
+        if @peek_token&.kind == :EOL && !eol || @peek_token&.kind == :EOF && !eof
           move
         else
-#         puts "peek_rest: #{line[@peek_pos..-1]}"
           return @peek_token
         end
       end
-
-#     return @peek_token if peek?
 
       # Handle initial EOF
       if eof?(eol: eol)
@@ -162,24 +156,7 @@ module Prick::Lang
     def read(eol: false, eof: false, re: TOKEN_RE)
       trace eol: eol, eof: eof
       peek(eol: eol, eof: eof, re: re)
-
-
-#     puts "read(eol: #{eol}, eof: #{eof})"
-#     if peek?
-#       if eol == false && peek_token&.kind == :EOL
-#         move
-#         peek(eol: eol, eof: eof, re: re)
-#       end
-#     else
-#       peek(eol: eol, eof: eof, re: re)
-#     end
-      r = move
-#     puts "  rest: #{rest}"
-#     puts "  peek_token: #{peek_token.inspect}"
-#     puts "  eol?: #{eol?}"
-#     puts "  result: #{r.inspect}"
-
-      r
+      move
     end
 
     # Return the rest of the line as a LINE token and advance to the next line
@@ -198,8 +175,6 @@ module Prick::Lang
     # Leading and traling blank lines are ignored (but counted). Note that
     # #readtext will read the rest of the file if min_indent is 0
     def readtext(min_indent, eof: false)
-#     puts "#readtext(#{min_indent}, eof: #{eof})"
-
       !eof? or return handle_eox(:EOF, eof)
       bol? or raise InternalError # We have to be at the beginning of line
 
@@ -327,7 +302,6 @@ module Prick::Lang
     # Return index of first non blank line including the current line. Ignore
     # comment-only lines unless :comment is true.  Returns lines.size on eof
     def scanlines(index = @index, comment: false)
-#     puts "#scanlines(#{index}, comment: #{comment})"
       re = (!comment ? Token::COMMENT_LINE_RE : Token::BLANK_LINE_RE)
       offset = @lines[index..-1].find_index { |l| !re.match(l) }
       (offset ? index + offset : @lines.size)

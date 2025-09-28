@@ -6,8 +6,6 @@ if env prod
   }
 end
 
-__END__
-
 schema another_schema {
   another_schema.sql
   provide has_another_schema
