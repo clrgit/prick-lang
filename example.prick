@@ -6,6 +6,10 @@ if env prod
   }
 end
 
+init {
+  outermost-init.sql
+}
+
 schema another_schema {
   another_schema.sql
   provide has_another_schema

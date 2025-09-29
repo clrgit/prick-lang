@@ -58,9 +58,9 @@ module Prick::Lang
       {
         Program: %w(Schema Phase Function Require Provide),
         Schema: %w(Phase Function Require Provide),
+        Phase: %w(Require Provide),
         Require: %w(),
         Provide: %w(),
-        Phase: %w(Require Provide),
         Function: %w()
       }.each { |parent, children|
         parent_klass = Kernel::const_get("Prick::Lang::Ast::#{parent}")
@@ -85,7 +85,6 @@ module Prick::Lang
       ast.stmts.each { |stmt|
         stmts += Array(
           case stmt
-#           when Ast::Block; analyze_stmts(stmt)
             when Ast::Schema; analyze_schema(stmt)
             when Ast::Provide; analyze_provide(stmt)
             when Ast::Require; analyze_require(stmt)
