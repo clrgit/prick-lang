@@ -36,6 +36,7 @@ module Prick::Lang
     end
 
     def analyze_idr
+#     build_unresolved
       analyze_resources
       @idr
     end
@@ -126,7 +127,10 @@ module Prick::Lang
       for if_then in ast.if_thens
         case evaluator.eval(if_then.expr)
           when nil
-            Idr::Unresolved.new(oracle.context, ast, evaluator.unresolved, oracle.ensure(evaluator.unresolved))
+            context.block <<
+                Idr::Unresolved.new(
+                  oracle.context, context.block.size, ast,
+                  evaluator.unresolved, oracle.ensure(evaluator.unresolved))
           when true
             build_stmts(if_then.then_)
             return

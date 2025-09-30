@@ -140,14 +140,23 @@ module Prick::Lang
     #
 
     class Unresolved < Node
+      attr_reader :index # Index in context.block
+      # Quacks like a resource so context.block is valid in #build_X methods.
+      # The problem is that all #build_X methods adds themselves to the context
+      # at the end of the context's commands
+      #
+      # Maybe maintain an insertion point for each context on the stack?
+      attr_reader :block
+
       attr_reader :unresolved # Ast::Reference
 
       # UID of the (first) unresolved resource
       attr_reader :uid
 
-      def initialize(parent, ast, unresolved, uid)
+      def initialize(parent, index, ast, unresolved, uid)
         constrain unresolved, Ast::Reference
         super parent, ast
+        @index = index
         @unresolved = unresolved
         @uid = uid
       end
