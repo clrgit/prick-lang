@@ -8,6 +8,7 @@ end
 
 init {
   outermost-init.sql
+  provide outermost_init
 }
 
 schema another_schema {
@@ -45,6 +46,7 @@ schema my_schema {
     else
       ic.sql
     end
+    provide inner_init
     require my_schema.has_a
   }
 

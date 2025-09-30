@@ -3,10 +3,10 @@ module Prick::Lang
   class Oracle
     include ErrorFunctions
 
-    # . Maintained by the #analyzer
-    attr_accessor :contexts
+    # Stack of contexts
+    attr_accessor :contexts # [Resource]
 
-    # Current containing Resource object
+    # Current Resource object
     def context = @contexts.last
 
     def initialize(variables)
@@ -15,17 +15,18 @@ module Prick::Lang
       @resources = {}
     end
 
+    def uid(ident)
+      constrain ident, String
+      (ident.index('.') ? ident : [context.uid, ident].compact.join("."))
+    end
+
     # Execute block with the given context
     def scope(context, &block)
+      constrain context, Idr::Resource
       @contexts.push context
       r = yield
       @contexts.pop
       r
-    end
-
-    def uid(name)
-      l, r = name.split(".")
-      (r ? [l,r] : [context&.ident, l].compact).join(".")
     end
 
     # Add an unknown resource if not present. Return the uid
@@ -36,39 +37,19 @@ module Prick::Lang
       uid
     end
 
-    # Add a present resource and return uid. It is an error if the resource is
-    # absent but not if it not known
-#   def add(value)
-#     constrain value, Ast::Value
-#     uid = self.uid(value.value)
-#     if !@resources[uid].nil?
-#       if @resources[uid]
-#         error value, "Redefinition of '#{uid}'"
-#       else
-#         error value, "'#{uid}' has been marked absent"
-#       end
-#     end
-#     @resources[uid] = true
-#     uid
-#   end
-
-    def add(ref, &block)
-      constrain ref, Ast::Reference, Ast::Ident
-      uid = self.uid(ref.value)
-      node = yield(uid)
+    # Add a present resource. It is an error if the resource is absent but not
+    # if it is unknown
+    def add(resource)
+      constrain resource, Idr::Resource
+      uid = resource.uid
       if !@resources[uid].nil?
         if @resources[uid]
-          error value, "Redefinition of '#{uid}'"
+          error resource.token, "Redefinition of '#{uid}'"
         else
-          error value, "'#{uid}' has been marked absent"
+          error resource.token, "'#{uid}' has been marked absent"
         end
       end
-      @resources[uid] = node
-    end
-
-    def resolve_uid(uid, node)
-      constrain node, Idr::Resource
-      @resources[uid] = node
+      @resources[uid] = resource
     end
 
     # Runtime variables

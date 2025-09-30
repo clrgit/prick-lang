@@ -67,7 +67,7 @@ module Prick::Lang
           idr.dump
 #         analyzer.analyze.dump
         else
-          analyzer.analyze_ast
+          analyzer.build_idr
           oracle.dump
         end
     else

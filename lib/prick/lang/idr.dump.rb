@@ -3,47 +3,46 @@ module Prick::Lang
   using String::Text
   module Idr
     class Node
-      DUMP_ORDER = [:head, :init, :term, :meta, :seed, :auth, :functions, :schemas, :block]
-
-      def part_dump_order
-        ordered_parts = DUMP_ORDER & parts.keys
-        remaining_parts = parts.keys - ordered_parts
-        ordered_parts + remaining_parts
-      end
-
-      def inspect = "<#{self.classname}>"
+      PARTS = []
 
       def dump(text = nil)
-        if !parts.empty?
-          puts "#{text}:" if text
-          indent { dump_parts }
-        else
-          print "#{text}: " if text
-          dump_value
-        end
+        puts text if text
+        dump_parts
       end
-
-      def dump_value() = puts "ASDF"
 
       def dump_parts
-        part_dump_order.map { |attr| [attr, parts[attr]] }.each { |ident, value|
-          next if value.nil? || value.is_a?(Nodes) && value.empty?
-          value.dump(ident)
-        }
-      end
-    end
-
-    class Nodes
-      def dump(text = nil)
-        if text
-          puts "#{text}:"
-          indent { dump_parts }
-        else
-          dump_parts
+        for part in self.class::PARTS
+          value = self.send(part)
+          indent {
+            case value
+              when Node
+                puts part
+                indent { value.dump }
+              when Hash
+                value.each { |part, value|
+                  next if value.nil?
+                  value.dump
+                }
+              when Array
+                if value.empty?
+                  puts "#{part}: []"
+                else
+                  puts part
+                  indent {
+                    value.each { |val|
+                      case val
+                        when Node; val.dump
+                        else puts val.inspect
+                      end
+                    }
+                  }
+                end
+              else
+                puts "#{part}: #{value}"
+            end
+          }
         end
       end
-
-      def dump_parts = self.each(&:dump)
     end
 
     class Command
@@ -51,11 +50,11 @@ module Prick::Lang
 
     # Artificial node that creates a schema
     class SchemaCommand
-      def dump_value = puts "sql create schema"
+      def dump = puts "sql create schema"
     end
 
     class FileCommand
-      def dump_value = puts "file #{path}"
+      def dump = puts "file #{path}"
     end
 
     class ExternalCommand
@@ -70,36 +69,38 @@ module Prick::Lang
     end
 
     class CallCommand
-      def dump_value = puts "call #{ident}"
+      def dump = puts "call #{ident}"
+    end
+
+    class RequireCommand
+      def dump = puts "require #{uid} -> #{node.classname}"
     end
 
     # Can be a schema, phase, provide, or function
     class Resource
-      def dump(text = nil)
-        super(text || ident)
-      end
-
-    end
-
-    class Phase
+      def dump(ident = self.ident) puts ident; dump_parts end
     end
 
     class Provide
       def dump = puts "provide #{uid}"
+      def dump_parts = nil # nop
     end
 
     class Function
+      PARTS = [:block]
+    end
+
+    class Phase
+      PARTS = [:block]
     end
 
     class Schema
+      PARTS = [:head, :functions, :phases, :block]
     end
 
     class Program
-      def dump = super("Program")
-    end
-
-    class Require
-      def dump = puts "require #{uid} -> #{node.classname}"
+      PARTS = [:head, :functions, :phases, :schemas, :block]
+      def dump = super "Program"
     end
 
     class Unresolved
@@ -107,5 +108,4 @@ module Prick::Lang
     end
   end
 end
-
 

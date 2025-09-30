@@ -27,6 +27,7 @@ module Prick::Lang
       end
     end
 
+  private
     def eval_expr(expr)
       trace expr
       case expr

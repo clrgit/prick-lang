@@ -147,15 +147,11 @@ module Prick::Lang
     class Function < Decl
     end
 
-    class Phase < Function
+    class Phase < Decl # WAS Function FIXME
     end
 
     class Schema < Decl
     end
-
-    #
-    # P R O G R A M
-    #
 
     class Program < Decl
       def initialize(file)
