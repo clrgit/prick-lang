@@ -9,10 +9,16 @@ describe "Prick::Lang" do
 
 
     describe "Part" do
-      def klass() Class.new(root) do
-          part :a
-          part :b, Integer
-        end
+      # Can't get this to work with dynamic classes so we have to hope these
+      # globally defined classes are unique
+      class __RSpecPart_PartKlass < Prick::Lang::Part
+        attr_reader :value
+        def initialize(value) @value = value end
+      end
+
+      class __RSpecPart_Klass < Prick::Lang::Part
+        part :a
+        part :b, __RSpecPart_PartKlass
       end
 
       describe "::root" do
@@ -47,21 +53,21 @@ describe "Prick::Lang" do
 
       describe "::part" do
         it "register a part object" do
-          expect(klass.parts.key? :a).to eq true
+          expect(__RSpecPart_Klass.parts.key? :a).to eq true
         end
 
         it "register the class of the part object" do
-          expect(klass.parts[:b]).to eq Integer
+          expect(__RSpecPart_Klass.parts[:b]).to eq __RSpecPart_PartKlass
         end
 
         it "creates a part object reader" do
-          obj = klass.new
+          obj = __RSpecPart_Klass.new
           expect(obj.respond_to? :a).to eq true
           expect(obj.respond_to? :b).to eq true
         end
 
         it "creates a part object writer" do
-          obj = klass.new
+          obj = __RSpecPart_Klass.new
           expect(obj.respond_to? :a=).to eq true
           expect(obj.respond_to? :b=).to eq true
         end
@@ -69,7 +75,7 @@ describe "Prick::Lang" do
 
       describe "<part>()" do
         it "returns the value of the part object" do
-          obj = klass.new
+          obj = __RSpecPart_Klass.new
           obj.instance_variable_set(:@b, 42)
           expect(obj.b).to eq 42
         end
@@ -77,9 +83,9 @@ describe "Prick::Lang" do
 
       describe "<part>=(value)" do
         it "sets the value of the part object" do
-          obj = klass.new
-          obj.b = 42
-          expect(obj.b).to eq 42
+          obj = __RSpecPart_Klass.new
+          obj.b = __RSpecPart_PartKlass.new(42)
+          expect(obj.b.value).to eq 42
         end
       end
 

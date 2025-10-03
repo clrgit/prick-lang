@@ -109,6 +109,7 @@ module Prick::Lang
     def self.part(ident, constraint = Part)
       constrain ident, Symbol
       constrain constraint, Class, [Class]
+      constrain Array(constraint).all? { _1 <= Part }, true # Only Part classes can be parts
 
       method = :"#{ident}="
       member = :"@#{ident}"

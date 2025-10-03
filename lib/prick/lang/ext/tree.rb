@@ -1,30 +1,4 @@
 
-#
-# a
-#   b
-#     c
-#     d
-# e
-#   f
-#
-
-# pairs(true, true)
-#   ab
-#   bc
-#   bd
-#   ae
-#   ef
-#
-# pairs(true, [bf]
-#   ab
-#   ef
-
-
-
-
-
-
-
 module Tree
   attr_reader :parent
   attr_reader :children
