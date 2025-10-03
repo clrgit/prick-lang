@@ -3,8 +3,9 @@
 module Prick::Lang
   module Idr
     class Node
-      include Tree
       include ClassFunctions
+
+      attr_reader :parent # Idr::Resource or nil for top-level Program object
 
       attr_reader :ast # Ast::Node
       forward_to :ast, :token
@@ -12,36 +13,9 @@ module Prick::Lang
       def initialize(parent, ast)
         constrain parent, Idr::Resource, nil
         constrain ast, Ast::Node, nil
+        @parent = parent
         @ast = ast
-        Tree.initialize(self, parent)
       end
-
-#     def self.parts(*syms)
-#       @@PARTS[self] = syms
-#     end
-
-
-
-#     def children
-#       @@PARTS[self.class].map { |ident|
-#         child = self.instance_variable_get(:"@#{ident}")
-#         case child
-#           when Node; [child, child.children]
-#           when Array
-#             child.map { |elem|
-#       }
-#     end
-#
-#     def crawl(node)
-#       case node
-#         when Node;
-#         when Array; node.map { |
-#       end
-#     end
-#
-#     def self.part(sym)
-#     end
-
 
       def inspect = "<#{self.class}>"
     end
@@ -86,6 +60,7 @@ module Prick::Lang
 
     # Can be a schema, phase, provide, or function
     class Resource < Node
+      def klass = self.class
       attr_reader :ident # String
       attr_reader :block # [Node]
       def uid = [parent&.uid, ident].compact.join(".")
@@ -94,6 +69,10 @@ module Prick::Lang
         super(parent, ast)
         @ident = ast&.ident&.value
         @block = []
+      end
+
+      def flatten
+        @block = @block.flat_map { |node| node.is_a?(Unresolved) ? node.flatten : node }
       end
     end
 
@@ -139,28 +118,40 @@ module Prick::Lang
     # U N R E S O L V E D
     #
 
-    class Unresolved < Node
-      attr_reader :index # Index in context.block
-      # Quacks like a resource so context.block is valid in #build_X methods.
-      # The problem is that all #build_X methods adds themselves to the context
-      # at the end of the context's commands
-      #
-      # Maybe maintain an insertion point for each context on the stack?
-      attr_reader :block
+    class Unresolved < Resource
+      forward_to :parent, :ident, :uid, :klass
 
+      # Unresolved Ast node
       attr_reader :unresolved # Ast::Reference
 
       # UID of the (first) unresolved resource
-      attr_reader :uid
+      attr_reader :unresolved_uid
 
-      def initialize(parent, index, ast, unresolved, uid)
+      def initialize(parent, ast, unresolved, unresolved_uid)
+        constrain parent, Idr::Resource
+        constrain ast, Ast::Control
         constrain unresolved, Ast::Reference
-        super parent, ast
-        @index = index
+        super parent, nil
+        @ast = ast
         @unresolved = unresolved
-        @uid = uid
+        @unresolved_uid = unresolved_uid
       end
+
+#     def flatten
+#       block.map { |node| node.is_a?(Unresolved) ? node.flatten : node }
+#     end
     end
+
+    # An unresolved object quacks like the containing resource but has its own
+    # block. By pushing an unresolved object to the oracle's context stack, the
+    # usual #build_X methods will still work. Unresolved objects are later
+    # flattened into the parent's block
+#   class Unresolved < Node
+#     attr_reader :unresolved # Ast::Reference
+#
+#     # UID of resource
+#     def uid = parent.uid
+#   end
   end
 end
 

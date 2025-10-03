@@ -147,7 +147,7 @@ module Prick::Lang
     class Function < Decl
     end
 
-    class Phase < Decl # WAS Function FIXME
+    class Phase < Decl
     end
 
     class Schema < Decl

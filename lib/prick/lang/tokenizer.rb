@@ -61,6 +61,17 @@ module Prick::Lang
       reset_peek
     end
 
+#   def push_opts(eol: nil, eof: nil)
+#     eol ||= @default_eol
+#     eof ||= @defualt_eof
+#     @opts.push [eol: eol, eof: eof]
+#   end
+#
+#   def pop_opts
+#     @opts.pop
+#     @default_eol, @default
+#   end
+
     # Return true if at end of file
     def eof?(eol: false) = @index >= @lines.size + (eol ? 1 : 0)
 
@@ -79,7 +90,6 @@ module Prick::Lang
     #
     # Note that #peek has eof default true but #read has eof default false
     def peek(eol: false, eof: true, re: TOKEN_RE)
-      trace eol: eol, eof: eof
       if peek?
         # Ignore peek'ed EOL or EOF token
         if @peek_token&.kind == :EOL && !eol || @peek_token&.kind == :EOF && !eof
@@ -144,6 +154,12 @@ module Prick::Lang
           end
     end
 
+    def with(eol: false, eof: false, &block)
+      @default_eol = eol
+      @default_eof = eof
+      yield
+    end
+
     # Return current peek'ed token and move to next token
     def move
       @index = @peek_index
@@ -154,7 +170,6 @@ module Prick::Lang
     end
 
     def read(eol: false, eof: false, re: TOKEN_RE)
-      trace eol: eol, eof: eof
       peek(eol: eol, eof: eof, re: re)
       move
     end

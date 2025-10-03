@@ -36,10 +36,11 @@ module Prick::Lang
     end
 
     def analyze_idr
-#     build_unresolved
+      build_unresolved
       analyze_resources
       @idr
     end
+
 
     def inspect() = "<#{self.class}>"
 
@@ -54,7 +55,7 @@ module Prick::Lang
 
     # The ast argument is only used in the error message
     def check_context(ast, *expected)
-      expected.include?(oracle.context.class) or
+      expected.include?(oracle.context.klass) or
           error ast, "#{ast.classname} can't be nested within a #{oracle.context.classname}"
     end
 
@@ -98,7 +99,9 @@ module Prick::Lang
       constrain ast, Ast::Require
       check_context ast, Idr::Program, Idr::Schema, Idr::Phase
       context.block.concat \
-          ast.references.map { |ref| Idr::RequireCommand.new(oracle.context, ref, ref.value) }
+          ast.references.map { |ref|
+            Idr::RequireCommand.new(oracle.context, ref, ref.value).tap { oracle.requires << _1 }
+          }
     end
 
     def build_command(ast)
@@ -127,10 +130,13 @@ module Prick::Lang
       for if_then in ast.if_thens
         case evaluator.eval(if_then.expr)
           when nil
-            context.block <<
+            unresolved =
                 Idr::Unresolved.new(
-                  oracle.context, context.block.size, ast,
-                  evaluator.unresolved, oracle.ensure(evaluator.unresolved))
+                    oracle.context, ast,
+                    evaluator.unresolved, oracle.ensure(evaluator.unresolved))
+            oracle.unresolved << unresolved
+            context.block << unresolved
+            return
           when true
             build_stmts(if_then.then_)
             return
@@ -164,53 +170,52 @@ module Prick::Lang
       }
     end
 
+    # Resources can be defined after they have been marked unresolved so we
+    # need an extra set of passes that resolve references to these new defined
+    # resources. Only after no more progress can be made, the remaining
+    # unresolved resources are marked absent and the process start again
+    #
     def build_unresolved
-      while true
-        unresolved = false
-        while true
+      return if oracle.unresolved.empty?
+
+      # Save unresolved nodes that are to be flattened later (ups: doens't
+      # include new nodes)
+      original = oracle.unresolved
+
+      while true # Last-resort loop that marks unknown resources absent
+        progress = true
+        while progress # Resolved later-defined resources
+          unresolved = oracle.unresolved
+          oracle.unresolved = []
           progress = false
-
-          # IDEA Add the index in parent.block to unresolved objects so they can
-          # replace themselves in the parent. Then we can keep a short-list of
-          # unresolved objects that we can process without going through all
-          # other objects
-
-          #
-          # that is
-#         schema.block.each.with_index { |node, i|
-#
-#         }
-
-          @idr.schemas.each { |schema| # runs through all nodes several times FIXME
-            schema.block = schema.block.map { |node|
-              if node.is_a?(Idr::Unresolved)
-                if oracle.known?(node.uid)
-                  result = build_control(node.ast)
-                  progress = true
-                  unresolved ||= result.is_a?(Idr::Unresolved)
-                  result
-                else
-                  unresolved = true
-                  node
-                end
-              else
-                node
-              end
-            }.flatten
-          }
-          break if !progress
+          for node in unresolved
+            if oracle.unknown?(node.unresolved_uid)
+              oracle.unresolved << node
+            else
+              progress = true
+              block = node.parent.block
+              oracle.scope(node) { build_control(node.ast) }
+            end
+          end
         end
-        return if !unresolved
+
+        break if oracle.unresolved.empty?
         oracle.mark_unknown_absent
       end
+
+      # Flat now-resolved nodes into parent block
+      original.map(&:parent).uniq.each { |resource|
+        resource.flatten
+      }
     end
 
     def analyze_resources
       trace
-      @idr.trees(Idr::RequireCommand) { |req|
-        oracle.present?(req.uid) or error req, "Can't find resource '#{req.uid}'"
-        req.node = oracle[req.uid]
+      oracle.requires.each { |require_|
+        oracle.present?(require_.uid) or error req, "Can't find resource '#{require_.uid}'"
+        require_.node = oracle[require_.uid]
       }
+
 #     for schema in @idr.schemas
 #       schema.block.each { |node|
 #         if node

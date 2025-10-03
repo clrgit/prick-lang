@@ -29,7 +29,6 @@ module Prick::Lang
 
   private
     def eval_expr(expr)
-      trace expr
       case expr
         when Ast::VersionMatch
           puts "TODO"
@@ -68,7 +67,7 @@ module Prick::Lang
         when Ast::ReferenceExpr
           uid = oracle.uid(expr.ref.literal)
           if oracle.known?(uid)
-            oracle[uid]
+            oracle.present?(uid)
           else
             raise StopEvaluation.new(expr.ref)
           end

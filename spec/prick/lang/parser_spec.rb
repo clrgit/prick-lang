@@ -1,24 +1,22 @@
 
-require './lib/prick/lang/ast.sig.rb'
-
 describe "Prick::Lang" do
   using String::Text
 
   describe "Parser" do
     def file = "file.txt" # Considered a constant
 
-    # TODO: Library
-    def capture(stream = :stdout, &block) # ChatGPT
-      constrain stream, :stdout, :stderr
-      begin
-        old = eval("$#{stream}")
-        eval("$#{stream} = StringIO.new")
-        yield
-        eval("$#{stream}").string
-      ensure
-        eval("$#{stream} = old")
-      end
-    end
+#   # TODO: Library
+#   def capture(stream = :stdout, &block) # ChatGPT
+#     constrain stream, :stdout, :stderr
+#     begin
+#       old = eval("$#{stream}")
+#       eval("$#{stream} = StringIO.new")
+#       yield
+#       eval("$#{stream}").string
+#     ensure
+#       eval("$#{stream} = old")
+#     end
+#   end
 
     def make(lines)
       lines = lines.split "\n", -1
@@ -65,8 +63,7 @@ describe "Prick::Lang" do
             )
             expect(sig l).to eq %(
               Schema app
-                Block
-                  File file.sql
+                File file.sql
             ).align
           end
         end
@@ -80,8 +77,7 @@ describe "Prick::Lang" do
             )
             expect(sig l).to eq %(
               Function func
-                Block
-                  File file.sql
+                File file.sql
             ).align
           end
         end
@@ -121,16 +117,14 @@ describe "Prick::Lang" do
             l = %(init file.sql)
             expect(sig l).to eq %(
               Phase init
-                Block
-                  File file.sql
+                File file.sql
             ).align
           end
           it "with a command argument" do
             l = %(init exec ls -l)
             expect(sig l).to eq %(
               Phase init
-                Block
-                  Exec ls -l
+                Exec ls -l
             ).align
           end
           it "with a command with a text block argument" do
@@ -141,8 +135,7 @@ describe "Prick::Lang" do
             )
             expect(sig l).to eq %(
               Phase init
-                Block
-                  Exec ls -l; echo
+                Exec ls -l; echo
             ).align
           end
           it "with a block" do
@@ -154,9 +147,8 @@ describe "Prick::Lang" do
             )
             expect(sig l).to eq %(
               Phase init
-                Block
-                  File a.sql
-                  File b.sql
+                File a.sql
+                File b.sql
             ).align
           end
         end
@@ -171,13 +163,12 @@ describe "Prick::Lang" do
             )
             expect(sig l).to eq %(
               If ENV(test)
-                Block
-                  File a.sql
-                  File b.sql
+                File a.sql
+                File b.sql
             ).align
           end
 
-          it "with a else clause" do
+          it "with a else clause X" do
             l = %(
               if env test
                 a.sql
@@ -188,12 +179,10 @@ describe "Prick::Lang" do
             )
             expect(sig l).to eq %(
               If ENV(test)
-                Block
-                  File a.sql
-                  File b.sql
+                File a.sql
+                File b.sql
               Else
-                Block
-                  File c.sql
+                File c.sql
             ).align
           end
 
@@ -210,15 +199,12 @@ describe "Prick::Lang" do
             )
             expect(sig l).to eq %(
               If ENV(test1)
-                Block
-                  File a.sql
-                  File b.sql
+                File a.sql
+                File b.sql
               Elsif ENV(test2)
-                Block
-                  File c.sql
+                File c.sql
               Else
-                Block
-                  File d.sql
+                File d.sql
             ).align
           end
 
@@ -230,8 +216,7 @@ describe "Prick::Lang" do
             )
             expect(sig l).to eq %(
               If VERSION >=(1.2.3)
-                Block
-                  File a.sql
+                File a.sql
             ).align
           end
 
@@ -243,8 +228,7 @@ describe "Prick::Lang" do
             )
             expect(sig l).to eq %(
               If VERSION >=(1.2.3) <(4.5.6)
-                Block
-                  File a.sql
+                File a.sql
             ).align
           end
         end
@@ -260,8 +244,7 @@ describe "Prick::Lang" do
             expect(sig l).to eq %(
               Case ENV
                 When Reference("test")
-                  Block
-                    File a.sql
+                  File a.sql
             ).align
           end
 
@@ -275,8 +258,7 @@ describe "Prick::Lang" do
             expect(sig l).to eq %(
               Case VERSION
                 When ==(1.2.3)
-                  Block
-                    File a.sql
+                  File a.sql
             ).align
           end
 
@@ -290,8 +272,7 @@ describe "Prick::Lang" do
             expect(sig l).to eq %(
               Case VERSION
                 When >=(1.2.3)
-                  Block
-                    File a.sql
+                  File a.sql
             ).align
           end
 
@@ -305,8 +286,7 @@ describe "Prick::Lang" do
             expect(sig l).to eq %(
               Case ENV
                 When Reference("test"), Reference("prod")
-                  Block
-                    File a.sql
+                  File a.sql
             ).align
           end
 
@@ -320,8 +300,7 @@ describe "Prick::Lang" do
             expect(sig l).to eq %(
               Case VERSION
                 When ~>(1.2.3), <(4.5.6)
-                  Block
-                    File a.sql
+                  File a.sql
             ).align
           end
 
@@ -389,8 +368,7 @@ describe "Prick::Lang" do
             )
             expect(sig l).to eq %(
               If ENV(test)
-                Block
-                  File a.sql
+                File a.sql
             ).align
           end
           it "with multiple arguments" do
@@ -401,48 +379,79 @@ describe "Prick::Lang" do
             )
             expect(sig l).to eq %(
               If ENV(test1, test2)
-                Block
-                  File a.sql
+                File a.sql
             ).align
           end
         end
 
         context "reference expressions" do
-          it "with an ident argument" do
-            l = %(
-              if schema schema1
-                a.sql
-              end
-            )
-            expect(sig l).to eq %(
-              If SCHEMA(schema1)
-                Block
+          context "schema references" do
+            it "with an ident argument" do
+              l = %(
+                if schema schema1
+                  a.sql
+                end
+              )
+              expect(sig l).to eq %(
+                If SCHEMA(schema1)
                   File a.sql
-            ).align
+              ).align
+            end
+            it "is one line only" do
+              l = %(
+                if schema schema1
+                  init {
+                    t.sql
+                  }
+                end
+              )
+              expect(sig l).to eq %(
+                If SCHEMA(schema1)
+                  Phase init
+                    File t.sql
+              ).align
+
+            end
           end
-          it "with a object reference argument" do
-            l = %(
-              if object a.b
-                a.sql
-              end
-            )
-            expect(sig l).to eq %(
-              If OBJECT(a.b)
-                Block
+          context "object references" do
+            it "with a object reference argument" do
+              l = %(
+                if object a.b
+                  a.sql
+                end
+              )
+              expect(sig l).to eq %(
+                If OBJECT(a.b)
                   File a.sql
-            ).align
+              ).align
+            end
           end
-          it "with a resource reference argument" do
-            l = %(
-              if resource a.b
-                a.sql
-              end
-            )
-            expect(sig l).to eq %(
-              If RESOURCE(a.b)
-                Block
+          context "resource references" do
+            it "with a resource reference argument" do
+              l = %(
+                if resource a.b
+                  a.sql
+                end
+              )
+              expect(sig l).to eq %(
+                If RESOURCE(a.b)
                   File a.sql
-            ).align
+              ).align
+            end
+            it "doesn't continue to the next line" do
+              l = %(
+                if resource r
+                  schema s {
+                    t.sql
+                  }
+                end
+              )
+              expect(sig l).to eq %(
+                If RESOURCE(r)
+                  Schema s
+                    File t.sql
+              ).align
+            end
           end
         end
 
@@ -455,11 +464,10 @@ describe "Prick::Lang" do
             )
             expect(sig l).to eq %(
               If !(ENV(test))
-                Block
-                  File a.sql
+                File a.sql
             ).align
           end
-          it "associates operators X" do
+          it "associates operators" do
             l = %(
               if ! env test && env prod
                 a.sql
@@ -467,8 +475,7 @@ describe "Prick::Lang" do
             )
             expect(sig l).to eq %(
               If &&(!(ENV(test)), ENV(prod))
-                Block
-                  File a.sql
+                File a.sql
             ).align
           end
         end
@@ -482,8 +489,7 @@ describe "Prick::Lang" do
             )
             expect(sig l).to eq %(
               If ||(ENV(test), ENV(import))
-                Block
-                  File a.sql
+                File a.sql
             ).align
           end
           it "with multi-argument runtime expressions" do
@@ -494,8 +500,7 @@ describe "Prick::Lang" do
             )
             expect(sig l).to eq %(
               If ||(ENV(test1, test2), ENV(import1, import2))
-                Block
-                  File a.sql
+                File a.sql
             ).align
           end
           it "associates operators" do
@@ -506,8 +511,7 @@ describe "Prick::Lang" do
             )
             expect(sig l).to eq %(
               If ||(ENV(test), &&(ENV(import), ENV(app)))
-                Block
-                  File a.sql
+                File a.sql
             ).align
           end
         end
@@ -521,8 +525,7 @@ describe "Prick::Lang" do
             )
             expect(sig l).to eq %(
               If ENV(test)
-                Block
-                  File a.sql
+                File a.sql
             ).align
           end
         end

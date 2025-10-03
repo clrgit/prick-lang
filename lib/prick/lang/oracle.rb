@@ -3,6 +3,18 @@ module Prick::Lang
   class Oracle
     include ErrorFunctions
 
+    # Runtime variables
+    attr_reader :variables # Symbol => String
+
+    # Resources
+    attr_reader :resources # UID String => true/false/nil
+
+    # Unresolved nodes
+    attr_accessor :unresolved
+
+    # Require commands. Used by the #analyzer to check references
+    attr_accessor :requires
+
     # Stack of contexts
     attr_accessor :contexts # [Resource]
 
@@ -10,9 +22,11 @@ module Prick::Lang
     def context = @contexts.last
 
     def initialize(variables)
-      @contexts = []
       @variables = variables
       @resources = {}
+      @unresolved = []
+      @requires = []
+      @contexts = []
     end
 
     def uid(ident)
@@ -52,22 +66,22 @@ module Prick::Lang
       @resources[uid] = resource
     end
 
-    # Runtime variables
-    attr_reader :variables # Symbol => String
-    def cmd = @variables[:cmd] # FIXME Not needed any longer
-    def env = @variables[:env]
-    def user = @variables[:user]
-
     # Resources
-    attr_reader :resources # UID String => true/false/nil
     def present = @resources.filter_map { _2 and _1 }
     def absent = @resources.filter_map { ! _2.nil? && ! _2 and _1 }
     def known = @resources.filter_map { !_2.nil? and _1 }
     def unknown = @resources.filter_map { _2.nil? and _1 }
 
+    # True if the resource is present
     def present?(uid) = (entry(uid) && true || false)
+
+    # True if the resource is absent
     def absent?(uid) = (entry(uid) || false) && true
+
+    # True if the resource is either present or absent
     def known?(uid) = !entry(uid).nil?
+
+    # True if it is not known if the resource is present or absent
     def unknown?(uid) = entry(uid).nil?
 
     def [](key) = entry(key)
@@ -84,6 +98,12 @@ module Prick::Lang
           puts "absent:"; indent { puts absent }
           puts "unknown:"; indent { puts unknown }
         }
+        if unresolved.empty?
+          puts "unresolved: []"
+        else
+          puts "unresolved:"
+          indent { unresolved.each { |node| puts "#{node.token.location}: #{node.uid}" } }
+        end
       }
     end
 

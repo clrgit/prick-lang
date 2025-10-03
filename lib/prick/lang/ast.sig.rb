@@ -45,7 +45,17 @@ module Prick::Lang
       end
     end
 
+    class Block
+      def sig(nodes = children)
+        nodes.each &:sig
+      end
+    end
+
     class Program
+      def sig(nodes = children)
+        nodes.each &:sig
+      end
+
 #     def signame = "Program"
 #     def sig = puts "Program"
     end
@@ -74,7 +84,9 @@ module Prick::Lang
         for if_then in if_thens
           puts "#{keyword} #{if_then.expr.source}"
           keyword = "Elsif"
-          indent { if_then.then_.sig }
+          indent {
+            if_then.then_.sig
+          }
         end
         if else_
           puts "Else"

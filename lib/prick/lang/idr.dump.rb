@@ -99,7 +99,7 @@ module Prick::Lang
     end
 
     class Program
-      PARTS = [:head, :functions, :phases, :schemas, :block]
+      PARTS = [:functions, :phases, :schemas, :block]
       def dump = super "Program"
     end
 

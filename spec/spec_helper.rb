@@ -44,4 +44,10 @@ require "string-text"
 
 using String::Text
 
+require './lib/prick/lang/ast.sig.rb'
+require './lib/prick/lang/idr.sig.rb'
+
+require './spec/capture_helper.rb'
+
 #Trace.enable
+

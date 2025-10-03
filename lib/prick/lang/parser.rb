@@ -56,7 +56,6 @@ module Prick::Lang
 
     def parse_stmt
       trace
-#     puts "  peek: #{peek.inspect}"
       case peek&.kind
         when :SCHEMA; parse_decl(Ast::Schema, read)
         when :FUNCTION; parse_decl(Ast::Function, read)
@@ -104,7 +103,7 @@ module Prick::Lang
     # Schema, phase, or function declarations. Uses that they have the same
     # parts
     def parse_decl(klass, token)
-      trace token
+      trace klass, token
       decl = klass.new(token)
       decl.ident = parse_name
       token = readkind(:BRACE_BEGIN)
@@ -114,20 +113,21 @@ module Prick::Lang
     end
 
     def parse_provide
+      trace
       provide = Ast::Provide.new(read)
       provide.ident = parse_name
       provide
     end
 
     def parse_require
-#     puts "#parse_require"
+      trace
       require_ = Ast::Require.new(read)
       require_.references = parse_references
       require_
     end
 
     def parse_command
-#     puts "#parse_command"
+      trace
       command = Ast::ExternalCommand.new(read)
       if peek.kind == :PIPE
         min_indent = @tokenizer.indent + 1
@@ -140,12 +140,14 @@ module Prick::Lang
     end
 
     def parse_source
+      trace
       source = Ast::Source.new peek
       source.files = parse_files
       source
     end
 
     def parse_call
+      trace
       call = Ast::CallCommand.new(read)
       call.references = parse_references
 #     readkinds(:REF, :IDENT).each { call.references << Ast::Reference.new(_1) }
@@ -171,6 +173,7 @@ module Prick::Lang
     end
 
     def parse_case
+      trace
       case_ = Ast::Case.new(read)
       case_.const = parse_constant
       while peek.kind == :WHEN
@@ -213,8 +216,11 @@ module Prick::Lang
       stack.first or unexpected_token_error read, "expression"
     end
 
-    # Parses list of words (cmd, env, user). Note: Called from the shunter to
+    # Parses list of words (cmd, env, user). Called from the shunter to
     # generate simple expressions
+    #
+    # Simple expressins are one-line only so the tokenizer is called with eol:
+    # true everywhere
     def parse_simple_expr # token should be equal to #peek
       trace
       token = read(eol: true)
@@ -225,17 +231,17 @@ module Prick::Lang
           expr.words = parse_idents
         when :VAR
           expr = Ast::RuntimeExpr.new(token)
-          expr.ident = Ast::Ident.new(readkind(:IDENT, :CMD, :ENV, :USER))
+          expr.ident = Ast::Ident.new(readkind(:IDENT, :CMD, :ENV, :USER, eol: true))
           expr.words = parse_idents
         when :SCHEMA
           expr = Ast::ReferenceExpr.new(token)
-          expr.ref = Ast::Reference.new(readkind *Token::IDENTS)
+          expr.ref = Ast::Reference.new(readkind *Token::IDENTS, eol: true)
         when :OBJECT
           expr = Ast::ReferenceExpr.new(token)
-          expr.ref = Ast::Reference.new(readkind *Token::REFS)
+          expr.ref = Ast::Reference.new(readkind *Token::REFS, eol: true)
         when :RESOURCE
           expr = Ast::ReferenceExpr.new(token)
-          expr.ref = Ast::Reference.new(readkind *Token::REFS)
+          expr.ref = Ast::Reference.new(readkind *Token::REFS, eol: true)
         when :VERSION
           expr = Ast::VersionExpr.new(token)
           while VERSION_OPERATORS.include?(peek(eol: true).kind)
@@ -251,10 +257,12 @@ module Prick::Lang
     end
 
     def parse_values
+      trace
       readwhile { parse_value? }
     end
 
     def parse_ruby
+      trace
       not_implemented_error "#parse_ruby"
     end
 
@@ -262,7 +270,7 @@ module Prick::Lang
     # the array is empty and :check is true
     #
     def parse_files(check: true)
-#     puts "#parse_files"
+      trace check: check
       check_expected "files" do
         r = []
         while !@tokenizer.eof? && (token = peek) && token.kind == :FILE
@@ -273,7 +281,6 @@ module Prick::Lang
     end
 
     def parse_ident?
-      trace
       return nil if @tokenizer.eol?
       token = peek(eol: true)
       Token::IDENTS.include?(token.kind) ? Ast::Ident.new(read(eol: true)) : nil
@@ -288,7 +295,10 @@ module Prick::Lang
 
     # Single-component reference used in declarations. It parsed as a Reference object
     # because we later want to compute the uid
-    def parse_name = Token::IDENTS.include?(peek&.kind) ? Ast::Reference.new(read) : nil
+    def parse_name
+      trace
+      Token::IDENTS.include?(peek&.kind) ? Ast::Reference.new(read) : nil
+    end
     def parse_name? = Ast::Reference.new(readkind(Token::IDENTS))
 
     def parse_reference? = Token::REFS.include?(peek.kind) ? Ast::Reference.new(read) : nil
@@ -299,6 +309,7 @@ module Prick::Lang
 
     # Parse a space-separated list of values. Values are IDENT, REF, or a version match
     def parse_value?
+      trace
       case peek.kind
         when *Token::REFS
           Ast::Reference.new(read)
@@ -318,6 +329,7 @@ module Prick::Lang
     end
 
     def parse_constant
+      trace
       Ast::Const.new(readkind(*CONSTANTS))
     end
     #
@@ -327,19 +339,19 @@ module Prick::Lang
     # Functions from tokenizer with error handling
     #
     def peek(**opts) = @tokenizer.peek(**opts) or error(@tokenizer.error_token)
-    def peek?(**opts) = @tokenizer.peek(**opts)
+    def peek?(**opts) = @tokenizer.peek?(**opts)
 
     def read(**opts) = @tokenizer.read(**opts) or error(@tokenizer.error_token)
     def read?(**opts) = @tokenizer.read(**opts)
 
-    def readline?(**opts) = @tokenizer.readline(**opts)
     def readline(**opts) = @tokenizer.readline(**opts) or error(@tokenizer.error_token)
+    def readline?(**opts) = @tokenizer.readline(**opts)
 
-    def readtext?(indent, **opts) = @tokenizer.readtext(indent, **opts)
     def readtext(indent, **opts) = @tokenizer.readtext(indent, **opts) or error(@tokenizer.error_token)
+    def readtext?(indent, **opts) = @tokenizer.readtext(indent, **opts)
 
-    def readkind?(*kinds, **opts) = kinds.include?(peek(**opts)&.kind) ? read(**opts) : nil
     def readkind(*kinds, **opts) = readkind?(*kinds, **opts) or unexpected_token_error kinds
+    def readkind?(*kinds, **opts) = kinds.include?(peek(**opts)&.kind) ? read(**opts) : nil
     # Note: Returns an empty list if no token was found
     def readkinds?(*kinds, **opts)
       a = []
