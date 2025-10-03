@@ -15,11 +15,16 @@ module Prick::Lang
     # Require commands. Used by the #analyzer to check references
     attr_accessor :requires
 
-    # Stack of contexts
-    attr_accessor :contexts # [Resource]
+    # Stack of contexts and associated block. Block is usually equal to
+    # resource.block but unresolved nodes sets the resource to the parent
+    # resource and block to its own
+    attr_accessor :contexts # [[Resource, Block]]
 
     # Current Resource object
-    def context = @contexts.last
+    def context = @contexts.last.first
+
+    # Current block array
+    def block = @contexts.last.last
 
     def initialize(variables)
       @variables = variables
@@ -35,9 +40,10 @@ module Prick::Lang
     end
 
     # Execute block with the given context
-    def scope(context, &block)
+    def scope(context, block = context.block, &code)
       constrain context, Idr::Resource
-      @contexts.push context
+      constrain block, Array
+      @contexts.push [context, block]
       r = yield
       @contexts.pop
       r

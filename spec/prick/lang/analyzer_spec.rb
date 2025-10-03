@@ -21,9 +21,9 @@ describe "Prick::Lang" do
     def sig(lines)
       idr = call(lines)
       capture { idr.block.each { |node| node.dump } }
-          .sub(/^provide\s.*?\n/m, "")
           .sub(/^file\s/, "")
           .chomp
+#         .sub(/^provide\s.*?\n/m, "")
     end
 
     it "evaluates known references to true" do
@@ -37,6 +37,7 @@ describe "Prick::Lang" do
         end
       )
       expect(sig(l)).to eq %(
+        provide r
         true.sql
       ).align
     end
@@ -66,6 +67,7 @@ describe "Prick::Lang" do
       )
       expect(sig(l)).to eq %(
         true.sql
+        provide r
       ).align
     end
 
@@ -86,6 +88,7 @@ describe "Prick::Lang" do
         provide r
       )
       expect(sig(l)).to eq %(
+        provide p
         true.sql
         provide r
       ).align

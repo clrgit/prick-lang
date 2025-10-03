@@ -37,6 +37,7 @@ module Prick::Lang
     end
 
     def parse
+      trace
       @ast = parse_program
       if !@tokenizer.peek? # Can't use #eof? because we may have to scan through comments
         unexpected_token_error "end of file"

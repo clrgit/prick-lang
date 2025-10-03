@@ -78,7 +78,7 @@ module Prick::Lang
       constrain ast, Ast::Provide
       check_context ast, Idr::Program, Idr::Schema, Idr::Phase
       provide = Idr::Provide.new(oracle.context, ast)
-      context.block << provide
+      oracle.block << provide
       oracle.add(provide)
       self
     end
@@ -98,7 +98,7 @@ module Prick::Lang
       trace
       constrain ast, Ast::Require
       check_context ast, Idr::Program, Idr::Schema, Idr::Phase
-      context.block.concat \
+      oracle.block.concat \
           ast.references.map { |ref|
             Idr::RequireCommand.new(oracle.context, ref, ref.value).tap { oracle.requires << _1 }
           }
@@ -107,7 +107,7 @@ module Prick::Lang
     def build_command(ast)
       trace
       constrain ast, Ast::Source, Ast::ExternalCommand, Ast::CallCommand
-      context.block.concat \
+      oracle.block.concat \
           case ast
             when Ast::Source; ast.files.map { |file| Idr::FileCommand.new(oracle.context, file) }
             when Ast::ExternalCommand; [Idr::ExternalCommand.new(oracle.context, ast)]
@@ -135,7 +135,7 @@ module Prick::Lang
                     oracle.context, ast,
                     evaluator.unresolved, oracle.ensure(evaluator.unresolved))
             oracle.unresolved << unresolved
-            context.block << unresolved
+            oracle.block << unresolved
             return
           when true
             build_stmts(if_then.then_)
@@ -176,6 +176,7 @@ module Prick::Lang
     # unresolved resources are marked absent and the process start again
     #
     def build_unresolved
+      trace
       return if oracle.unresolved.empty?
 
       # Save unresolved nodes that are to be flattened later (ups: doens't
@@ -184,7 +185,7 @@ module Prick::Lang
 
       while true # Last-resort loop that marks unknown resources absent
         progress = true
-        while progress # Resolved later-defined resources
+        while progress # Resolve later-defined resources
           unresolved = oracle.unresolved
           oracle.unresolved = []
           progress = false
@@ -193,8 +194,7 @@ module Prick::Lang
               oracle.unresolved << node
             else
               progress = true
-              block = node.parent.block
-              oracle.scope(node) { build_control(node.ast) }
+              oracle.scope(node.parent, node.block) { build_control(node.ast) }
             end
           end
         end

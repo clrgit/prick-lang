@@ -136,10 +136,6 @@ module Prick::Lang
         @unresolved = unresolved
         @unresolved_uid = unresolved_uid
       end
-
-#     def flatten
-#       block.map { |node| node.is_a?(Unresolved) ? node.flatten : node }
-#     end
     end
 
     # An unresolved object quacks like the containing resource but has its own
