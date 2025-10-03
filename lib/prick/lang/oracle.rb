@@ -17,13 +17,13 @@ module Prick::Lang
 
     # Stack of contexts and associated block. Block is usually equal to
     # resource.block but unresolved nodes sets the resource to the parent
-    # resource and block to its own
+    # resource but block to its own block
     attr_accessor :contexts # [[Resource, Block]]
 
     # Current Resource object
     def context = @contexts.last.first
 
-    # Current block array
+    # Current block
     def block = @contexts.last.last
 
     def initialize(variables)

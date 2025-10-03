@@ -13,8 +13,6 @@ module Prick::Lang
 
     def runtime = { CMD: "build", ENV: "prod", USER: "me" }
 
-    def context = oracle.context
-
     def initialize(parser, oracle)
       @parser = parser
       @oracle = oracle
@@ -63,11 +61,11 @@ module Prick::Lang
     # afterwards
     def build_schema(ast)
       trace
-      constrain context, Idr::Program
+      constrain oracle.context, Idr::Program
       constrain ast, Ast::Schema
       check_context ast, Idr::Program
       schema = Idr::Schema.new(oracle.context, ast)
-      context.schemas << schema
+      oracle.context.schemas << schema
       oracle.add(schema)
       oracle.scope(schema) { build_stmts(ast.block) }
       []
@@ -88,7 +86,7 @@ module Prick::Lang
       constrain ast, Ast::Phase
       check_context ast, Idr::Program, Idr::Schema
       phase = Idr::Phase.new(oracle.context, ast)
-      context.send(phase.write_attr, phase)
+      oracle.context.send(phase.write_attr, phase)
       oracle.add(phase)
       oracle.scope(phase) { build_stmts(ast.block) }
       []
@@ -153,7 +151,7 @@ module Prick::Lang
 
     def build_stmts(ast)
       trace
-      constrain context, Idr::Resource
+      constrain oracle.context, Idr::Resource
       constrain ast, Ast::Block
       ast.stmts.each { |stmt|
         case stmt
