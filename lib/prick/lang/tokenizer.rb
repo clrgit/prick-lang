@@ -61,17 +61,6 @@ module Prick::Lang
       reset_peek
     end
 
-#   def push_opts(eol: nil, eof: nil)
-#     eol ||= @default_eol
-#     eof ||= @defualt_eof
-#     @opts.push [eol: eol, eof: eof]
-#   end
-#
-#   def pop_opts
-#     @opts.pop
-#     @default_eol, @default
-#   end
-
     # Return true if at end of file
     def eof?(eol: false) = @index >= @lines.size + (eol ? 1 : 0)
 
@@ -134,20 +123,24 @@ module Prick::Lang
 
       # Detect matched token type and extract value
       @peek_token =
-          if m[:keyword] || m[:punct]
+          if m[:keyword] || m[:punct] || m[:oper]
             Token.new *args, match, Token::TOKEN_KINDS[match]
-          elsif m[:dir]
-            DirToken.new *args, match
           elsif m[:file]
             FileToken.new(*args, match, m[:path], m[:file], m[:ext])
+          elsif m[:dir]
+            DirToken.new *args, match
+          elsif m[:path]
+            PathToken.new *args, match
           elsif m[:ident]
-            Token.new(*args, match, :IDENT)
+            Token.new *args, match, :IDENT
           elsif m[:ref]
-            Token.new(*args, match, :REF)
-          elsif m[:version]
-            Token.new(*args, match, :VER)
+            Token.new *args, match, :REF
+          elsif m[:ver]
+            Token.new *args, match, :VER
+          elsif m[:var]
+            VarToken.new *args, match
           elsif s = m[:error]
-            @peek_error = CharErrorToken.new(*args, s)
+            @peek_error = CharErrorToken.new *args, s
             nil
           else
             raise InternalError

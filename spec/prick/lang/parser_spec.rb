@@ -30,7 +30,17 @@ describe "Prick::Lang" do
 
     def sig(lines)
       ast = make(lines.align).parse
-      capture { ast.sig }.sub(/^Program\s*\n\s*Block\n/m, "").align
+#     capture { ast.sig }.sub(/^Program\s*\n\s*Block\n/m, "").align
+      capture { ast.sig }.align
+    end
+
+    def esig(expr) # Expression SIGnature
+      lines = %(
+        if #{expr}
+          t.sql
+        end
+      )
+      sig(lines).sub(/If ([^\n]+)\s*\n.*/m, '\1')
     end
 
     describe "#parse" do
@@ -99,7 +109,7 @@ describe "Prick::Lang" do
               require a
             )
             expect(sig l).to eq %(
-              Require a
+              Require Reference(a)
             ).align
           end
           it "with multiple arguments" do
@@ -107,7 +117,7 @@ describe "Prick::Lang" do
               require a b
             )
             expect(sig l).to eq %(
-              Require a, b
+              Require Reference(a), Reference(b)
             ).align
           end
         end
@@ -156,21 +166,22 @@ describe "Prick::Lang" do
         context "if statements" do
           it "with only a then clause" do
             l = %(
-              if env test
+              if $env == test
                 a.sql
                 b.sql
               end
             )
+
             expect(sig l).to eq %(
-              If ENV(test)
+              If ==($env, test)
                 File a.sql
                 File b.sql
             ).align
           end
 
-          it "with a else clause X" do
+          it "with a else clause" do
             l = %(
-              if env test
+              if $env == test
                 a.sql
                 b.sql
               else
@@ -178,7 +189,7 @@ describe "Prick::Lang" do
               end
             )
             expect(sig l).to eq %(
-              If ENV(test)
+              If ==($env, test)
                 File a.sql
                 File b.sql
               Else
@@ -188,136 +199,84 @@ describe "Prick::Lang" do
 
           it "with elsif clauses" do
             l = %(
-              if env test1
+              if $env == test1
                 a.sql
                 b.sql
-              elsif env test2
+              elsif $env == test2
                 c.sql
               else
                 d.sql
               end
             )
             expect(sig l).to eq %(
-              If ENV(test1)
+              If ==($env, test1)
                 File a.sql
                 File b.sql
-              Elsif ENV(test2)
+              Elsif ==($env, test2)
                 File c.sql
               Else
                 File d.sql
             ).align
           end
-
-          it "with a version expression" do
-            l = %(
-              if version >= 1.2.3
-                a.sql
-              end
-            )
-            expect(sig l).to eq %(
-              If VERSION >=(1.2.3)
-                File a.sql
-            ).align
-          end
-
-          it "with multiple version expressions" do
-            l = %(
-              if version >=1.2.3 <4.5.6
-                a.sql
-              end
-            )
-            expect(sig l).to eq %(
-              If VERSION >=(1.2.3) <(4.5.6)
-                File a.sql
-            ).align
-          end
         end
 
         context "case statements" do
-          it "with single reference when-values" do
-            l = %(
-              case env
-                when test
-                  a.sql
-              end
-            )
-            expect(sig l).to eq %(
-              Case ENV
-                When Reference("test")
-                  File a.sql
-            ).align
-          end
+          context "when clauses" do
+            it "accepts single value" do
+              l = %(
+                case $env
+                  when test
+                    a.sql
+                end
+              )
+              expect(sig l).to eq %(
+                Case $env
+                  When ==(_, test)
+                    File a.sql
+              ).align
+            end
 
-          it "with single version when-values" do
-            l = %(
-              case version
-                when 1.2.3
-                  a.sql
-              end
-            )
-            expect(sig l).to eq %(
-              Case VERSION
-                When ==(1.2.3)
-                  File a.sql
-            ).align
-          end
+            it "accepts operator and value" do
+              l = %(
+                case $version
+                  when >= 1.2.3
+                    a.sql
+                end
+              )
+              expect(sig l).to eq %(
+                Case $version
+                  When >=(_, 1.2.3)
+                    File a.sql
+              ).align
+            end
 
-          it "with single version expression when-values" do
-            l = %(
-              case version
-                when >=1.2.3
-                  a.sql
-              end
-            )
-            expect(sig l).to eq %(
-              Case VERSION
-                When >=(1.2.3)
-                  File a.sql
-            ).align
+            it "accepts a list of single-values" do
+              l = %(
+                case $env
+                  when test, prod
+                    a.sql
+                end
+              )
+              expect(sig l).to eq %(
+                Case $env
+                  When ==(_, test), ==(_, prod)
+                    File a.sql
+              ).align
+            end
+            it "accepts a list of operators and values" do
+              l = %(
+                case $version
+                  when >= 1.2.3, 4.5.6
+                    a.sql
+                end
+              )
+              expect(sig l).to eq %(
+                Case $version
+                  When >=(_, 1.2.3), ==(_, 4.5.6)
+                    File a.sql
+              ).align
+            end
           end
-
-          it "with multiple reference when-values" do
-            l = %(
-              case env
-                when test prod
-                  a.sql
-              end
-            )
-            expect(sig l).to eq %(
-              Case ENV
-                When Reference("test"), Reference("prod")
-                  File a.sql
-            ).align
-          end
-
-          it "with multiple version when-values" do
-            l = %(
-              case version
-                when ~>1.2.3 <4.5.6
-                  a.sql
-              end
-            )
-            expect(sig l).to eq %(
-              Case VERSION
-                When ~>(1.2.3), <(4.5.6)
-                  File a.sql
-            ).align
-          end
-
-          it "fails on commas in list (with a sensible error message)" # do
-#           l = %(
-#             case env
-#               when test, prod
-#                 a.sql
-#             end
-#           )
-#           expect(sig l).to eq %(
-#             Case env
-#               When Reference("test"), Reference("prod")
-#                 Block
-#                   File a.sql
-#           ).align
-#         end
         end
 
         context "source commands" do
@@ -338,11 +297,11 @@ describe "Prick::Lang" do
         context "call commands" do
           it "with a single reference argument" do
             l = %(call func)
-            expect(sig l).to eq "Call func"
+            expect(sig l).to eq "Call Reference(func)"
           end
           it "with multiple name arguments" do
             l = %(call func1 func2)
-            expect(sig l).to eq "Call func1, func2"
+            expect(sig l).to eq "Call Reference(func1), Reference(func2)"
           end
         end
 
@@ -359,190 +318,105 @@ describe "Prick::Lang" do
           end
         end
 
-        context "runtime expressions" do
-          it "with a single argument" do
-            l = %(
-              if env test
-                a.sql
-              end
-            )
-            expect(sig l).to eq %(
-              If ENV(test)
-                File a.sql
-            ).align
-          end
-          it "with multiple arguments" do
-            l = %(
-              if env test1 test2
-                a.sql
-              end
-            )
-            expect(sig l).to eq %(
-              If ENV(test1, test2)
-                File a.sql
-            ).align
-          end
-        end
-
-        context "reference expressions" do
-          context "schema references" do
-            it "with an ident argument" do
-              l = %(
-                if schema schema1
-                  a.sql
-                end
-              )
-              expect(sig l).to eq %(
-                If SCHEMA(schema1)
-                  File a.sql
-              ).align
-            end
-            it "is one line only" do
-              l = %(
-                if schema schema1
-                  init {
-                    t.sql
-                  }
-                end
-              )
-              expect(sig l).to eq %(
-                If SCHEMA(schema1)
-                  Phase init
-                    File t.sql
-              ).align
-
-            end
-          end
-          context "object references" do
-            it "with a object reference argument" do
-              l = %(
-                if object a.b
-                  a.sql
-                end
-              )
-              expect(sig l).to eq %(
-                If OBJECT(a.b)
-                  File a.sql
-              ).align
-            end
-          end
-          context "resource references" do
-            it "with a resource reference argument" do
-              l = %(
-                if resource a.b
-                  a.sql
-                end
-              )
-              expect(sig l).to eq %(
-                If RESOURCE(a.b)
-                  File a.sql
-              ).align
-            end
-            it "doesn't continue to the next line" do
-              l = %(
-                if resource r
-                  schema s {
-                    t.sql
-                  }
-                end
-              )
-              expect(sig l).to eq %(
-                If RESOURCE(r)
-                  Schema s
-                    File t.sql
-              ).align
-            end
-          end
-        end
-
         context "unary expressions" do
-          it "with one argument" do
-            l = %(
-              if ! env test
-                a.sql
-              end
-            )
-            expect(sig l).to eq %(
-              If !(ENV(test))
-                File a.sql
-            ).align
+          it "handles prefix operators" do
+            expect(esig("!$env")).to eq "!($env)"
           end
-          it "associates operators" do
-            l = %(
-              if ! env test && env prod
-                a.sql
-              end
-            )
-            expect(sig l).to eq %(
-              If &&(!(ENV(test)), ENV(prod))
-                File a.sql
-            ).align
+          it "handles suffix operators" do
+            expect(esig("env?")).to eq "?(Reference(env))"
+          end
+          it "handles priorities" do
+            expect(esig("!$env?")).to eq "!(?($env))"
           end
         end
 
         context "binary expressions" do
-          it "with two arguments" do
-            l = %(
-              if env test || env import
-                a.sql
-              end
-            )
-            expect(sig l).to eq %(
-              If ||(ENV(test), ENV(import))
-                File a.sql
-            ).align
+          it "handles binary expressions" do
+            expect(esig("$env == test")).to eq "==($env, test)"
           end
-          it "with multi-argument runtime expressions" do
-            l = %(
-              if env test1 test2 || env import1 import2
-                a.sql
-              end
-            )
-            expect(sig l).to eq %(
-              If ||(ENV(test1, test2), ENV(import1, import2))
-                File a.sql
-            ).align
+          it "handles priorities" do
+            expect(esig("$env == test && $env == prod")).to eq "&&(==($env, test), ==($env, prod))"
           end
-          it "associates operators" do
+          it "handles association" do
             l = %(
-              if env test || env import && env app
+              if $env == test || $env == import && $env == app
                 a.sql
               end
             )
             expect(sig l).to eq %(
-              If ||(ENV(test), &&(ENV(import), ENV(app)))
+              If ||(==($env, test), &&(==($env, import), ==($env, app)))
                 File a.sql
             ).align
           end
         end
 
         context "parenthesized expressions" do
-          it "with one argument" do
+          it "accepts an expression" do
             l = %(
-              if ( env test )
+              if ( $env == test )
                 a.sql
               end
             )
             expect(sig l).to eq %(
-              If ENV(test)
+              If ==($env, test)
                 File a.sql
             ).align
+          end
+          it "handles priorities" do
+            e = "($env == test || $env == prod ) && $ver > 1.2.3"
+            expect(esig e).to eq "&&(||(==($env, test), ==($env, prod)), >($ver, 1.2.3))"
+          end
+        end
+
+        context "identifiers" do
+          it "accepts identifiers" do
           end
         end
 
         context "references" do
-          it "ignores keywords"
-          it "with a simple identifier" do
-            l = %(call func)
-            expect(sig l).to eq "Call func"
+          it "accepts a single identifier" do
+            expect(esig("env?")).to eq "?(Reference(env))"
           end
-          it "with an initial dot" do
-            l = %(call .func)
-            expect(sig l).to eq "Call .func"
+          it "accepts qualified identifiers" do
+            l = %(call a.b)
+            expect(sig l).to eq %(
+              Call Reference(a.b)
+            ).align
           end
-          it "with dot-separated identifiers" do
-            l = %(call func1.func2)
-            expect(sig l).to eq "Call func1.func2"
+          it "accepts an initial dot" do
+            l = %(call .b)
+            expect(sig l).to eq %(
+              Call Reference(.b)
+            ).align
+          end
+        end
+
+        context "version numbers" do
+          it "accepts a single-digit version number" do
+            e = "$ver == 1"
+            expect(esig(e)).to eq "==($ver, 1)"
+          end
+          it "accepts a double-digit version number" do
+            e = "$ver == 1.2"
+            expect(esig(e)).to eq "==($ver, 1.2)"
+          end
+          it "accepts a triple-digit version number" do
+            e = "$ver == 1.2.3"
+            expect(esig(e)).to eq "==($ver, 1.2.3)"
+          end
+        end
+
+        context "words" do
+          it "accepts literal strings" do
+            e = "$env == a_string"
+            expect(esig(e)).to eq "==($env, a_string)"
+          end
+        end
+
+        context "variables" do
+          it "accepts literal strings" do
+            e = "$env == a_string"
+            expect(esig(e)).to eq "==($env, a_string)"
           end
         end
       end

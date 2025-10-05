@@ -72,7 +72,7 @@ SPEC = %(
         case VAR-EXPR WHEN-STMT... [ else COMMAND... ] end
 
     WHEN-STMT ::=
-        when VAL-EXPR COMMAND...
+        when ( EXPR | OPER EXPR )+ COMMAND...
 
     COMMAND-STMT ::=
         exec SOURCE
@@ -91,43 +91,51 @@ SPEC = %(
       | BLOCK
 
     EXPR ::=
-        CONSTANT-EXPR
-      | RESOURCE-EXPR
-      | ! EXPR
-      | EXPR && EXPR
-      | EXPR || EXPR
-      | '(' EXPR ')'
+        PREFIX_OP EXPR
+      | EXPR BINARY_OP EXPR
+      | EXPR SUFFIX_OP
+      | VARIABLE
+      | LITERAL
 
-    # 'env', 'cmd', and 'user' or's their arguments together, 'version' and's
-    # them
-    CONSTANT-EXPR ::=
-        env IDENT+
-      | cmd IDENT+
-      | user IDENT+
-      | version VER_EXPR+
-      | var IDENT IDENT+
+    VARIABLE ::=
+        BUILTIN_VARIABLES
+      | COMMAND_VARIABLES
+      | ENVIRONMENT_VARIABLES
 
-    RESOURCE-EXPR ::=
-        schema IDENT
-      | object REF
-      | resource REF
+    BUILTIN_VARIABLES ::=
+        '$prj'
+      | '$env'
+      | '$ver'
+      | '$cmd'
+      | '$user'
 
-    IDENT-EXPR ::=
-      IDENT IDENT-OP
-      IDENT ==|!= IDENT-OR-STRING
+    COMMAND_VARIABLES ::=
+        '$' DOWNCASED_IDENTIFIER
 
-    VAR-EXPR ::= env | cmd | user | version | schema | object | resource
+    ENVIRONMENT_VARIABLES ::=
+        '$' UPCASED_IDENTIFIER
 
-    VER-EXPR ::= VER-OP VER
+    PREFIX_OP ::=
+        '!'
 
-    VAL-EXPR ::=
-        IDENT
-      | VER
-      | VER-EXPR
+    INFIX_OP ::=
+        '&&'
+      | '||'
+      | '<='
+      | '<'
+      | '=='
+      | '='
+      | '!='
+      | '>='
+      | '>'
+      | '~>'
+
+    SUFFIX_OP ::=
+        '?'
 
     # Files
-    PATH ::= <path>/<*>
-    FILE ::= <path> / <*.sql> | <*.psql> | <*.fox> | <*.prick> | <*.rb>
+    PATH ::= <path> '/' <*>
+    FILE ::= <path> '/' <*.sql> | <*.psql> | <*.fox> | <*.prick> | <*.rb>
 
     # Reference & identifier
     REF ::= .? IDENT ( . IDENT )*
@@ -170,5 +178,41 @@ begin
 rescue => ex
   raise Prick::Lang::ErrorFunctions.pretty_backtrace!(ex)
 end
+
+__END__
+    EXPR ::=
+        CONSTANT-EXPR
+      | RESOURCE-EXPR
+      | ! EXPR
+      | EXPR && EXPR
+      | EXPR || EXPR
+      | '(' EXPR ')'
+
+    # 'env', 'cmd', and 'user' or's their arguments together, 'version' and's
+    # them
+    CONSTANT-EXPR ::=
+        env IDENT+
+      | cmd IDENT+
+      | user IDENT+
+      | version VER_EXPR+
+      | var IDENT IDENT+
+
+    RESOURCE-EXPR ::=
+        schema IDENT
+      | object REF
+      | resource REF
+
+    IDENT-EXPR ::=
+      IDENT IDENT-OP
+      IDENT ==|!= IDENT-OR-STRING
+
+    VAR-EXPR ::= env | cmd | user | version | schema | object | resource
+
+    VER-EXPR ::= VER-OP VER
+
+    VAL-EXPR ::=
+        IDENT
+      | VER
+      | VER-EXPR
 
 

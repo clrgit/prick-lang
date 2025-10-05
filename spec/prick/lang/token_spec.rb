@@ -33,10 +33,6 @@ describe "Prick::Lang" do
     end
 
     describe "::PUNCT_RE" do
-      it "matches prefixes" do
-        e :PUNCT_RE, "<<", eol: false
-      end
-
       it "matches punctuation" do
         e :PUNCT_RE, "{"
       end
@@ -45,6 +41,17 @@ describe "Prick::Lang" do
         c :PUNCT_RE, "{", :punct
       end
     end
+
+    describe "::OPER_RE" do
+      it "matches operators" do
+        e :OPER_RE, "=="
+      end
+
+      it "sets 'oper' capture" do
+        c :OPER_RE, "==", :oper
+      end
+    end
+
 
     describe "::DIR_RE" do
       it "matches directory names" do
@@ -109,12 +116,24 @@ describe "Prick::Lang" do
       end
     end
 
+    describe "::VAR_RE" do
+      it "matches builtin variables" do
+        e :VAR_RE, "$env"
+      end
+      it "matches command line variables" do
+        e :VAR_RE, "$opt"
+      end
+      it "matches environment variables" do
+        e :VAR_RE, "$ENVVAR"
+      end
+    end
+
     describe "::VER_RE" do
       it "matches versions" do
         e :VER_RE, "1.2.3"
       end
-      it "sets the 'version' capture" do
-        c :VER_RE, "1.2.3", :version
+      it "sets the 'ver' capture" do
+        c :VER_RE, "1.2.3", :ver
       end
     end
 
@@ -125,26 +144,32 @@ describe "Prick::Lang" do
       it "sets the 'punct' capture" do
         c :TOKEN_RE, "{", :punct
       end
+      it "sets the 'oper' capture" do
+        c :TOKEN_RE, "==", :oper
+      end
       it "sets the 'dir' capture" do
         c :TOKEN_RE, "./name/dir/", :dir
       end
-      it "sets 'path' capture" do
-        c :TOKEN_RE, "dir/name/file.sql", :path, "dir/name/"
-      end
-      it "sets 'file' capture" do
+      it "sets the 'file' capture" do
         c :TOKEN_RE, "dir/name/file.sql", :file, "file.sql"
       end
-      it "sets 'ext' capture" do
+      it "sets the 'ext' capture" do
         c :TOKEN_RE, "dir/name/file.sql", :ext, "sql"
       end
-      it "sets 'ref' capture" do
+      it "sets the 'path' capture" do
+        c :TOKEN_RE, "dir/name/file.sql", :path, "dir/name/"
+      end
+      it "sets the 'ref' capture" do
         c :TOKEN_RE, "root.branch", :ref
       end
-      it "sets 'ident' capture" do
+      it "sets the 'ident' capture" do
         c :TOKEN_RE, "id", :ident
       end
-      it "sets 'version' capture" do
-        c :TOKEN_RE, "1.2.3", :version
+      it "sets the 'ver' capture" do
+        c :TOKEN_RE, "1.2.3", :ver
+      end
+      it "sets the 'var' capture" do
+        c :TOKEN_RE, "$var", :var
       end
     end
 

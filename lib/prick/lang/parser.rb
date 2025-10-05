@@ -19,7 +19,10 @@ module Prick::Lang
       NEQ: [2, :left, 2],
       GE: [2, :left, 2],
       GT: [2, :left, 2],
-      EXCLAIM: [3, :right, 1]
+      TIGT: [2, :left, 2],
+      IN: [3, :left, 2],
+      NOT: [3, :right, 1],
+      QUEST: [4, :left, 1],
     }.map { |k,v| [k, { prior: v[0], assoc: v[1], arity: v[2] } ] }.to_h
 
     # Operators for comparing versions
@@ -65,7 +68,7 @@ module Prick::Lang
         when :REQUIRE; parse_require
         when :IF; parse_if
         when :CASE; parse_case
-        when :INIT, :TERM, :META, :SEEDS, :AUTH; parse_decl(Ast::Phase, peek)
+        when *Token::PHASES; parse_decl(Ast::Phase, peek)
         when :EXEC, :EVAL, :SQL; parse_command
         when :CALL; parse_call
         when :RUBY; not_implemented_error "'ruby' command"
@@ -99,7 +102,6 @@ module Prick::Lang
         block
       end
     end
-
 
     # Schema, phase, or function declarations. Uses that they have the same
     # parts
@@ -176,10 +178,10 @@ module Prick::Lang
     def parse_case
       trace
       case_ = Ast::Case.new(read)
-      case_.const = parse_constant
+      case_.expr = parse_expr
       while peek.kind == :WHEN
         when_ = Ast::When.new(read)
-        when_.values = parse_values
+        when_.exprs = parse_when_exprs
         when_.then_ = parse_block
         case_.whens << when_
       end
@@ -192,74 +194,44 @@ module Prick::Lang
       case_
     end
 
+    # Parse a comma-separated list of when-expr. A when-expr is an optional
+    # operator followed by a value
+    def parse_when_exprs
+      trace
+      exprs = []
+      while true
+        token = peek.is_oper? ? read : peek
+        when_expr = Ast::WhenExpr.new(token)
+        when_expr.rexpr = parse_value
+        exprs << when_expr
+        break if !readkind?(:COMMA)
+      end
+      exprs
+    end
+
     # Parse an expression. It uses the shunter to compile the source into
     # reverse polish notation that is then converted into an Ast::Expr
     def parse_expr
-      trace
+      trace peek: @tokenizer.peek(eol: true)
       stack = []
-      shunt_exprs.each { |token| # Token is either a SimpleExpr or a operator token
-        if token.is_a? Ast::SimpleExpr
+      shunt_exprs.each { |token| # Token is either a value or a operator token
+        if token.is_a? Ast::Value
           stack.push token
         else
           case OPERATORS[token.kind][:arity]
             when 1
-              e = Ast::UnExpr.new(token)
+              e = Ast::UnaryExpr.new(token)
               e.expr = stack.pop
               stack.push e
             when 2
-              e = Ast::BinExpr.new(token)
+              e = Ast::BinaryExpr.new(token)
               e.rexpr = stack.pop
               e.lexpr = stack.pop
               stack.push e
           end
         end
       }
-      stack.first or unexpected_token_error read, "expression"
-    end
-
-    # Parses list of words (cmd, env, user). Called from the shunter to
-    # generate simple expressions
-    #
-    # Simple expressins are one-line only so the tokenizer is called with eol:
-    # true everywhere
-    def parse_simple_expr # token should be equal to #peek
-      trace
-      token = read(eol: true)
-      case token.kind
-        when :CMD, :ENV, :USER
-          expr = Ast::RuntimeExpr.new(token)
-          expr.ident = Ast::Ident.new(expr.token)
-          expr.words = parse_idents
-        when :VAR
-          expr = Ast::RuntimeExpr.new(token)
-          expr.ident = Ast::Ident.new(readkind(:IDENT, :CMD, :ENV, :USER, eol: true))
-          expr.words = parse_idents
-        when :SCHEMA
-          expr = Ast::ReferenceExpr.new(token)
-          expr.ref = Ast::Reference.new(readkind *Token::IDENTS, eol: true)
-        when :OBJECT
-          expr = Ast::ReferenceExpr.new(token)
-          expr.ref = Ast::Reference.new(readkind *Token::REFS, eol: true)
-        when :RESOURCE
-          expr = Ast::ReferenceExpr.new(token)
-          expr.ref = Ast::Reference.new(readkind *Token::REFS, eol: true)
-        when :VERSION
-          expr = Ast::VersionExpr.new(token)
-          while VERSION_OPERATORS.include?(peek(eol: true).kind)
-            match = Ast::VersionMatch.new(read(eol: true))
-            match.version =  Ast::Ver.new(readkind(:VER, eol: true))
-            expr.matches << match
-          end
-          !expr.matches.empty? or unexpected_token_error peek, "version operator"
-      else
-        unexpected_token_error peek, "simple expression"
-      end
-      expr
-    end
-
-    def parse_values
-      trace
-      readwhile { parse_value? }
+      stack.first or unexpected_token_error peek, "expression"
     end
 
     def parse_ruby
@@ -286,7 +258,7 @@ module Prick::Lang
       token = peek(eol: true)
       Token::IDENTS.include?(token.kind) ? Ast::Ident.new(read(eol: true)) : nil
     end
-    def parse_ident = Ast::Ident.new(readkind(*Token::IDENTS, eol: true))
+    def parse_ident = Ast::Ident.new(readpred(:is_ident?, eol: true))
 
     def parse_idents? = readwhile? { parse_ident? }
     def parse_idents
@@ -300,16 +272,16 @@ module Prick::Lang
       trace
       Token::IDENTS.include?(peek&.kind) ? Ast::Reference.new(read) : nil
     end
-    def parse_name? = Ast::Reference.new(readkind(Token::IDENTS))
+    def parse_name? = Ast::Reference.new(readpred :is_ident? )
 
     def parse_reference? = Token::REFS.include?(peek.kind) ? Ast::Reference.new(read) : nil
-    def parse_reference = Ast::Reference.new(readkind(*Token::REFS))
+    def parse_reference = Ast::Reference.new(readpred :is_ref?)
 
     def parse_references? = readwhile? { parse_reference? }
     def parse_references = check_expected("reference") { readwhile { parse_reference? } }
 
     # Parse a space-separated list of values. Values are IDENT, REF, or a version match
-    def parse_value?
+    def parse_list?
       trace
       case peek.kind
         when *Token::REFS
@@ -329,10 +301,6 @@ module Prick::Lang
       end
     end
 
-    def parse_constant
-      trace
-      Ast::Const.new(readkind(*CONSTANTS))
-    end
     #
     # T O K E N I Z E R  I N T E R F A C E
     #
@@ -353,15 +321,13 @@ module Prick::Lang
 
     def readkind(*kinds, **opts) = readkind?(*kinds, **opts) or unexpected_token_error kinds
     def readkind?(*kinds, **opts) = kinds.include?(peek(**opts)&.kind) ? read(**opts) : nil
-    # Note: Returns an empty list if no token was found
-    def readkinds?(*kinds, **opts)
-      a = []
-      while kinds.include? peek(**opts)&.kind
-        a << read(**opts)
-      end
-      a
-    end
     def readkinds(*kinds, **opts) = [readkind(*kinds, **opts)] + readkinds?(kinds, **opts)
+    def readkinds?(*kinds, **opts) = readwhile { readkind?(pred, **opts) } # Returns [] if not found
+
+    def readpred(pred, **opts) = readpred?(pred, **opts) or unexpected_token_error kinds
+    def readpred?(pred, **opts) = peek(**opts).kind.send(pred) ? read(**opts) : nil
+    def readpreds(pred, **opts) = [readpred(pred, **opts)] + readpreds?(pred, **opts)
+    def readpreds?(pred, **opts) = readwhile { readpred?(pred, **opts) } # Returns [] if not found
 
     # Return nil if empty
     def readwhile(&block) = (r = readwhile?(&block)).empty? ? nil : r
@@ -386,42 +352,64 @@ module Prick::Lang
     # if schema
     #   a
 
+    # Parse a value and return it. Called from the shunter
+    #
+    # If token is a (qualified) identfier and the next token is '?', a
+    # Ast::Reference token is returned
+    def parse_value # token should be equal to #peek
+      trace peek: peek(eol: true)
+      token = read(eol: true)
+      case token.kind
+        when *Token::REFS; peek(eol: true).kind == :QUEST ? Ast::Reference.new(token) : Ast::Word.new(token)
+        when :VAR; Ast::Var.new(token)
+        when :VER; Ast::Ver.new(token)
+        when *Token::PATHS; Ast::File.new(token)
+      else
+        raise InternalError
+      end
+    end
+
     # Returns a reversed Polish notation list of SimpleExpression objects and operator tokens
     def shunt_exprs
       trace
-#     puts "#shunt_exprs"
       stack = []
       output = []
       token_args = {} # Map from list operators 'env' and 'cmd' to array of arguments
 
-      accept_eol = true
+#     accept_eols = 0
+
+      paren_level = 0
+      accept_eol = true # Signals that the expression continues on the next line
       while token = tokenizer.peek(eol: true)
         case token.kind
           when :EOL
-            break if !accept_eol
+            break if paren_level == 0 && !accept_eol
             read(eol: true)
           when :PAREN_BEGIN
-            accept_eol = true
+            paren_level += 1
             stack.push(read(eol: true))
           when :PAREN_END
-            accept_eol = true
+            paren_level -= 1
             read(eol: true)
             while op = stack.pop and op.kind != :PAREN_BEGIN
               output << op
             end
-          when *CONSTANTS
+          when *Token::VALUES
             accept_eol = false
-            output << parse_simple_expr
-          else
-            accept_eol = false
-            oper = OPERATORS[token.kind] or break
+            output << parse_value
+          when *Token::OPERS
+            accept_eol = !token.is_suffix_oper?
+            oper = OPERATORS[token.kind] or raise ArgumentError, "Not a known operator '#{token.text}'"
             read eol: true
+            # TODO: Turn WORD? into references
             while top = OPERATORS[stack.last&.kind]
               break if oper[:prior] > top[:prior]
               break if oper[:prior] == top[:prior] && oper[:assoc] == :right
               output << stack.pop
             end
             stack.push token
+          else
+            nil
         end
       end
 
@@ -447,7 +435,7 @@ module Prick::Lang
     def unexpected_token_error(*args)
       token = args.first.is_a?(Token) ? args.shift : @tokenizer.error || @tokenizer.peek_error || @tokenizer.token or
           raise ArgumentError
-      words = Array(*args).flatten.map! { |w| w.is_a?(Symbol) ? Token::TEXTS[w] : w }
+      words = Array(args).flatten.map! { |w| w.is_a?(Symbol) ? Token::TEXTS[w] : w }.compact
       words = seq words
       source = token.respond_to?(:error) && token.error || token.text
       got = (source.empty? ? "" : ", got '#{source}'")

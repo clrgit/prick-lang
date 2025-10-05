@@ -39,10 +39,6 @@ module Prick::Lang
       def title = token.text
     end
 
-    class Const
-      def title = token.text
-    end
-
     class RuntimeExpr
       def dump = puts "#{self.classname} #{ident} #{words.map(&:to_s).join(', ')}"
     end

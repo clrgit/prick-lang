@@ -453,6 +453,11 @@ describe "Prick::Lang" do
         end
       end
     end
+
+#   context "it recognizes" do
+#     it "keywords"
+#     it "
+#   end
   end
 end
 

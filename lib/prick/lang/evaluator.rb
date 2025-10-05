@@ -40,7 +40,7 @@ module Prick::Lang
         when Ast::UnExpr
           value = eval_expr(expr.expr)
           case expr.oper
-            when :EXCLAIM; !value
+            when :NOT; !value
           else
             raise InternalError
           end

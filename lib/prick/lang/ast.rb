@@ -42,10 +42,39 @@ module Prick::Lang
     end
 
     #
+    # E X P R E S S I O N S
+    #
+
+    class Expr < Node
+    end
+
+    # @token is the operator in expression objects
+    class UnaryExpr < Expr
+      def oper = @token.kind # Symbol
+      part :expr, Expr
+    end
+
+    class BinaryExpr < Expr
+      def oper = @token.kind
+      part :lexpr, Expr
+      part :rexpr, Expr
+    end
+
+    class WhenExpr < Expr # Quacks like a BinaryExpr
+      attr_reader :oper
+      def lexpr = whole.expr
+      part :rexpr, Expr # Only Value objects are allowed atm.
+      def initialize(token)
+        super(token)
+        @oper = @token.is_oper? ? @token.kind : :EQEQ
+      end
+    end
+
+    #
     # V A L U E S
     #
 
-    class Value < Node
+    class Value < Expr
       def value = @token.text
       def literal = @token.text
       def to_s = value.to_s
@@ -56,6 +85,10 @@ module Prick::Lang
       def value = @token.path
     end
 
+    class Ident < Value
+      def to_sym = @token.text.to_sym
+    end
+
     class Reference < Value
     end
 
@@ -63,56 +96,13 @@ module Prick::Lang
       def value() @value ||= Semver.new(literal) end
     end
 
-    class VersionMatch < Value
-      def oper = @token.text
-      part :version, Ver
-    end
-
-    class Ident < Value
-      def to_sym = @token.text.to_sym
-    end
-
     class Word < Value
     end
 
-    class Const < Value
-    end
-
-    #
-    # E X P R E S S I O N S
-    #
-
-    class Expr < Node
-    end
-
-    # @token is the operator in expression objects
-    class UnExpr < Expr
-      def oper = @token.kind
-      part :expr, Expr
-    end
-
-    class BinExpr < Expr
-      def oper = @token.kind
-      part :lexpr, Expr
-      part :rexpr, Expr
-    end
-
-    class SimpleExpr < Expr
-    end
-
-    # cmd, env, user
-    class RuntimeExpr < SimpleExpr
-      part :ident, Ident
-      part :words, [Ident]
-    end
-
-    # schema, object, resource
-    class ReferenceExpr < SimpleExpr
-      part :ref, Reference # TODO: Rename reference
-    end
-
-    class VersionExpr < SimpleExpr # the 'version' keyword. See Ver
-      part :matches, [VersionMatch]
+    class Var < Value
+      forward_to :token, :name
+      def value() "UNRESOLVED" end
+      def to_s = @token.text
     end
 
     #
@@ -200,12 +190,13 @@ module Prick::Lang
     end
 
     class When < Node
-      part :values, [Value]
+      attr_reader :oper
+      part :exprs, [WhenExpr]
       part :then_, Block
     end
 
     class Case < Control
-      part :const, Const
+      part :expr, Expr
       part :whens, [When]
       part :else_, Block
     end

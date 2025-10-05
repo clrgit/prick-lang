@@ -12,10 +12,11 @@ module Prick::Lang
       # The node's identifier (possibly nil). Used in #sig and test
       def signame = nil
 
-      # Signature of a node (token-kind/class + ident). Used in #sig and test
+      # Signature of a node (token-kind/class + ident).
       def sigtitle = [sigclass, signame].compact.join(" ")
 
-      # Dump an Ast node hierarchically
+      # Dump an Ast node hierarchically. #sigtitle is supposed to include the
+      # value of the node if this is a leaf node
       def sig(nodes = children)
         puts sigtitle
         indent { nodes.each &:sig }
@@ -41,7 +42,7 @@ module Prick::Lang
 
     class Require
       def sig
-        puts "#{sigtitle} #{references.map(&:value).join(", ")}"
+        puts "#{sigtitle} #{references.map(&:sigtitle).join(", ")}"
       end
     end
 
@@ -75,14 +76,14 @@ module Prick::Lang
 
     class CallCommand
       def sigclass = kind.to_s.capitalize
-      def sig = puts "#{sigtitle} #{references.map(&:value).join(", ")}"
+      def sig = puts "#{sigtitle} #{references.map(&:sigtitle).join(", ")}"
     end
 
     class If
       def sig
         keyword = "If"
         for if_then in if_thens
-          puts "#{keyword} #{if_then.expr.source}"
+          puts "#{keyword} #{if_then.expr.sigtitle}"
           keyword = "Elsif"
           indent {
             if_then.then_.sig
@@ -97,10 +98,10 @@ module Prick::Lang
 
     class Case
       def sig
-        puts "Case #{const.signame}"
+        puts "Case #{expr.sigtitle}"
         indent {
           for when_ in whens
-            puts "When #{when_.values.map(&:sigtitle).join(", ")}"
+            puts "When #{when_.exprs.map(&:sigtitle).join(", ")}"
             indent { when_.then_.sig }
           end
         }
@@ -112,62 +113,45 @@ module Prick::Lang
     end
 
     class Expr
-#     def source = @token.text # FIXME FIXME FIXME
+      def sigtitle = value
     end
-
 
     # @token is the operator in expression objects
-    class UnExpr
-#     def source = "#{oper}(#{expr.source})"
-      def source = "#{Token::TOKENS[oper]}(#{expr.source})"
+    class UnaryExpr
+      def sigtitle = "#{Token::TOKENS[oper]}(#{expr.sigtitle})"
     end
 
-    class BinExpr
-      def source = "#{Token::TOKENS[oper]}(#{lexpr.source}, #{rexpr.source})"
+    class BinaryExpr
+      def sigtitle = "#{Token::TOKENS[oper]}(#{lexpr.sigtitle}, #{rexpr.sigtitle})"
     end
 
-    class SimpleExpr
-#     def source = @token.text # ???
-    end
-
-    class RuntimeExpr
-      def source = "#{kind}(#{words.map(&:value).join(', ')})"
-    end
-
-    class ReferenceExpr
-      def sig = source
-      def source = "#{kind}(#{ref.value})"
-    end
-
-    class VersionExpr
-      def source = "#{kind} #{matches.map(&:sigtitle).join(' ')}"
+    class WhenExpr
+      def sigtitle = "#{Token::TOKENS[oper]}(_, #{rexpr.sigtitle})"
     end
 
     class Value
-      def signame = value
     end
 
     class File
-      def signame = filename
+      def sigtitle = "File #{token.path}"
+    end
+
+    class Reference
+      def sigtitle = "Reference(#{token.text})"
     end
 
     class Ident
     end
 
-    class Reference
-      def sigtitle = "Reference(#{token.text.inspect})"
-    end
-
     class Ver
-      def sigtitle = "Ver(#{token.text.inspect})"
+#     def sigtitle = "Ver(#{token.text.inspect})"
     end
 
-    class VersionMatch
-      def sigtitle = "#{oper}(#{version.value})"
+    class Word
     end
 
-    class Const
-      def signame = value.upcase
+    class Var
+      def sigtitle = to_s
     end
   end
 end
