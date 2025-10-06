@@ -22,6 +22,7 @@ module Prick::Lang
       begin
         eval_expr(expr)
       rescue StopEvaluation => ex
+        oracle.unresolved << ex.reference
         @unresolved = ex.reference
         nil
       end
@@ -30,22 +31,24 @@ module Prick::Lang
   private
     def eval_expr(expr)
       case expr
-        when Ast::VersionMatch
-          puts "TODO"
-          nil
+        when Ast::Reference
+          uid = oracle.uid(expr.literal)
+          if oracle.known?(uid)
+            oracle.present?(uid)
+          else
+            raise StopEvaluation.new(expr)
+          end
 
-        when Ast::Value
-          expr.value
-
-        when Ast::UnExpr
+        when Ast::UnaryExpr
           value = eval_expr(expr.expr)
           case expr.oper
             when :NOT; !value
+            when :QUEST; value
           else
-            raise InternalError
+            raise InternalError, "Unhandled unary operator: #{expr.oper.inspect}"
           end
 
-        when Ast::BinExpr
+        when Ast::BinaryExpr, Ast::WhenExpr
           lval = eval_expr(expr.lexpr)
           rval = eval_expr(expr.rexpr)
           case expr.oper
@@ -58,23 +61,12 @@ module Prick::Lang
             when :GE; lval >= rval
             when :GT; lval > rval
           else
-            raise InternalError
+            raise InternalError, "Unhandled binary operator: #{expr.oper.inspect}"
           end
 
-        when Ast::RuntimeExpr
-          expr.words.map(&:value).include? oracle.variables[expr.ident.to_sym]
+        when Ast::Value
+          expr.value
 
-        when Ast::ReferenceExpr
-          uid = oracle.uid(expr.ref.literal)
-          if oracle.known?(uid)
-            oracle.present?(uid)
-          else
-            raise StopEvaluation.new(expr.ref)
-          end
-
-        when Ast::VersionExpr
-          puts "TODO"
-          nil
       else
         raise InternalError, expr.classname
       end

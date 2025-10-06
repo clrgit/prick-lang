@@ -175,7 +175,10 @@ module Prick::Lang
     #
     def build_unresolved
       trace
+      oracle.dump
+      ast.dump
       return if oracle.unresolved.empty?
+
 
       # Save unresolved nodes that are to be flattened later (ups: doens't
       # include new nodes)
@@ -199,6 +202,8 @@ module Prick::Lang
 
         break if oracle.unresolved.empty?
         oracle.mark_unknown_absent
+
+        oracle.dump
       end
 
       # Flat now-resolved nodes into parent block

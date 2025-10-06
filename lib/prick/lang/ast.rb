@@ -90,6 +90,7 @@ module Prick::Lang
     end
 
     class Reference < Value
+      attr_accessor :uid
     end
 
     class Ver < Value # a version value. See Version

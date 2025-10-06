@@ -30,7 +30,7 @@ describe "Prick::Lang" do
       l = %(
         provide r
 
-        if resource r
+        if r?
           true.sql
         else
           false.sql
@@ -44,7 +44,7 @@ describe "Prick::Lang" do
 
     it "evaluates unknown references to false" do
       l = %(
-        if resource r
+        if r?
           true.sql
         else
           false.sql
@@ -57,7 +57,7 @@ describe "Prick::Lang" do
 
     it "takes later-defined resources into account" do
       l = %(
-        if resource r
+        if r?
           true.sql
         else
           false.sql
@@ -73,12 +73,12 @@ describe "Prick::Lang" do
 
     it "allows nested definitions" do
       l = %(
-        if resource r
+        if r?
           provide p
         end
 
-        if resource r
-          if resource p
+        if r?
+          if p?
             true.sql
           else
             false.sql
@@ -95,37 +95,3 @@ describe "Prick::Lang" do
     end
   end
 end
-__END__
-      context "it parses" do
-        context "files" do
-          it "with one file" do
-            l = %(file.sql)
-            expect(sig l).to eq "File file.sql"
-          end
-          it "with multiple files" do
-            l = %(a.sql b.sql)
-            expect(sig l).to eq %(
-              File a.sql
-              File b.sql
-            ).align
-          end
-        end
-
-
-    it "asdf" do
-      l = %(
-        provide r
-
-        if resource r
-          schema s {
-            true.sql
-          }
-        else
-          false.sql
-        end
-      )
-      expect(sig(l)).to eq %(
-        true.sql
-      ).align
-    end
-
