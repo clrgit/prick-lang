@@ -130,11 +130,6 @@ module Prick::Lang
       attr_reader :unresolved_uid
 
       def initialize(parent, ast, unresolved, unresolved_uid)
-#       puts "Unresolved#initialize"
-#       puts "  parent: #{parent.classname}"
-#       puts "  ast: #{ast.classname}"
-#       puts "  unresolved: #{unresolved.classname}"
-#       puts "  unresolved_uid: #{unresolved_uid.inspect}"
         constrain parent, Idr::Resource
         constrain ast, Ast::Control
         constrain unresolved, Ast::Reference
@@ -143,117 +138,6 @@ module Prick::Lang
         @ast = ast
         @unresolved = unresolved
         @unresolved_uid = unresolved_uid
-      end
-    end
-
-    # An unresolved object quacks like the containing resource but has its own
-    # block. By pushing an unresolved object to the oracle's context stack, the
-    # usual #build_X methods will still work. Unresolved objects are later
-    # flattened into the parent's block
-#   class Unresolved < Node
-#     attr_reader :unresolved # Ast::Reference
-#
-#     # UID of resource
-#     def uid = parent.uid
-#   end
-  end
-end
-
-
-
-
-
-__END__
-
-module Prick::Lang
-  module Idr
-    class Node < Part
-      include ClassFunctions
-
-      attr_reader :ast # Ast::Node
-      def token = ast.token
-
-      def initialize(ast)
-        constrain ast, Ast::Node if !ast.nil?
-        super()
-        @ast = ast
-      end
-    end
-
-    class Nodes < Node
-      include Parts
-
-      # #ast is initially nil but redefined to the ast of the first node
-      def ast = @ast || children.first&.ast
-
-      # Outermost Program object
-      def program = @program ||= whole.program
-
-      # Enclosing Schema object. Outermost phases and functions have program
-      # as schema
-      def schema() = @schema ||= whole.schema
-
-      def initialize(ast, element_klass)
-        Parts.initialize(self, element_klass)
-        super(ast)
-      end
-    end
-
-    #
-    # C O M M A N D S
-    #
-
-    class Command < Node
-      attr_accessor :kind
-    end
-
-    # Artificial node that creates a schema
-    class SchemaCommand < Command
-    end
-
-    class FileCommand < Command
-      alias_method :file, :ast
-      def path = file.path
-    end
-
-    class ExternalCommand < Command
-      forward_to :ast, :source
-    end
-
-    class CallCommand < Command
-    end
-
-    #
-    # R E Q U I R E
-    #
-    class RequireCommand < Node
-      def schema_or_phase_or_function = raise
-
-      alias_method :schema, :parent
-      attr_reader :uid
-      attr_accessor :node # Required entry node
-      def initialize(ast, uid)
-        constrain ast, Ast::Reference
-        super(ast)
-        @uid = uid
-      end
-    end
-
-    #
-    # U N R E S O L V E D
-    #
-
-    class Unresolved < Node
-      attr_reader :unresolved # Ast::Reference
-
-      # The uid of the unresolved resource
-      attr_reader :uid
-
-      def initialize(ast, unresolved, uid)
-        constrain unresolved, Ast::Reference
-        super ast
-        @unresolved = unresolved
-        @uid = uid
       end
     end
   end
