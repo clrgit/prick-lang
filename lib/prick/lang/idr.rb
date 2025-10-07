@@ -72,7 +72,9 @@ module Prick::Lang
       end
 
       def flatten
-        @block = @block.flat_map { |node| node.is_a?(Unresolved) ? node.flatten : node }
+        @block = @block.flat_map { |node|
+          node.is_a?(Unresolved) ? node.flatten : node
+        }
       end
     end
 
@@ -119,7 +121,7 @@ module Prick::Lang
     #
 
     class Unresolved < Resource
-      forward_to :parent, :ident, :uid, :klass
+      forward_to :parent, :klass, :ident, :uid
 
       # Unresolved Ast node
       attr_reader :unresolved # Ast::Reference
@@ -128,9 +130,15 @@ module Prick::Lang
       attr_reader :unresolved_uid
 
       def initialize(parent, ast, unresolved, unresolved_uid)
+#       puts "Unresolved#initialize"
+#       puts "  parent: #{parent.classname}"
+#       puts "  ast: #{ast.classname}"
+#       puts "  unresolved: #{unresolved.classname}"
+#       puts "  unresolved_uid: #{unresolved_uid.inspect}"
         constrain parent, Idr::Resource
         constrain ast, Ast::Control
         constrain unresolved, Ast::Reference
+        constrain unresolved_uid, String
         super parent, nil
         @ast = ast
         @unresolved = unresolved

@@ -22,7 +22,6 @@ module Prick::Lang
       begin
         eval_expr(expr)
       rescue StopEvaluation => ex
-        oracle.unresolved << ex.reference
         @unresolved = ex.reference
         nil
       end
@@ -32,7 +31,7 @@ module Prick::Lang
     def eval_expr(expr)
       case expr
         when Ast::Reference
-          uid = oracle.uid(expr.literal)
+          uid = expr.uid = oracle.uid(expr.literal)
           if oracle.known?(uid)
             oracle.present?(uid)
           else

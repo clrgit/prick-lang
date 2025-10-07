@@ -10,7 +10,7 @@ module Prick::Lang
     attr_reader :resources # UID String => true/false/nil
 
     # Unresolved nodes
-    attr_accessor :unresolved
+    attr_accessor :unresolved # Unresolved
 
     # Require commands. Used by the #analyzer to check references
     attr_accessor :requires
@@ -22,9 +22,6 @@ module Prick::Lang
 
     # Current Resource object
     def context = @contexts.last.first
-
-    # Current block
-    def block = @contexts.last.last
 
     def initialize(variables)
       @variables = variables
@@ -39,7 +36,8 @@ module Prick::Lang
       (ident.index('.') ? ident : [context.uid, ident].compact.join("."))
     end
 
-    # Execute block with the given context
+    # Execute block with the given context. The current block can be set
+    # explicitly, this is used by Analyze#build_unresolved
     def scope(context, block = context.block, &code)
       constrain context, Idr::Resource
       constrain block, Array
@@ -51,6 +49,9 @@ module Prick::Lang
 
     # Add an unknown resource if not present. Return the uid
     def ensure(value)
+#     puts "#ensure(#{value.inspect})"
+#     puts "  value.value: #{value.value.inspect}"
+#     puts "  uid: #{self.uid(value.value)}"
       constrain value, Ast::Value
       uid = self.uid(value.value)
       @resources[uid] = nil if !@resources.key?(uid)
@@ -107,8 +108,10 @@ module Prick::Lang
         if unresolved.empty?
           puts "unresolved: []"
         else
-          puts "unresolved:"
-          indent { unresolved.each { |node| puts "#{node.token.location}: #{node.uid}" } }
+          puts "unresolved (#{unresolved.size}):"
+          indent {
+            unresolved.each { |node| puts "#{node.token.location}: #{node.unresolved_uid} #{node.classname}" }
+          }
         end
       }
     end
