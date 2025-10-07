@@ -49,7 +49,7 @@ describe "Prick::Lang" do
         expect(call l).to be_a Prick::Lang::Ast::Program
       end
 
-      it "accepts empty input X" do
+      it "accepts empty input" do
         l = %()
         expect(call l).to be_a Prick::Lang::Ast::Program
       end

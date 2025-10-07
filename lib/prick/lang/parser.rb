@@ -54,7 +54,7 @@ module Prick::Lang
     def parse_program
       trace
       @ast = Ast::Program.new(file)
-      @ast.block = parse_block
+      @ast.block = parse_block(check: false)
       @ast
     end
 
@@ -80,13 +80,14 @@ module Prick::Lang
 
     def parse_stmts(check: true)
       trace
-      check_expected "statement" do
+#     check_expected "statement" do
         stmts = []
         while stmt = parse_stmt
           stmts << stmt
         end
-        check && stmts.empty? ? nil : stmts # nil triggers enclosing #check_expected
-      end
+        stmts
+#       check && stmts.empty? ? nil : stmts # nil triggers enclosing #check_expected
+#     end
     end
 
     # Parse a statement block (a list of statements). Checks for non-empty when
