@@ -1,137 +1,213 @@
+
 module Prick::Lang
   module Ast
-    class Node
+    class Node < Part
+      include ClassFunctions
+
       attr_reader :parent # Node or nil
       attr_reader :children # [Node]
-      attr_reader :token
 
-      forward_to :token, :lineno, :charno
+      forward_to :@children, :empty?
 
-      def initialize(parent, token)
-        @parent = parent and parent.children << self
-        @children = []
+      # All nodes have a token that identifies the node and a start and stop
+      # token. The three tokens are often identical but eg. binary operators
+      # have three different tokens: '1 + 2' yields '1' as the start token, '2'
+      # as the stop token, and '+' as the binary expression token
+      attr_accessor :token
+
+      # Start token defaults recursively to the start token of the first child
+      def start_token() @start_token ||= @children.first&.start_token || @token end
+      attr_writer :start_token
+
+      # Stop token defaults recursively to the stop token of the last child
+      def stop_token() @stop_token ||= @children.last&.stop_token || @token end
+      attr_writer :stop_token
+
+      forward_to :token, :lineno, :charno, :kind, :file
+
+      def initialize(token)
+        constrain token, Token, nil
         @token = token
+        super()
       end
     end
 
-    class Program < Node
-      def initialize(file)
-        super(nil, Token.new(file, 1, 1, "", :PROGRAM)
+    # Array of nodes. Token may be nil, defaults to #start_token
+    class Nodes < Node
+      include Parts
+      def initialize(token, element_klass)
+        super(token)
+        Parts.initialize(self, element_klass)
       end
     end
 
-    class Block < Node
-      def name = @token.text
-      alias_method :start_token, :token
-      attr_accessor :stop_token, :token
-      def initialize(parent, start_token, stop_token = start_token)
-        super(parent, start_token)
-        @stop_token = stop_token
-      end
-    end
-
-#   class SchemaStmt < Block
-#     attr_reader :name
-#
-#
-#   end
-
-
-
-
-
-
-
-
-
-
-    class InitBlock < Block
-    end
-
-    class FinalBlock < Block
-    end
-
-    class MetaBlock < Block #?
-    end
-
-    class SeedBlock < Block
-    end
-
-    class AuthBlock < Block
-    end
-
-    class SchemaStmt < Node
-    end
-
-    class OptionStmt < Node
-    end
-
-    class IfStmt < Node
-      attr_reader :expr # Expr
-      attr_reader :then # Block
-      attr_reader :else # Block
-
-      def initialize(token, parent, expr, then_, else_)
-        super(token, parent)
-        @expr, @then, @else = expr, then_, else_
-      end
-
-      def analyze(parent) Idr::IfStmt.new(self, parent, expr, @then.analyze, @else.analyze) end
-    end
-
-    class CaseStmt < Node
-      attr_reader :expr
-      attr_reader :when_entries # {expr => Node}
-      attr_reader :else_entry # Node or nil
-    end
-
-    class CallStmt < Node
-      # Single-line command or multiline inline script
-      attr_reader :source # String
-
-      # True if source is a multiline inline script
-      def multiline?() end
-
-#     # Shell command if single-line, otherwise nil
-#     def command() end
-
-      # True if calling a ruby script using require, default false
-      attr_reader :ruby
-    end
-
-    class ExecStmt < CallStmt
-    end
-
-    class EvalStmt < CallStmt
-    end
-
-    class FileStmt < Node
-      forward_to :token, :filename, :extname
-    end
-
-    class SqlFileStmt < FileStmt
-    end
-
-    class PSqlFileStmt < FileStmt
-    end
-
-    class FoxFileStmt < FileStmt
-    end
-
-    class RubyFileStmt < FileStmt # ?
-      def analyze() CallStmt.new(self, filename, ruby: true) end
-    end
-
-    class DirStmt < FileStmt
-    end
-
-    class PrickStmt < FileStmt
-    end
-
-    class InitBlock
-    end
+    #
+    # E X P R E S S I O N S
+    #
 
     class Expr < Node
     end
+
+    # @token is the operator in expression objects
+    class UnaryExpr < Expr
+      def oper = @token.kind # Symbol
+      part :expr, Expr
+    end
+
+    class BinaryExpr < Expr
+      def oper = @token.kind
+      part :lexpr, Expr
+      part :rexpr, Expr
+    end
+
+    class WhenExpr < Expr # Quacks like a BinaryExpr
+      attr_reader :oper
+      def lexpr = whole.expr
+      part :rexpr, Expr # Only Value objects are allowed atm.
+      def initialize(token)
+        super(token)
+        @oper = @token.is_oper? ? @token.kind : :EQEQ
+      end
+    end
+
+    #
+    # V A L U E S
+    #
+
+    class Value < Expr
+      def value = @token.text
+      def literal = @token.text
+      def to_s = value.to_s
+    end
+
+    class File < Value
+      forward_to :@token, :path, :dirname, :filename, :extname
+      def value = @token.path
+    end
+
+    class Ident < Value
+      def to_sym = @token.text.to_sym
+    end
+
+    class Reference < Value
+      attr_accessor :uid
+    end
+
+    class Ver < Value # a version value. See Version
+      def value() @value ||= Semver.new(literal) end
+    end
+
+    class Word < Value
+    end
+
+    class Var < Value
+      forward_to :token, :name
+      def value() "UNRESOLVED" end
+      def to_s = @token.text
+    end
+
+    #
+    # S T A T E M E N T S
+    #
+
+    class Stmt < Node
+    end
+
+    # A block is an Nodes object with elements restricted to statements
+    class Block < Stmt
+      part :stmts, [Stmt]
+    end
+
+    class Provide < Stmt
+      part :ident, Reference # Always initialized with a single identifier
+    end
+
+    class Require < Stmt
+      part :references, [Reference]
+    end
+
+    #
+    # D E C L A R A T I O N S
+    #
+
+    class Decl < Stmt
+      part :ident, Reference
+      part :block, Block
+    end
+
+    class Function < Decl
+    end
+
+    class Phase < Decl
+    end
+
+    class Schema < Decl
+    end
+
+    class Program < Decl
+      def initialize(file)
+        super Token.new(file, 1, 1, "::", :PROGRAM)
+      end
+    end
+
+    #
+    # C O M M A N D S
+    #
+
+    class Command < Stmt; end
+
+    # Sequence of .sql/.psql files
+    class Source < Command # TODO: Rename FileCommand
+      part :files, [File]
+    end
+
+    # exec/eval/sql
+    class ExternalCommand < Command
+      attr_accessor :source # Array of source lines. Assigned after initialization
+
+      # True iff source consists of multiple lines
+      def multiline? = @source =~ /\n/
+    end
+
+    # call function
+    class CallCommand < Command
+      part :references, [Reference]
+    end
+
+    #
+    # C O N T R O L   S T A T E M E N T S
+    #
+
+    class Control < Stmt; end
+
+    class IfThen < Node
+      part :expr, Expr
+      part :then_, Block
+    end
+
+    class If < Control
+      part :if_thens, [IfThen]
+      part :else_, Block
+    end
+
+    class When < Node
+      attr_reader :oper
+      part :exprs, [WhenExpr]
+      part :then_, Block
+    end
+
+    class Case < Control
+      part :expr, Expr
+      part :whens, [When]
+      part :else_, Block
+    end
+
   end
 end
+
+
+
+
+
+
+

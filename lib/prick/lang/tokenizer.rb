@@ -1,15 +1,29 @@
 
-
 module Prick::Lang
   class Tokenizer
-    include ErrorFunctions
+    # Tokenizer maintains a state for the current point in the file and a state
+    # for the point after a token has been peek'ed. It could be modelled with a
+    # reader object for the two states, that would also allow nested peeks, but
+    # we don't to that because of the overhead in a critical spot in the code
+    # (maybe)
 
+    using String::Text
+    include ErrorFunctions
     class TokenizerError < Prick::Lang::Error; end
 
-    attr_reader :compiler
+    # Using (?<ws>) and (?<token>) because Ruby's unnamed captures acts
+    # strangely if not all captures are named
+    TOKEN_RE = /\G(?<ws>\s*)(?<token>#{Token::TOKEN_RE})#{Token::COMMENT_RE}/
+    IDENT_RE = /\G(?<ws>\s*)(?<ident>#{Token::IDENT_RE})#{Token::COMMENT_RE}/
 
     # Source file
-    forward_to :compiler, :file
+    attr_reader :file
+
+    # Current line
+    def line = @lines[@index]
+
+    # Rest of current line
+    def rest = @lines[@index]&.[](@pos..-1)
 
     # Current line number (one-based)
     def lineno = @index + 1
@@ -17,308 +31,297 @@ module Prick::Lang
     # Current character position (one-based)
     def charno = @pos + 1
 
-    # Indent of current line
-#   def indent() @indent ||= @lines[@index][/\A */].size end
+    # Indent of current or given line
+    def indent(l = line) = l && l[/\A */].size
 
-    def initialize(compiler, lines = nil)
-      constrain compiler, Compiler
+    # Last read token. Note that this does not reflect the current state
+    attr_reader :token
+
+    # Token of the last read error
+    attr_reader :error
+
+    # Last peek'ed token
+    attr_reader :peek_token
+
+    # Token of the last peek'ed error
+    attr_reader :peek_error
+
+    def initialize(file, lines = nil)
+      constrain file, String
       constrain lines, [String], nil
-      @compiler = compiler
-      @lines = lines || IO.readlines(file).map(&:chomp)
-      @index = 0 # Current line
-      @indent = nil # Indent level of current line
-      @pos = 0 # Current character
-      @token = nil # Current peek'ed token if present
+      @file = file
+      @lines = (lines || IO.readlines(file)).map(&:rstrip).take_while { _1 !~ /^__END__$/ }
+      trimlines
+
+      # Current state
+      @index = 0 # current line index
+      @pos = 0 # current character index
+      @token = nil
+      @error = nil # last error token
+      reset_peek
     end
 
     # Return true if at end of file
-    def eof?() @lines.size == @index end
+    def eof?(eol: false) = @index >= @lines.size + (eol ? 1 : 0)
 
     # Return true if at end of line. #eol? is also when at end of file
-    def eol? = eof? || @pos == (@lines[@index]&.size || 0)
+    def eol? = eof?(eol: false) || @pos == line.size
 
     # Return true if at beginning of line. #bol? is also true when at end of
     # file (FIXME)
     def bol? = eof? || @pos == 0
 
-    # Set end of line
-    def eol!() @pos = @lines[@index]&.size || 0 end
+    # True if we have a peek'ed token
+    def peek? = !@peek_token.nil? || !@peek_error.nil?
 
-    # Return next token to be extracted. Return nil if at end of file
-    def peek(kinds = nil)
-      !eof && ensture_buffer or return nil
+    # Return nil if no regular token was found but return EolToken/EofToken if
+    # :eol/:eof is true and at the end of line/file
+    #
+    # Note that #peek has eof default true but #read has eof default false
+    def peek(eol: false, eof: true, re: TOKEN_RE)
+      if peek?
+        # Ignore peek'ed EOL or EOF token
+        if @peek_token&.kind == :EOL && !eol || @peek_token&.kind == :EOF && !eof
+          move
+        else
+          return @peek_token
+        end
+      end
 
-#     @buffer && !eol? and next_buffer or return nil
-#     parse_token(kinds && Array(kinds))
+      # Handle initial EOF
+      if eof?(eol: eol)
+        return @peek_token = handle_peek_eox(:EOF, eof)
+
+      # Handle initial EOL
+      elsif eol?
+        # Move to next line
+        @peek_index += 1
+        @peek_pos = 0
+        return @peek_token = handle_peek_eox(:EOL, true) if eol
+      end
+
+      # Scan blank lines
+      @peek_index = scanlines(@peek_index)
+
+      # Handle after-scan EOF
+      return handle_peek_eox(:EOF, eof) if @peek_index >= @lines.size
+
+      # Read token. Different token types are matched by different capture
+      # groups
+      m = TOKEN_RE.match(@lines[@peek_index], @peek_pos) or raise InternalError # Match always
+      match = m.match(:token) # matching string
+      match_charno = m.offset(:token).first + 1
+      @peek_pos += m.match_length(0)
+      @peek_error = nil
+      args = [file, @peek_index + 1, match_charno] # First three Token#new arguments
+
+      # Handle after-match EOL
+      if !eol && @peek_pos == @lines[@peek_index].size
+        @peek_index += 1
+        @peek_pos = 0
+      end
+
+      # Detect matched token type and extract value
+      @peek_token =
+          if m[:keyword] || m[:punct] || m[:oper]
+            Token.new *args, match, Token::TOKEN_KINDS[match]
+          elsif m[:file]
+            FileToken.new(*args, match, m[:path], m[:file], m[:ext])
+          elsif m[:dir]
+            DirToken.new *args, match
+          elsif m[:path]
+            PathToken.new *args, match
+          elsif m[:ident]
+            Token.new *args, match, :IDENT
+          elsif m[:ref]
+            Token.new *args, match, :REF
+          elsif m[:ver]
+            Token.new *args, match, :VER
+          elsif m[:var]
+            VarToken.new *args, match
+          elsif s = m[:error]
+            @peek_error = CharErrorToken.new *args, s
+            nil
+          else
+            raise InternalError
+          end
     end
 
-    # Extract and return next token. Advance to next line if this was the last
-    # token on the line
-    def read(kind = nil)
-      peek(kind) or return nil
-      extract_token
+    def with(eol: false, eof: false, &block)
+      @default_eol = eol
+      @default_eof = eof
+      yield
     end
 
-    # Return the rest of the line as a TEXT token and advance to the next line.
-    # Returns nil if at end of line
-    def readtext
-      !eof? && !eol? or return nil
-      token = Token.new(file, lineno, charno, @lines[@index][@pos..-1].lstrip, :TEXT)
-      eol!
-      token
+    # Return current peek'ed token and move to next token
+    def move
+      @index = @peek_index
+      @pos = @peek_pos
+      @error = @peek_error; @peek_error = nil
+      @token = @peek_token; @peek_token = nil
+      @token
     end
 
-    # Return line as a LINE token and advance to the next line. It is an error
-    # if any text remains on the current line
-    def readline
-      !eof? or return nil
-      !eol? or error "Not at start of line"
-      token = Token.new(file, lineno, charno, @lines[@index], :LINE)
-      eol!
-      token
+    def read(eol: false, eof: false, re: TOKEN_RE)
+      peek(eol: eol, eof: eof, re: re)
+      move
     end
 
-    # Return lines with same or higher indent than the first non-blank line
-    def readblock
-      !eof? or return nil
-      eol? or error "Not at end of line"
-      skip_blanks
+    # Return the rest of the line as a LINE token and advance to the next line
+    def readline(eol: false, eof: false)
+      !eof? or return handle_eox(:EOF, eof)
+      !eol? or return handle_eox(:EOL, eol)
+      @error = nil
+      @token = Token.new(file, lineno, charno, @lines[@index][@pos..-1].lstrip, :LINE)
+      nextline # also updates peek_*
+      @token
     end
 
-# protected
+    # Return a TEXT token of lines with indent bigger or equal to min_indent.
+    # Lines with a '#' in the first column are replaced with an empty string
+    # and then the block is aligned as a whole to the least indented line.
+    # Leading and traling blank lines are ignored (but counted). Note that
+    # #readtext will read the rest of the file if min_indent is 0
+    def readtext(min_indent, eof: false)
+      !eof? or return handle_eox(:EOF, eof)
+      bol? or raise InternalError # We have to be at the beginning of line
 
-    def reset_line
-      @indent = nil
-      @pos = 0
-      @token = nil
-    end
+      @error = nil
+      error_index = @index # Index to use if not found
+      @index = scanlines(@index, comment: true) # Ignore initial blank lines
 
-    # Move to the next line. Returns nil
-    def next_line
-      eol? or erorr "Not at end of line"
-      @index += 1
-    end
+      token_lineno = lineno # Line number of first non-blank line
 
-    # Read and ignore blank lines (incl. comments)
-    def skip_blanks
-      !eof? or return nil
-      bol? or error "Not at start of line" # Implies line has been reset
-      while (line = @lines[@index]&.sub(/^\s*(?:#.*)?$/, ""))&.empty?
+      # Scan indented lines; column-one column lines are blanked-out. It
+      # includes trailing blank lines that are removed later
+      block = []
+      non_blank_lines = []
+      indents = []
+      while !eof?
+        if indent >= min_indent
+          block << line
+          non_blank_lines << line
+          indents << indent
+        elsif line == "" || line[0] == '#'
+          block << ""
+        else
+          @pos = indent
+          break
+        end
         @index += 1
       end
-      line
+
+      # Check if anything was found
+      if non_blank_lines.empty?
+        @error_token = eob_token(error_index)
+        @index, @pos = error_index, 1 # Reset to position before error
+        return @token = nil
+      end
+
+      # Set peek to current position
+      reset_peek
+
+      # Position in first non-blank line that is used to anchor the text token.
+      # We can't use #charno because that is at the start of the line so we
+      # access the indents array instead
+      token_charno = indents[0] + 1
+
+      # Format block as an aligned text string
+      min = indents.min || 0
+      source = block.map { |l| l[min..-1] }.join("\n").sub(/\n+\Z/, "") # #sub remove trailing blank lines
+
+      Token.new(file, token_lineno, token_charno, source, :TEXT)
+    end
+
+    def readwords
+      !eof? or return handle_eox(:EOF, false)
+      !eol? or return handle_eox(:EOL, false)
+      words = []
+      while !eol? && m = Token::WORD_RE.match(@lines[@index], @pos)
+        match = m.match(:word)
+        match_charno = m.offset(:word).first + 1
+        words << Token.new(file, lineno, match_charno, match, :WORD)
+        @pos += m.match_length(0)
+      end
+      nextline
+      words
+    end
+
+    def nextline
+      @index += 1
+      @pos = 0
+      @error = nil
+      reset_peek
     end
 
     def dump
-      puts "#{compiler.file}"
-      indent {
+      puts "Tokenizer"
+      Kernel.indent {
+        puts "file: #{file}"
+        puts "eof?: #{eof?.inspect}"
+        puts "bol?: #{bol?.inspect}"
+        puts "eol?: #{eol?.inspect}"
         puts "index: #{@index.inspect}"
-        puts "indent: #{@indent.inspect}"
         puts "pos: #{@pos.inspect}"
+        puts "line: #{@line.inspect}"
+        puts "rest: #{line&.[](@pos..-1).inspect}"
+        puts "indent: #{@indent.inspect}"
         puts "token: #{@token.inspect}"
-        if !@lines.empty?
-          puts "lines:"
-          indent { puts @lines.map(&:inspect) }
-        else
-          puts "lines: []"
-        end
+        puts "error: #{@error.inspect}"
+        puts "peek_token: #{@peek_token.inspect}"
+        puts "peek_error: #{@peek_error.inspect}"
       }
     end
-  end
-end
 
-__END__
+  protected
+    def terminator_token(kind, lineo = self.lineno) = Token.new(file, lineno, 1, nil, kind)
 
-#   # True if buffer has been loaded
-#   def b? = !@buffer.nil?
-#
-#   # End of buffer
-#   def eob? = @pos == @buffer&.size
-#
-#   # Set end of buffer
-#   def eob!() @pos = (@buffer ||= @lines[@index]).size end
-#
-#   # Start of buffer
-#   def bob? = !b? || @pos == 0
-#
-#   def ensure_buffer
-#     b? && !eob? or load_buffer
-#   end
+    def eof_token(lineno = self.lineno) = Token.new(file, lineno, 1, nil, :EOF)
+    def eol_token(lineno = self.lineno, charno = self.charno) = Token.new(file, lineno, charno, nil, :EOL)
+    def eob_token(lineno = self.lineno, charno = self.charno) = Token.new(file, lineno, charno, nil, :EOB)
 
-#   def load_buffer
-#     reset_buffer
-#     while (@buffer = next_line&.sub(/^\s*(?:#.*)$/, ""))&.empty? ; end
-#     @buffer
-#   end
-#
-#   def next_buffer
-#     reset_buffer
-#     while (@buffer = next_line&.sub(/^\s*(?:#.*)$/, ""))&.empty? ; end
-#     @buffer
-#   end
+    def eof_error() @error_token = eof_token; @token = nil end
+    def eol_error() @error_token = eol_token; @token = nil end
 
-    #############################################
-
-    def load_line
-#     reset_buffer
-      impl_load_line
+    def handle_eox(kind, flag)
+      constrain kind, :EOF, :EOL
+      token = Token.new(file, lineno, charno, nil, kind)
+      @token, @error = *(flag ? [token, nil] : [nil, token])
+      @token
     end
 
-    def impl_load_line
-      return nil if eof?
-#     @lines.size == @index ? nil : @lines[@index+=1]
-      @lines[@index+=1]
+    # Handles an EOF/EOL condition. Return Eof/EolToken if :flag is true and
+    # clear error state. Return nil if flag is false and set #error_token to
+    # the Eof/EolToken. kind can be :EOF og :EOL
+    def handle_peek_eox(kind, flag)
+      constrain kind, :EOF, :EOL
+      token = Token.new(file, lineno, charno, nil, kind)
+      @peek_token, @peek_error = *(flag ? [token, nil] : [nil, token])
+      @peek_token
     end
 
-    # Parse a token. The buffer is cleared if at the end of line after the token
-    # has been extracted
-    def parse_token(kind = nil)
+    def reset_peek
+      @peek_index = @index
+      @peek_pos = @pos
+      @peek_token = nil # current peek'ed token if present
+      @peek_error = nil # error token from last call to #peek
     end
 
-    def extract_token
+    # Return index of first non blank line including the current line. Ignore
+    # comment-only lines unless :comment is true.  Returns lines.size on eof
+    def scanlines(index = @index, comment: false)
+      re = (!comment ? Token::COMMENT_LINE_RE : Token::BLANK_LINE_RE)
+      offset = @lines[index..-1].find_index { |l| !re.match(l) }
+      (offset ? index + offset : @lines.size)
+    end
+
+    # Removes trailing blank or comment-only lines
+    def trimlines
+      while @lines.last && @lines.last =~ Token::COMMENT_LINE_RE
+        @lines.pop
+      end
     end
   end
 end
 
-__END__
-
-
-
-
-
-module Prick::Lang
-  class Tokenizer
-    # Map from keyword or punctuation to token kind
-    KEYWORDS = Token::TOKENS.compact.invert
-
-    PEEK_RE = /((\s*)(#{Token::WORD_RE}))/
-    EXT_RE = /(?:sql|psql|rb|fox|prick)/
-    FILENAME_RE = /^([\w-]+)\.(#{EXT_RE}\b)$/
-
-    attr_reader :compiler
-    forward_to :compiler, :file
-
-    attr_reader :line, :lineno, :charno
-
-    def initialize(compiler)
-      @compiler = compiler
-      @lines = IO.readlines(file).map { |line| line.sub(/#.*/, "").sub(/\s*$/, "") }
-      @buffer = nil
-      @lineno = 0 # Index in @lines of next line
-      @charno = 0 # Index in @buffer of next character
-      peekreset
-    end
-
-    def eol?() @buffer.nil? || @buffer.size == @charno end
-    def eof?() @lines.size == @lineno && eol? end
-    def peek?() !@peektoken.nil? end # Token has been cached
-    def empty?() @lines.empty? end
-
-    # Line indent. Zero-based, nil if line is empty
-    def indent()
-      peekword if !peek?
-      @peekindent
-    end
-
-    def peekreset()
-      @peekindent = @peekcharno = @peeklength = @peekword = @peektoken = nil
-    end
-
-    # Peek word
-    def peekword(rest: false)
-      @peekword ||= begin
-        readline(rest: rest) if eol?
-        if m = PEEK_RE.match(@buffer, @charno-1)
-          @peekindent ||= m.match_length(2)
-          @peekcharno = m.offset(3).first + 1
-          @peeklength = (rest ? @buffer.size - @peekindent : m.match_length(3))
-          @buffer[@peekcharno-1, @peeklength]
-        else # Empty line, should only happen when called through #peekline
-          @peekindent = nil
-          @peekcharno = 0
-          @peeklength = 0
-          ""
-        end
-      end
-    end
-
-    # Peek rest of line excluding leading whitespace
-    def peektext()
-      peekword(rest: true) if !peek?
-      @buffer[@peekcharno-1..-1]
-    end
-
-    # Peek full line. Do not skip empty lines
-    def peekline()
-      eol? or raise ArgumentError, "Not at end of line"
-      peekword(rest: true)
-    end
-
-    # Index of peek word
-    def peekcharno()
-      peekword if !peek?
-      @peekcharno
-    end
-
-    # Return the next token to be read. The kind argument explicitly sets the
-    # token kind; this is used to get a TEXT token that eats up the rest of the
-    # line
-    def peektoken(kind = nil)
-      return nil if eof?
-      if @peektoken.nil?
-        readline if eol?
-
-        # detect kind and build array of [text, kind, filename=nil, extname=nil]
-        # arguments to Token#initialize
-        if kind == :TEXT
-          args = [peektext, :TEXT]
-        elsif kind == :LINE
-          eol? or raise ArgumentError, "Not at start of line"
-          args = [@buffer, :LINE]
-        elsif kind
-          args = [peekword, kind]
-        elsif kind = KEYWORDS[peekword]
-          args = [peekword, kind]
-        elsif File.basename(peekword) =~ FILENAME_RE
-          filename, extname = $1, $2
-          args = [peekword, :FILE, filename, extname]
-        else
-          args = [peektext, :TEXT]
-        end
-        @peektoken = Token.new(file, lineno, peekcharno, *args)
-      else
-        kind.nil? || @peektoken.kind == kind or raise ArgumentError "token kind mismatch"
-      end
-    end
-
-    # Ignore peek'ed token. As a safeguard, it is an error if the token hasn't
-    # been peek'ed
-    def skiptoken(kind = nil)
-      peek? or raise ArgumentError "can't skip unknown token"
-      readtoken(kind)
-    end
-
-    # Read and return the next token. It is an internal error if kind is
-    # different from the cached token's kind if both are present
-    def readtoken(kind = nil)
-      return nil if eof?
-      kind.nil? || !peek? || peektoken.kind == kind or raise ArgumentError "read/peek mismatch"
-      token = peektoken(kind)
-      @charno = @charno + @peeklength
-      peekreset
-      token
-    end
-
-    # Read and return next line. Blank lines are excluded (but counted) unless :rest is true
-    def readline(rest: false)
-      while @buffer = @lines[@lineno]
-        @lineno += 1
-        break if rest || !@buffer.empty?
-      end
-      @charno = 1
-      peekreset
-      return @buffer
-    end
-  end
-end
 

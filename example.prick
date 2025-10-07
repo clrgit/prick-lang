@@ -1,0 +1,207 @@
+
+if resource r_a
+  t.sql # FIXME Needed right now
+  schema r_s {
+    r_s.sql
+  }
+  tt.sql
+end
+
+provide r_a
+
+__END__
+
+
+if env prod
+  schema prod_schema {
+    prod_schema.sql
+  }
+end
+
+init {
+  outermost-init.sql
+  provide outermost_init
+}
+
+schema another_schema {
+  another_schema.sql
+  provide has_another_schema
+
+# schema nested_schema {
+#   ups.sql
+# }
+}
+
+# Schema
+schema my_schema {
+
+  # Function
+  function my_function {
+    # Case statment
+    case version
+      when ~> 1.2.3
+        a.sql
+      when < 4.5.6
+        b.sql
+    else
+      c.sql
+    end
+  }
+
+  # Phase
+  init {
+    # If statement with constant expression
+    if ( env text || cmd build )
+      ia.sql
+    elsif ! env prod
+      ib.sql
+    else
+      ic.sql
+    end
+    provide inner_init
+    require my_schema.has_a
+  }
+
+  # Require
+# require unknown_schema.unknown_resource
+
+  p1.sql
+
+  # Provide
+  a.sql
+  provide has_a
+  b.sql
+  provide has_b # has_b depends on has_a that depends on the schema
+
+  # If statement
+  if env prod
+    c.sql
+    provide has_c
+  else
+    provide has_not_c
+  end
+
+  if ! env prod
+    d.sql e.sql
+    provide has_d
+  else
+    not_env_prod.sql
+  end
+
+  checkpoint.sql
+
+  if resource my_schema.has_c
+    res.sql
+  end
+
+  p2.sql
+
+  TESTING_BUILT_IN_VARS.sql
+  if var env prod
+    var_env_prod.sql
+  else
+    not_var_env_prod.sql
+  end
+
+  TESTING_COMMAND_LINE_VARS.sql
+  if var cmd_var not_a_value cmd_value
+    var_cmd_var.sql
+  else
+    not_var_cmd_var.sql
+  end
+
+  TESTING_COMMAND_LINE_NOT_VARS.sql
+  if var not_cmd_var not_cmd_value
+    var_not_cmd_var.sql
+  else
+    not_var_not_cmd_var.sql
+  end
+
+  p3.sql
+
+# case var prod
+#   when prod
+#     case_var_prod.sql
+#   else
+#     oops.sql
+# end
+  TESTING_UNRESOLVED_IF_STATEMENT.sql
+  # Unresolved if-statement
+  before_unresolved.sql
+  if resource my_schema.has_d
+    has_res_d.sql
+    if resource my_schema.has_e
+      has_res_e.sql
+    else
+      not_res_e.sql
+    end
+  else
+    not_res_d.sql
+    if resource my_schema.has_f
+      has_res_f.sql
+    else
+      not_res_f.sql
+    end
+  end
+  after_unresolved.sql
+
+  p4.sql
+  p44.sql
+
+  before_parallel.sql
+  if ! resource my_schema.has_d
+    not_res_d_2.sql
+    provide has_f
+  end
+  after_parallel.sql
+
+  p5.sql
+  p55.sql
+
+  BEFORE.sql
+  if ! resource my_schema.some_resource
+#   provide some_resource
+    not_some_resource.sql
+  end
+  AFTER.sql
+
+  p6.sql
+
+  # Make
+  exec |
+    if [ file1.sql -nt file.rb -o file2.sql -nt data.txt ]; then
+      something.rb
+    fi
+
+  file1.sql
+  file2.sql
+
+  # Require
+  require another_schema
+  require another_schema.has_another_schema
+  require my_schema.has_a
+# require a.b c.d
+
+  # Files
+  r.rb
+  p.psql
+
+  t1.sql t2.sql t3.sql
+
+  # Commands
+  exec ls -l
+  eval ls -l
+  # ruby r.rb # Not implemented
+  sql |
+    select 1
+    from table
+    where column = 42
+
+  # Function call
+  #call my_function
+}
+
+__END__
+
+}
+

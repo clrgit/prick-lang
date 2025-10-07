@@ -9,79 +9,210 @@ SPEC = %(
 
   -- FILE
 
+  -x,exception
+    Throw exceptions instead of using ShellOpts error message. Useful to
+    pinpoint the source of an error when developing
+
+  -d,dump=tokens|ast|idr?
+    Dump debug. Default is 'ast'
+
+  -t,trace
+    Enable tracer. Used for debugging
+
+  +v,var=ASSIGNMENT
+    Add a key/value to the compile time set of constants. ASSIGNMENT has the
+    format "NAME=VALUE". Eg. "--var=site=home" or "-v site=home"
+
   Syntax
 
-    SOURCE-FILE ::= STMT...
+    PROGRAM ::= BLOCK
+
+    BLOCK ::= STMT+
 
     STMT ::=
         DECL_STMT
-      | options TODO
-      | require SCHEMENAME|GROUPNAME
+      | PHASE-STMT
+      | OPTION_STMT
+      | PROVIDE-STAT
+      | REQUIRE_STMT
+      | MAKE-STMT
       | IF-STMT
       | CASE-STMT
-      | PHASE-STMT
-      | GROUP-STMT
       | COMMAND-STMT
       | FILE-STMT
-
-    IF-STMT ::=
-        if PRICK-EXPR|BLOCK then COMMAND... end
-      | if PRICK-EXPR|BLOCK then COMMAND... else COMMAND... end
-      | if PRICK-EXPR|BLOCK then COMMAND... elsif PRICK-EXPR... end
-
-    CASE-STMT ::=
-        case PRICK-EXPR-KIND WHEN-STMT... [ else COMMAND... ] end
-
-    WHEN-STMT ::=
-        when PRICK-VALUE COMMAND...
+      | RETURN-STMT
 
     DECL-STMT ::=
-      [schema | group] IDENT BLOCK-ARGS
+        schema IDENT BLOCK-ARGS
+      | function IDENT BLOCK-ARGS
 
     PHASE-STMT ::=
         [init | term | meta | seeds | auth] BLOCK-ARGS
 
-    COMMAND-STMT ::=
-        exec BASH-EXPR
-      | eval BASH-EXPR
-      | ruby RUBY_SCRIPT ARGUMENTS...
-      | sql SQL-EXPR
+    OPTION_STMT ::=
+      # TODO
 
-    FILE-STMT ::= FILE...
+    PROVIDE-STMT ::=
+      provide IDENT
+
+    REQUIRE-STMT ::=
+      require REF+
+
+    MAKE-STMT ::=
+      make FILE+ from PATH+
+        BLOCK
+      end
+
+    IF-STMT ::=
+        if EXPR BLOCK end
+      | if EXPR BLOCK else BLOCK end
+      | if EXPR BLOCK ( elsif EXPR <NL> BLOCK )+ ( else BLOCK )? end
+
+    CASE-STMT ::=
+        case VAR-EXPR WHEN-STMT... [ else COMMAND... ] end
+
+    WHEN-STMT ::=
+        when ( EXPR | OPER EXPR )+ COMMAND...
+
+    COMMAND-STMT ::=
+        exec SOURCE
+      | eval SOURCE
+      | ruby RUBY_SCRIPT ARGUMENTS...
+      | sql SOURCE
+      | call REF+
+
+    FILE-STMT ::= FILE+
+
+    EXIT-STMT ::= return INTEGER
 
     BLOCK-ARGS ::=
         COMMAND-STMT
       | FILE-STMT...
-      |  BLOCK
+      | BLOCK
 
-    PRICK-EXPR ::=
-        env PRICK-ENVIRONMENT...
-      | cmd PRICK-COMMAND...
-      | version VERSION...
-      | user USER...
+    EXPR ::=
+        PREFIX_OP EXPR
+      | EXPR BINARY_OP EXPR
+      | EXPR SUFFIX_OP
+      | VARIABLE
+      | LITERAL
 
-    PRICK-VALUE ::=
-        PRICK-ENVIRONMENT...
-      | PRICK-COMMAND...
+    VARIABLE ::=
+        BUILTIN_VARIABLES
+      | COMMAND_VARIABLES
+      | ENVIRONMENT_VARIABLES
 
-    BASH-EXPR ::= '|' <indented lines>
+    BUILTIN_VARIABLES ::=
+        '$prj'
+      | '$env'
+      | '$ver'
+      | '$cmd'
+      | '$user'
 
-    FILE ::= <*.sql> | <*.psql> | <*.fox> | <*.prick> | <*.rb>
-    PRICK-EXPR-KIND ::= 'env' | 'cmd' | <more-to-come>
-    PRICK-ENVIRONMENT ::= 'proc' | 'dev' | 'test' | <user-defined>
-    PRICK-COMMAND ::= 'build' | 'rebuild' | 'make' | 'run' | <detected-dynamically>
+    COMMAND_VARIABLES ::=
+        '$' DOWNCASED_IDENTIFIER
+
+    ENVIRONMENT_VARIABLES ::=
+        '$' UPCASED_IDENTIFIER
+
+    PREFIX_OP ::=
+        '!'
+
+    INFIX_OP ::=
+        '&&'
+      | '||'
+      | '<='
+      | '<'
+      | '=='
+      | '='
+      | '!='
+      | '>='
+      | '>'
+      | '~>'
+
+    SUFFIX_OP ::=
+        '?'
+
+    # Files
+    PATH ::= <path> '/' <*>
+    FILE ::= <path> '/' <*.sql> | <*.psql> | <*.fox> | <*.prick> | <*.rb>
+
+    # Reference & identifier
+    REF ::= .? IDENT ( . IDENT )*
+    IDENT ::= /[\w.]+/
+
+    # Inline source
+    SOURCE ::=
+        <line>
+      | '|' <indented lines>
 
 )
 
 opts, args = ShellOpts.process(SPEC, ARGV)
-
+USE_EXCEPTION = opts.exception?
+Trace.enable if opts.trace?
+ShellOpts.exception = USE_EXCEPTION
 file = args.expect(1)
 
-compiler = Prick::Lang::Compiler.new(file)
+VARIABLES = {}
+if opts.var?
+  opts.var.each { |litt|
+    litt =~ /^(\w+)=(\S*)$/ or ShellOpts::error "Illegal value for --var '#{litt}'"
+    VARIABLES[$1.to_sym] = $2
+  }
+end
 
+# Handle dump option
+if opts.dump?
+  kind = opts.dump || "ast"
+  Prick::Lang::DUMP_KINDS.include?(kind) or
+      ShellOpts::error "Illegal value for --dump '#{kind}'"
+  Prick::Lang.dump(file, kind, VARIABLES)
+  exit
+end
+
+# Compile
+compiler = Prick::Lang::Compiler.new(file)
 begin
-  compiler.compile
+  compiler.compile(variables)
 rescue => ex
   raise Prick::Lang::ErrorFunctions.pretty_backtrace!(ex)
 end
+
+__END__
+    EXPR ::=
+        CONSTANT-EXPR
+      | RESOURCE-EXPR
+      | ! EXPR
+      | EXPR && EXPR
+      | EXPR || EXPR
+      | '(' EXPR ')'
+
+    # 'env', 'cmd', and 'user' or's their arguments together, 'version' and's
+    # them
+    CONSTANT-EXPR ::=
+        env IDENT+
+      | cmd IDENT+
+      | user IDENT+
+      | version VER_EXPR+
+      | var IDENT IDENT+
+
+    RESOURCE-EXPR ::=
+        schema IDENT
+      | object REF
+      | resource REF
+
+    IDENT-EXPR ::=
+      IDENT IDENT-OP
+      IDENT ==|!= IDENT-OR-STRING
+
+    VAR-EXPR ::= env | cmd | user | version | schema | object | resource
+
+    VER-EXPR ::= VER-OP VER
+
+    VAL-EXPR ::=
+        IDENT
+      | VER
+      | VER-EXPR
+
 

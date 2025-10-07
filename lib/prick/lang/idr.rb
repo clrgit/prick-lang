@@ -1,104 +1,145 @@
+
+
+module Prick::Lang
   module Idr
     class Node
-      attr_accessor :ast_node
+      include ClassFunctions
 
-      attr_accessor :parent # Node or nil
-      attr_accessor :children # [Node]
+      attr_reader :parent # Idr::Resource or nil for top-level Program object
 
-      forward_to :ast_node, :lineno, :charno
+      attr_reader :ast # Ast::Node
+      forward_to :ast, :token
 
-      def generate() end
+      def initialize(parent, ast)
+        constrain parent, Idr::Resource, nil
+        constrain ast, Ast::Node, nil
+        @parent = parent
+        @ast = ast
+      end
+
+      def inspect = "<#{self.class}>"
     end
 
-    class Block < Node
-      alias_method :nodes, :children
+    #
+    # C O M M A N D S
+    #
 
-      def generate()
-        nodes.map(&:generate)
+    class Command < Node
+    end
+
+    # Artificial node that creates a schema
+    class SchemaCommand < Command
+    end
+
+    class FileCommand < Command
+      alias_method :file, :ast # Ast::File
+      def path = file.path
+    end
+
+    class ExternalCommand < Command
+      forward_to :ast, :source, :kind
+    end
+
+    class CallCommand < Command
+    end
+
+    class RequireCommand < Command
+      attr_accessor :uid # UID of required node
+      attr_accessor :node # Required node
+      def initialize(parent, ast, uid = nil)
+        constrain parent, Idr::Resource
+        constrain ast, Ast::Reference
+        super(parent, ast)
+        @uid = uid
       end
     end
 
-    class Program < Block
-    end
+    #
+    # R E S O U R C E
+    #
 
-    class IfStmt < Node
-      attr_accessor :expr
-      attr_accessor :then
-      attr_accessor :else
+    # Can be a schema, phase, provide, or function
+    class Resource < Node
+      def klass = self.class
+      attr_reader :ident # String
+      attr_reader :block # [Node]
+      def uid = [parent&.uid, ident].compact.join(".")
+      def initialize(parent, ast)
+        constrain ast, Ast::Decl, Ast::Provide, nil # Should quack #ident, nil because of Program
+        super(parent, ast)
+        @ident = ast&.ident&.value
+        @block = []
+      end
 
-      def generate
-        if expr.value
-          @then.generate
-        else
-          @else.generate
-        end
+      def flatten
+        @block = @block.flat_map { |node|
+          node.is_a?(Unresolved) ? node.flatten : node
+        }
       end
     end
 
-    class CaseStmt < Node
-      attr_accessor :expr
-      attr_accessor :when_entries # {expr => Node}
-      attr_accessor :else_entry # Node or nil
+    class Phase < Resource
+      ATTRS = Token::PHASES.map(&:downcase)
+      def kind = ast.kind # Symbol
+      def read_attr = ast.kind.downcase # Reader method in parent object
+      def write_attr = :"#{read_attr}=" # Writer method in parent object
+    end
 
-      def generate
-        for entry, stmt in when_entries
-          if entry === expr.value
-            stmt.generate
-            return
-          end
-        end
-        if else_entry
-          else_entry.generate
-        end
+    class Provide < Resource
+    end
+
+    class Function < Resource
+    end
+
+    # TODO: End-of-schema-marker (or use schema itself - like other resources)
+    class Schema < Resource
+      attr_reader :head # Command
+      attr_reader :functions # [Function]
+      Phase::ATTRS.each { |phase| attr_accessor phase }
+      def phases = Phase::ATTRS.map { |phase| [phase, self.send(phase)] }.to_h
+      def initialize(parent, ast)
+        constrain parent, Idr::Program, nil
+        constrain ast, Ast::Schema, Ast::Program
+        super(parent, ast)
+        @head = SchemaCommand.new(self, ast) if !self.is_a?(Program)
+        @functions = []
       end
     end
 
-    class CallStmt < Node
-      # Single-line command or inline script
-      attr_accessor :source
-
-      # Command line if single-line, otherwise nil
-      def command() end
-
-      # True if calling a ruby script using require
-      forward_to :ast_node, :ruby
-
-#     def initialize(parent, ast_node,
+    class Program < Schema
+      def key = nil
+      def uid = nil
+      attr_reader :schemas
+      def initialize(ast)
+        super(nil, ast)
+        @schemas = []
+      end
     end
 
-    class ExecStmt < CallStmt
-    end
+    #
+    # U N R E S O L V E D
+    #
 
-    # Required ruby script, ignore output
-    class RubyStmt < ExecStmt
-    end
+    class Unresolved < Resource
+      forward_to :parent, :klass, :ident, :uid
 
-    class EvalStmt < CallStmt
-    end
+      # Unresolved Ast node
+      attr_reader :unresolved # Ast::Reference
 
-    class FileStmt < Node
-      attr_accessor :file
-    end
+      # UID of the (first) unresolved resource
+      attr_reader :unresolved_uid
 
-    class SqlFileStmt < FileStmt
-    end
-
-    class PSqlFileStmt < FileStmt
-    end
-
-    class FoxFileStmt < FileStmt
-    end
-
-    class PrickStmt < FileStmt
-    end
-
-    class DirStmt < FileStmt
-    end
-
-    class Expr < Node
-      forward_to :ast_node, :expr
-      def generate() raise end
-      def value() @value ||= within_some_context { eval expr } end
+      def initialize(parent, ast, unresolved, unresolved_uid)
+        constrain parent, Idr::Resource
+        constrain ast, Ast::Control
+        constrain unresolved, Ast::Reference
+        constrain unresolved_uid, String
+        super parent, nil
+        @ast = ast
+        @unresolved = unresolved
+        @unresolved_uid = unresolved_uid
+      end
     end
   end
+end
 
