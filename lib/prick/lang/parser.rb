@@ -214,12 +214,12 @@ module Prick::Lang
     # reverse polish notation that is then converted into an Ast::Expr
     def parse_expr
       trace peek: @tokenizer.peek(eol: true)
-      stack = []
+      stack = [] # [Ast::Expr]
       shunt_exprs.each { |token| # Token is either a value or a operator token
         if token.is_a? Ast::Value
           stack.push token
         else
-          case OPERATORS[token.kind][:arity]
+          case OPERATORS[token.kind]&.[](:arity)
             when 1
               e = Ast::UnaryExpr.new(token)
               e.expr = stack.pop
@@ -229,6 +229,8 @@ module Prick::Lang
               e.rexpr = stack.pop
               e.lexpr = stack.pop
               stack.push e
+            when nil
+              stack.size == 1 or unexpected_token_error peek, "expression"
           end
         end
       }
@@ -410,7 +412,7 @@ module Prick::Lang
             end
             stack.push token
           else
-            nil
+            break
         end
       end
 
@@ -436,10 +438,9 @@ module Prick::Lang
     def unexpected_token_error(*args)
       token = args.first.is_a?(Token) ? args.shift : @tokenizer.error || @tokenizer.peek_error || @tokenizer.token or
           raise ArgumentError
-      words = Array(args).flatten.map! { |w| w.is_a?(Symbol) ? Token::NAMES[w] : w }.compact
-      words = seq words
-      source = token.is_a?(ErrorToken) ? token.text : [Token::NAMES[token.kind], token.text].join(" ")
-#     source = token.respond_to?(:error) && token.error || "'#{token.text}'" || Token::NAMES[token.kind]
+      words = seq Array(args).flatten.map! { |w| w.is_a?(Symbol) ? Token::NAMES[w] : w }.compact
+#     words = seq words
+      source = token.is_a?(ErrorToken) ? token.text : sprintf(token.format, token.text)
       got = (source.empty? ? "" : ", got #{source}")
       message = "Expected #{words}#{got}"
       error token, message
@@ -447,13 +448,6 @@ module Prick::Lang
 
     def check_expected(words, eol: false, &block)
       trace words, eol: eol
-#     token = peek(eol: eol)
-#     if token.kind == :EOL
-#       error token, words
-#     else
-
-#     token = peek(eol: eol)
-
       token = peek(eol: eol) and token.kind != :EOL and r = yield(token) or unexpected_token_error token, words
       r
     end

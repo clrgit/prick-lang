@@ -98,19 +98,19 @@ module Prick::Lang
 
     # Token names are used in error messages: TOKEN entries that maps to a
     # string are enclosed in quotes, other tokens are defined below
-    NAMES = TOKENS.transform_values { "'#{_1}'" }.merge({
-      IDENT: "identifier",
-      REF: "reference",
-      VAR: "variable",
-      FILE: "file",
-      DIR: "directory",
-      VER: "version number",
+    FORMATS = TOKENS.transform_values { "'#{_1}'" }.merge({
+      IDENT: "identifier \"%s\"",
+      REF: "reference \"%s\"",
+      VAR: "variable %s",
+      FILE: "file %s",
+      DIR: "directory %s",
+      VER: "version %s",
 #     WORD: "file",
-      LINE: "text",
-      TEXT: "indented text",
-      EOL: "EOL",
-      EOB: "EOB",
-      EOF: "EOF"
+      LINE: "text '%s'",
+      TEXT: "indented text '%s'",
+      EOL: "end of line",
+      EOB: "end of block",
+      EOF: "end of file"
     })
 
     # Maps from keyword/punctuation-character to kind. Inverse map of TOKENS
@@ -159,7 +159,6 @@ module Prick::Lang
     PUNCTS = [:BRACE_BEGIN, :BRACE_END, :COMMA, :PIPE] # List of punctuation characters
 
     RESERVED_WORDS = KEYWORDS + EXTS
-
 
     # *_PATTERN regular expressions do not generate captures
     KEYWORD_PATTERN = /\b#{Regexp.union KEYWORDS.map { TOKENS[_1] }}\b/
@@ -218,9 +217,6 @@ module Prick::Lang
 
     WORD_RE = /\s*(?<word>\S+)/
 
-#   TOKEN_RES =
-#     KEYWORDS.map { |k|
-
     # Matches as far as possible in the string. This is the same as TOKEN_RE
     # except filesystem names that matches nearly everything. Note that while
     # ERROR_RE (included in TOKEN_RE) matches the whole failing string,
@@ -263,6 +259,10 @@ module Prick::Lang
     def is_line? = kind == :LINE
     def is_text? = kind == :TEXT
     def is_punct? = PUNCTS.include? kind
+
+    # Format for token in error messages. '%s' may be used as expansion of
+    # #text
+    def format = FORMATS[kind]
 
     def to_s = @text
     def inspect = "#<Token:#{kind} #{lineno}:#{charno} #{text.inspect}>"
