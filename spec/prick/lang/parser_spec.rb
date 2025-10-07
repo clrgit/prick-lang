@@ -49,6 +49,11 @@ describe "Prick::Lang" do
         expect(call l).to be_a Prick::Lang::Ast::Program
       end
 
+      it "accepts empty input X" do
+        l = %()
+        expect(call l).to be_a Prick::Lang::Ast::Program
+      end
+
       context "it parses" do
         context "files" do
           it "with one file" do

@@ -435,10 +435,11 @@ module Prick::Lang
     def unexpected_token_error(*args)
       token = args.first.is_a?(Token) ? args.shift : @tokenizer.error || @tokenizer.peek_error || @tokenizer.token or
           raise ArgumentError
-      words = Array(args).flatten.map! { |w| w.is_a?(Symbol) ? Token::TEXTS[w] : w }.compact
+      words = Array(args).flatten.map! { |w| w.is_a?(Symbol) ? Token::NAMES[w] : w }.compact
       words = seq words
-      source = token.respond_to?(:error) && token.error || token.text
-      got = (source.empty? ? "" : ", got '#{source}'")
+      source = token.is_a?(ErrorToken) ? token.text : [Token::NAMES[token.kind], token.text].join(" ")
+#     source = token.respond_to?(:error) && token.error || "'#{token.text}'" || Token::NAMES[token.kind]
+      got = (source.empty? ? "" : ", got #{source}")
       message = "Expected #{words}#{got}"
       error token, message
     end

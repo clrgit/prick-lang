@@ -96,6 +96,23 @@ module Prick::Lang
       ERROR: nil
     }
 
+    # Token names are used in error messages: TOKEN entries that maps to a
+    # string are enclosed in quotes, other tokens are defined below
+    NAMES = TOKENS.transform_values { "'#{_1}'" }.merge({
+      IDENT: "identifier",
+      REF: "reference",
+      VAR: "variable",
+      FILE: "file",
+      DIR: "directory",
+      VER: "version number",
+#     WORD: "file",
+      LINE: "text",
+      TEXT: "indented text",
+      EOL: "EOL",
+      EOB: "EOB",
+      EOF: "EOF"
+    })
+
     # Maps from keyword/punctuation-character to kind. Inverse map of TOKENS
     # but excludes token that maps to nil
     TOKEN_KINDS = TOKENS.select { _2.is_a? String }.invert
@@ -143,23 +160,6 @@ module Prick::Lang
 
     RESERVED_WORDS = KEYWORDS + EXTS
 
-
-    # Texts for error messages: Token strings are enclosed in quotes, other
-    # tokens are defined below
-    TEXTS = TOKEN_KINDS.transform_values { "'#{_1}'" }.merge({
-      IDENT: "identifier",
-      REF: "reference",
-      FILE: "file",
-      DIR: "directory",
-      VAR: "variable",
-      VER: "version number",
-      WORD: "file",
-      LINE: "text",
-      TEXT: "indented text",
-      EOL: "EOL",
-      EOB: "EOB",
-      EOF: "EOF"
-    })
 
     # *_PATTERN regular expressions do not generate captures
     KEYWORD_PATTERN = /\b#{Regexp.union KEYWORDS.map { TOKENS[_1] }}\b/
@@ -231,8 +231,9 @@ module Prick::Lang
     attr_reader :file
     attr_reader :lineno
     attr_reader :charno
-    attr_accessor :kind # Symbol. Can mutate from keyword to ident
+    attr_accessor :kind # Symbol
     attr_accessor :text # String
+
 
     # Formatted reference for error messages
     def location() = "#{file} #{lineno}:#{charno}"
@@ -305,50 +306,48 @@ module Prick::Lang
   end
 
   class ErrorToken < Token
-    alias_method :error, :text
-    def error = nil
-
-  protected
-    def initialize(*file_args, error)
-      super(*file_args, error, :ERROR)
+#   alias_method :error, :text
+#   def error = nil
+    def initialize(*file_args, text)
+      super(*file_args, text, :ERROR)
     end
   end
 
   # Forwards everything to another token. Used when a token was parsed
   # correctly but of the wrong kind
-  class TokenErrorToken < ErrorToken
-    attr_reader :token
-    forward_to :@token, :file, :lineno, :charno, :text
-    alias_method :error, :text
-    def initialize(token) @token = token end # No super!
-  end
+# class TokenErrorToken < ErrorToken
+#   attr_reader :token
+#   forward_to :@token, :file, :lineno, :charno, :text
+#   alias_method :error, :text
+#   def initialize(token) @token = token end # No super!
+# end
 
   # Pin-points position where an unexpected character was found
-  class CharErrorToken < ErrorToken
-    # Lazy-eval
-    def charno = @charno || parse.first
-
-    # Error character or string
-    def error = @error || parse.last
-
-    # The error message is lazy-evaluated because we may create error tokens
-    # that will be ignored later so we don't want to spend time in vain on the
-    # relatively expensive process of pin-pointing of the exact spot where the
-    # error occurred
-    def initialize(file, lineno, error_charno, text)
-      super(file, lineno, nil, text)
-      @error_charno = error_charno
-    end
-
-  protected
-    # Returns [charno, char] for convenience
-    def parse
-      if m = ERROR_TOKEN_RE.match(@text)
-        [ @charno = @error_charno + m.offset(:char).first, @error = m[:char] ]
-      else
-        [ @charno = @error_charno, @error = @text ]
-      end
-    end
-  end
+# class CharErrorToken < ErrorToken
+#   # Lazy-eval
+#   def charno = @charno || parse.first
+#
+#   # Error character or string
+#   def error = @error || parse.last
+#
+#   # The error message is lazy-evaluated because we may create error tokens
+#   # that will be ignored later so we don't want to spend time in vain on the
+#   # relatively expensive process of pin-pointing of the exact spot where the
+#   # error occurred
+#   def initialize(file, lineno, error_charno, text)
+#     super(file, lineno, nil, text)
+#     @error_charno = error_charno
+#   end
+#
+# protected
+#   # Returns [charno, char] for convenience
+#   def parse
+#     if m = ERROR_TOKEN_RE.match(@text)
+#       [ @charno = @error_charno + m.offset(:char).first, @error = m[:char] ]
+#     else
+#       [ @charno = @error_charno, @error = @text ]
+#     end
+#   end
+# end
 end
 

@@ -1,5 +1,28 @@
 
-if resource r_a
+provide present
+
+# Schema within if
+if present?
+  schema s1 {
+    s1.sql
+  }
+end
+
+__END__
+
+
+
+
+
+
+
+
+
+
+
+
+
+if r_a
   t.sql # FIXME Needed right now
   schema r_s {
     r_s.sql

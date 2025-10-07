@@ -168,10 +168,12 @@ module Prick::Lang
       }
     end
 
-    # Resources can be defined after they have been marked unresolved so we
-    # need an extra set of passes that resolve references to these new defined
-    # resources. Only after no more progress can be made, the remaining
-    # unresolved resources are marked absent and the process start again
+    # Resolve unresolved references
+    #
+    # Resources can be defined after they have been marked 'unknown' so we need
+    # an extra set of passes that resolve references to these resources. Only
+    # after no more progress can be made, the remaining unresolved resources
+    # are marked absent and the process start again
     #
     def build_unresolved
       trace
@@ -196,7 +198,6 @@ module Prick::Lang
             end
           end
         end
-
         break if oracle.unresolved.empty?
         oracle.mark_unknown_absent
       end

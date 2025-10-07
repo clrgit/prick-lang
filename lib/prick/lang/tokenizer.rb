@@ -139,8 +139,8 @@ module Prick::Lang
             Token.new *args, match, :VER
           elsif m[:var]
             VarToken.new *args, match
-          elsif s = m[:error]
-            @peek_error = CharErrorToken.new *args, s
+          elsif m[:error]
+            @peek_error = ErrorToken.new *args, match
             nil
           else
             raise InternalError
