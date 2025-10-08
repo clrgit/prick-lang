@@ -91,6 +91,9 @@ module Prick::Lang
       EOB: nil, # End-of-block
       EOF: nil,
 
+      # Artifical token that marks a list. Used in the parser
+      LIST: nil,
+
       # Error
       ERROR: nil
     }
@@ -109,7 +112,8 @@ module Prick::Lang
       TEXT: "indented text '%s'",
       EOL: "end of line",
       EOB: "end of block",
-      EOF: "end of file"
+      EOF: "end of file",
+      LIST: "list"
     })
 
     # Maps from keyword/punctuation-character to kind. Inverse map of TOKENS
@@ -229,7 +233,6 @@ module Prick::Lang
     attr_accessor :kind # Symbol
     attr_accessor :text # String
 
-
     # Formatted reference for error messages
     def location() = "#{file} #{lineno}:#{charno}"
 
@@ -258,6 +261,7 @@ module Prick::Lang
     def is_line? = kind == :LINE
     def is_text? = kind == :TEXT
     def is_punct? = PUNCTS.include? kind
+    def is_list? = kind == :LIST
 
     # Format for token in error messages. '%s' may be used as expansion of
     # #text
@@ -266,6 +270,15 @@ module Prick::Lang
     def to_s = @text
     def inspect = "#<Token:#{kind} #{lineno}:#{charno} #{text.inspect}>"
     def dump = puts "#{kind} #{lineno}:#{charno} #{text.inspect}"
+  end
+
+  class ListToken < Token
+    attr_accessor :size
+    def initialize(paren_begin, size = 1)
+      super(paren_begin.file, paren_begin.lineno, paren_begin.charno, paren_begin.text, :LIST)
+      @size = size
+    end
+    def to_s = "LIST:#{size}"
   end
 
   class VarToken < Token

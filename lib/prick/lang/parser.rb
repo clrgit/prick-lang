@@ -353,10 +353,8 @@ module Prick::Lang
       shunt_exprs.each { |token| # Token is either a value or a operator token
         if token.is_a? Ast::Value
           stack.push token
-        elsif token.is_a? Array
-          stack.push token
-##########################################
-          e = Ast::ListExpr.new(token)
+        elsif token.is_a? Integer
+          e = Ast::ListExpr.new(nil, stack.pop(op))
           stack.push e
         else
           case OPERATORS[token.kind]&.[](:arity)
@@ -369,8 +367,6 @@ module Prick::Lang
               e.rexpr = stack.pop
               e.lexpr = stack.pop
               stack.push e
-#           when Something
-#             e = Ast::ListExpr
             when nil
               stack.size == 1 or unexpected_token_error peek, "expression"
           end
@@ -395,64 +391,54 @@ module Prick::Lang
             read(eol: true)
 
           when :PAREN_BEGIN
+            # TODO: Check if oper expects a list and create ListToken if so
+
             stack.push(read(eol: true))
             paren_level += 1
 
           when :PAREN_END
             paren_level -= 1
             read(eol: true)
-
-#           while op = stack.pop
-#             break if op.is_a?(Token) && op.kind == :PAREN_BEGIN
-#             output << op
-#           end
-
-            ops = []
-            while op = stack.last
-              if op.is_a?(Array)
-                op << ops
-                output << stack.pop.reverse
-                stack.pop # Eat :PARENT_BEGIN
+            opers = []
+            while op = stack.pop
+              if op.is_a?(Token) && op.kind == :PAREN_BEGIN
                 break
-              elsif op.is_a?(Token) && op.kind == :PAREN_BEGIN # Only true on first comma
-                output.concat ops.reverse
-                break
+              elsif op.is_a? ListToken
+                op.size += 1
               end
-              ops << stack.pop
+              output << op
             end
 
-
-
+          # A comma rewinds the stack like paren-end but leaves the paren-begin
+          # token and push an element counter that is increment for each new
+          # comma
           when :COMMA
-            paren_level > 0 or break
+            paren_level > 0 or error token, "Unexpected ','"
             read(eol: true)
-            ops = []
+            opers = []
             while op = stack.last
-              if op.is_a?(Array)
-                op << ops
+              if op.is_a?(Token) && op.kind == :PAREN_BEGIN # Only true on first comma
+                stack.push ListToken.new(op)
                 break
-              elsif op.is_a?(Token) && op.kind == :PAREN_BEGIN # Only true on first comma
-                stack.push [ops]
+              elsif op.is_a? ListToken
+                op.size += 1
                 break
               end
-              ops << stack.pop
+              output << stack.pop
             end
 
           when *Token::VALUES
             accept_eol = false
             output << parse_value
-#           (output.last.is_a?(Array) ? output.last : output) << parse_value
 
           when *Token::OPERS
             accept_eol = !token.is_suffix_oper?
             oper = OPERATORS[token.kind] or raise ArgumentError, "Not a known operator '#{token.text}'"
             read eol: true
-
             while stack.last.is_a?(Token) && top = OPERATORS[stack.last&.kind]
               break if oper[:prior] > top[:prior]
               break if oper[:prior] == top[:prior] && oper[:assoc] == :right
               output << stack.pop
-#             (output.last.is_a?(Array) ? output.last : output) << stack.pop
             end
             stack.push token
           else

@@ -3,7 +3,7 @@ describe "Prick::Lang" do
   using String::Text
 
   class Prick::Lang::Parser
-    public :shunt_exprs
+    public :shunt_exprs, :parse_expr
   end
 
   describe "Parser" do
@@ -438,12 +438,16 @@ describe "Prick::Lang" do
           end
 
           it "parses (a,b)" do
+#           l = %(
+#             a ^ (b = 1, c < 2, d > 3 && e = 4)
+#           )
             l = %(
-              a ^ (b = 1, c < 2, d > 3)
+              a ^ (b = 1, c < 2, d > 3 && e = 4 || f ^ (aa, bb, cc))
             )
             ls = l.split "\n", -1
             tk = Prick::Lang::Tokenizer.new(file, ls)
             pa = Prick::Lang::Parser.new(tk)
+#           pa.parse_expr
             pa.shunt_exprs.each { |elem|
               puts "> #{elem}"
             }
