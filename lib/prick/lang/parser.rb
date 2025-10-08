@@ -353,6 +353,11 @@ module Prick::Lang
       shunt_exprs.each { |token| # Token is either a value or a operator token
         if token.is_a? Ast::Value
           stack.push token
+        elsif token.is_a? Array
+          stack.push token
+##########################################
+          e = Ast::ListExpr.new(token)
+          stack.push e
         else
           case OPERATORS[token.kind]&.[](:arity)
             when 1
@@ -377,8 +382,9 @@ module Prick::Lang
     # Returns a reversed Polish notation list of tokens
     def shunt_exprs
       trace
-      stack = [] # [Token|[Token]]
-      output = []
+      stack = [] # [Token]. Operator stack
+#     paren = [] # [{type: :group|:list, commas: 0, saw_value: false}]. Parenthesis stack
+      output = [] # [Token]
       token_args = {} # Map from list operators 'env' and 'cmd' to array of arguments
       paren_level = 0
       accept_eol = true # Signals that the expression continues on the next line
@@ -387,53 +393,66 @@ module Prick::Lang
           when :EOL
             break if paren_level == 0 && !accept_eol
             read(eol: true)
+
           when :PAREN_BEGIN
-            paren_level += 1
             stack.push(read(eol: true))
+            paren_level += 1
+
           when :PAREN_END
             paren_level -= 1
             read(eol: true)
 
-#           count = 0
-            while op = stack.pop
-              break if op.is_a?(Token) && op.kind == :PAREN_BEGIN
-              output << op
+#           while op = stack.pop
+#             break if op.is_a?(Token) && op.kind == :PAREN_BEGIN
+#             output << op
+#           end
+
+            ops = []
+            while op = stack.last
+              if op.is_a?(Array)
+                op << ops
+                output << stack.pop.reverse
+                stack.pop # Eat :PARENT_BEGIN
+                break
+              elsif op.is_a?(Token) && op.kind == :PAREN_BEGIN # Only true on first comma
+                output.concat ops.reverse
+                break
+              end
+              ops << stack.pop
             end
 
-            # IDEA Have an output stack where lists create their own
 
-#           while op = stack.pop and op.kind != :PAREN_BEGIN
-#             if !op.is_a?(Array)
-#             output << op
-#           end
-#           while op = stack.pop and op.kind != :PAREN_BEGIN
-#             if !op.is_a?(Array)
-#             output << op
-#             count += 1
-#           end
-#           op.element = (count <= 1)
-#           # Flag on element to signal this can be interpreted as an empty
-#           # or single-element list
-#           op.element
 
           when :COMMA
             paren_level > 0 or break
-            stack.push [stack.pop] if !output.last.is_a?(Array)
             read(eol: true)
+            ops = []
+            while op = stack.last
+              if op.is_a?(Array)
+                op << ops
+                break
+              elsif op.is_a?(Token) && op.kind == :PAREN_BEGIN # Only true on first comma
+                stack.push [ops]
+                break
+              end
+              ops << stack.pop
+            end
+
           when *Token::VALUES
             accept_eol = false
-#           output << parse_value
-            (output.last.is_a?(Array) ? output.last : output) << parse_value
+            output << parse_value
+#           (output.last.is_a?(Array) ? output.last : output) << parse_value
+
           when *Token::OPERS
             accept_eol = !token.is_suffix_oper?
             oper = OPERATORS[token.kind] or raise ArgumentError, "Not a known operator '#{token.text}'"
             read eol: true
-            # TODO: Turn WORD? into references
-            while top = OPERATORS[stack.last&.kind]
+
+            while stack.last.is_a?(Token) && top = OPERATORS[stack.last&.kind]
               break if oper[:prior] > top[:prior]
               break if oper[:prior] == top[:prior] && oper[:assoc] == :right
-#             output << stack.pop
-              (output.last.is_a?(Array) ? output.last : output) << stack.pop
+              output << stack.pop
+#             (output.last.is_a?(Array) ? output.last : output) << stack.pop
             end
             stack.push token
           else

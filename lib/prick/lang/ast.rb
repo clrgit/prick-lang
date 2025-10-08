@@ -60,6 +60,11 @@ module Prick::Lang
       part :rexpr, Expr
     end
 
+####################################
+    class ListExpr < Expr
+      part :elems, [Expr]
+    end
+
     class WhenExpr < Expr # Quacks like a BinaryExpr
       attr_reader :oper
       def lexpr = whole.expr

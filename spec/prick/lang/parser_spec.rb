@@ -2,6 +2,10 @@
 describe "Prick::Lang" do
   using String::Text
 
+  class Prick::Lang::Parser
+    public :shunt_exprs
+  end
+
   describe "Parser" do
     def file = "file.txt" # Considered a constant
 
@@ -423,6 +427,28 @@ describe "Prick::Lang" do
           it "accepts literal strings" do
             e = "$env = a_string"
             expect(esig(e)).to eq "=($env, a_string)"
+          end
+        end
+
+        context "lists X" do
+          def make(lines)
+            lines = lines.split "\n", -1
+            tk = Prick::Lang::Tokenizer.new(file, lines)
+            pa = Prick::Lang::Parser.new(tk)
+          end
+
+          it "parses (a,b)" do
+            l = %(
+              a ^ (b = 1, c < 2, d > 3)
+            )
+            ls = l.split "\n", -1
+            tk = Prick::Lang::Tokenizer.new(file, ls)
+            pa = Prick::Lang::Parser.new(tk)
+            pa.shunt_exprs.each { |elem|
+              puts "> #{elem}"
+            }
+
+
           end
         end
       end

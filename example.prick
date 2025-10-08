@@ -1,4 +1,21 @@
 
+#if ( $env = prod && ( $env = prod ) )
+# true.sql
+#else
+# false.sql
+#end
+
+
+# IN expressions
+if $env ^ (prod, test)
+  true.sql
+else
+  false.sql
+end
+
+__END__
+
+
 # Global phase
 init {
   init1.sql
