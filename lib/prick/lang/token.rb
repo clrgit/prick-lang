@@ -61,7 +61,6 @@ module Prick::Lang
       OROR: "||",
       LE: "<=", # Order is important because this matches against prefixes
       LT: "<",
-      EQEQ: "==",
       EQ: "=",
       NE: "!=",
       GE: ">=",
@@ -154,7 +153,7 @@ module Prick::Lang
     KEYWORDS = TOKENS.select { _2 =~ /^\w+$/ }.keys
     PREFIX_OPERS = [:NOT]
     SUFFIX_OPERS = [:QUEST]
-    INFIX_OPERS = [:ANDAND, :OROR, :LE, :LT, :EQEQ, :EQ, :NE, :GE, :GT, :TIGT, :IN]
+    INFIX_OPERS = [:ANDAND, :OROR, :LE, :LT, :EQ, :EQ, :NE, :GE, :GT, :TIGT, :IN]
     OPERS = INFIX_OPERS + PREFIX_OPERS + SUFFIX_OPERS + [:PAREN_BEGIN, :PAREN_END] # Longest opers has to go first
     PUNCTS = [:BRACE_BEGIN, :BRACE_END, :COMMA, :PIPE] # List of punctuation characters
 

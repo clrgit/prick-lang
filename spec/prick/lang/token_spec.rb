@@ -44,11 +44,11 @@ describe "Prick::Lang" do
 
     describe "::OPER_RE" do
       it "matches operators" do
-        e :OPER_RE, "=="
+        e :OPER_RE, "="
       end
 
       it "sets 'oper' capture" do
-        c :OPER_RE, "==", :oper
+        c :OPER_RE, "=", :oper
       end
     end
 
@@ -145,7 +145,7 @@ describe "Prick::Lang" do
         c :TOKEN_RE, "{", :punct
       end
       it "sets the 'oper' capture" do
-        c :TOKEN_RE, "==", :oper
+        c :TOKEN_RE, "=", :oper
       end
       it "sets the 'dir' capture" do
         c :TOKEN_RE, "./name/dir/", :dir

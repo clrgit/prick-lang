@@ -15,7 +15,7 @@ module Prick::Lang
       ANDAND: [1, :left, 2],
       LT: [2, :left, 2],
       LE: [2, :left, 2],
-      EQEQ: [2, :left, 2],
+      EQ: [2, :left, 2],
       NE: [2, :left, 2],
       GE: [2, :left, 2],
       GT: [2, :left, 2],
@@ -26,7 +26,7 @@ module Prick::Lang
     }.map { |k,v| [k, { prior: v[0], assoc: v[1], arity: v[2] } ] }.to_h
 
     # Operators for comparing versions
-    VERSION_OPERATORS = Set[:LT, :LE, :EQEQ, :NE, :GE, :GT, :TIGT]
+    VERSION_OPERATORS = Set[:LT, :LE, :EQ, :NE, :GE, :GT, :TIGT]
 
     def file = @tokenizer.file
     attr_reader :tokenizer
@@ -262,9 +262,9 @@ module Prick::Lang
       case peek.kind
         when *Token::REFS
           Ast::Reference.new(read)
-        when :VER # Default '==' operator
+        when :VER # Default '=' operator
           tk = read
-          oper = Token.new(tk.file, tk.lineno, tk.charno, "==", :EQEQ)
+          oper = Token.new(tk.file, tk.lineno, tk.charno, "=", :EQ)
           match = Ast::VersionMatch.new(oper)
           match.version = Ast::Ver.new(tk)
           match

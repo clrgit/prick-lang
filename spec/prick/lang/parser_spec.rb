@@ -172,14 +172,14 @@ describe "Prick::Lang" do
         context "if statements" do
           it "with only a then clause" do
             l = %(
-              if $env == test
+              if $env = test
                 a.sql
                 b.sql
               end
             )
 
             expect(sig l).to eq %(
-              If ==($env, test)
+              If =($env, test)
                 File a.sql
                 File b.sql
             ).align
@@ -187,7 +187,7 @@ describe "Prick::Lang" do
 
           it "with a else clause" do
             l = %(
-              if $env == test
+              if $env = test
                 a.sql
                 b.sql
               else
@@ -195,7 +195,7 @@ describe "Prick::Lang" do
               end
             )
             expect(sig l).to eq %(
-              If ==($env, test)
+              If =($env, test)
                 File a.sql
                 File b.sql
               Else
@@ -205,20 +205,20 @@ describe "Prick::Lang" do
 
           it "with elsif clauses" do
             l = %(
-              if $env == test1
+              if $env = test1
                 a.sql
                 b.sql
-              elsif $env == test2
+              elsif $env = test2
                 c.sql
               else
                 d.sql
               end
             )
             expect(sig l).to eq %(
-              If ==($env, test1)
+              If =($env, test1)
                 File a.sql
                 File b.sql
-              Elsif ==($env, test2)
+              Elsif =($env, test2)
                 File c.sql
               Else
                 File d.sql
@@ -237,7 +237,7 @@ describe "Prick::Lang" do
               )
               expect(sig l).to eq %(
                 Case $env
-                  When ==(_, test)
+                  When =(_, test)
                     File a.sql
               ).align
             end
@@ -265,7 +265,7 @@ describe "Prick::Lang" do
               )
               expect(sig l).to eq %(
                 Case $env
-                  When ==(_, test), ==(_, prod)
+                  When =(_, test), =(_, prod)
                     File a.sql
               ).align
             end
@@ -278,7 +278,7 @@ describe "Prick::Lang" do
               )
               expect(sig l).to eq %(
                 Case $version
-                  When >=(_, 1.2.3), ==(_, 4.5.6)
+                  When >=(_, 1.2.3), =(_, 4.5.6)
                     File a.sql
               ).align
             end
@@ -338,19 +338,19 @@ describe "Prick::Lang" do
 
         context "binary expressions" do
           it "handles binary expressions" do
-            expect(esig("$env == test")).to eq "==($env, test)"
+            expect(esig("$env = test")).to eq "=($env, test)"
           end
           it "handles priorities" do
-            expect(esig("$env == test && $env == prod")).to eq "&&(==($env, test), ==($env, prod))"
+            expect(esig("$env = test && $env = prod")).to eq "&&(=($env, test), =($env, prod))"
           end
           it "handles association" do
             l = %(
-              if $env == test || $env == import && $env == app
+              if $env = test || $env = import && $env = app
                 a.sql
               end
             )
             expect(sig l).to eq %(
-              If ||(==($env, test), &&(==($env, import), ==($env, app)))
+              If ||(=($env, test), &&(=($env, import), =($env, app)))
                 File a.sql
             ).align
           end
@@ -359,18 +359,18 @@ describe "Prick::Lang" do
         context "parenthesized expressions" do
           it "accepts an expression" do
             l = %(
-              if ( $env == test )
+              if ( $env = test )
                 a.sql
               end
             )
             expect(sig l).to eq %(
-              If ==($env, test)
+              If =($env, test)
                 File a.sql
             ).align
           end
           it "handles priorities" do
-            e = "($env == test || $env == prod ) && $ver > 1.2.3"
-            expect(esig e).to eq "&&(||(==($env, test), ==($env, prod)), >($ver, 1.2.3))"
+            e = "($env = test || $env = prod ) && $ver > 1.2.3"
+            expect(esig e).to eq "&&(||(=($env, test), =($env, prod)), >($ver, 1.2.3))"
           end
         end
 
@@ -399,30 +399,30 @@ describe "Prick::Lang" do
 
         context "version numbers" do
           it "accepts a single-digit version number" do
-            e = "$ver == 1"
-            expect(esig(e)).to eq "==($ver, 1)"
+            e = "$ver = 1"
+            expect(esig(e)).to eq "=($ver, 1)"
           end
           it "accepts a double-digit version number" do
-            e = "$ver == 1.2"
-            expect(esig(e)).to eq "==($ver, 1.2)"
+            e = "$ver = 1.2"
+            expect(esig(e)).to eq "=($ver, 1.2)"
           end
           it "accepts a triple-digit version number" do
-            e = "$ver == 1.2.3"
-            expect(esig(e)).to eq "==($ver, 1.2.3)"
+            e = "$ver = 1.2.3"
+            expect(esig(e)).to eq "=($ver, 1.2.3)"
           end
         end
 
         context "words" do
           it "accepts literal strings" do
-            e = "$env == a_string"
-            expect(esig(e)).to eq "==($env, a_string)"
+            e = "$env = a_string"
+            expect(esig(e)).to eq "=($env, a_string)"
           end
         end
 
         context "variables" do
           it "accepts literal strings" do
-            e = "$env == a_string"
-            expect(esig(e)).to eq "==($env, a_string)"
+            e = "$env = a_string"
+            expect(esig(e)).to eq "=($env, a_string)"
           end
         end
       end

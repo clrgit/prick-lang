@@ -72,7 +72,7 @@ describe "Prick::Lang" do
 
     it "evaluates variables" do
       l = %(
-        if $env == prod
+        if $env = prod
           true.sql
         else
           false.sql

@@ -66,7 +66,7 @@ module Prick::Lang
       part :rexpr, Expr # Only Value objects are allowed atm.
       def initialize(token)
         super(token)
-        @oper = @token.is_oper? ? @token.kind : :EQEQ
+        @oper = @token.is_oper? ? @token.kind : :EQ
       end
     end
 

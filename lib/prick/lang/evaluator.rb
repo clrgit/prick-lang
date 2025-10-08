@@ -59,7 +59,7 @@ module Prick::Lang
             when :ANDAND; lval && rval
             when :LT; lval < rval
             when :LE; lval <= rval
-            when :EQEQ; lval == rval
+            when :EQ; lval == rval
             when :NE; lval != rval
             when :GE; lval >= rval
             when :GT; lval > rval

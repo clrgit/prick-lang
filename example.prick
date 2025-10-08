@@ -17,12 +17,12 @@ schema my_schema {
   }
 
   # If statement with constant expression
-  if $env == prod
+  if $env = prod
     env_eq_prod.sql
   else
     env_ne_prod.sql
   end
-  if $env == test
+  if $env = test
     env_eq_test.sql
   else
     env_ne_test.sql
