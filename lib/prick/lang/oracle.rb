@@ -89,6 +89,11 @@ module Prick::Lang
     # Current Resource object
     def context = @contexts.last.first
 
+    # Current block of statements. This is usually the same as context.block
+    # but unresolved nodes goes into the Unresolved object and are only later
+    # moved to the parent
+    def block = @contexts.last.last
+
     # Execute block with the given context. The current block can be set
     # explicitly, this is used by Analyze#build_unresolved
     def scope(context, block = context.block, &code)

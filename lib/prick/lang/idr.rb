@@ -66,6 +66,7 @@ module Prick::Lang
       def uid = [parent&.uid, ident].compact.join(".")
       def initialize(parent, ast)
         constrain ast, Ast::Decl, Ast::Provide, nil # Should quack #ident, nil because of Program
+        constrain parent, Resource, nil
         super(parent, ast)
         @ident = ast&.ident&.value
         @block = []
@@ -75,7 +76,7 @@ module Prick::Lang
         @block = @block.flat_map { |node|
           if node.is_a? Unresolved
             nodes = node.flatten
-            nodes.each { _1.parent = self }
+#           nodes.each { _1.parent = self }
             nodes
           else
             node
@@ -105,7 +106,8 @@ module Prick::Lang
       Phase::ATTRS.each { |phase| attr_accessor phase }
       def phases = Phase::ATTRS.map { |phase| [phase, self.send(phase)] }.to_h
       def initialize(parent, ast)
-        constrain parent, Idr::Program, nil
+#       constrain parent, Idr::Program, nil
+        constrain parent, Idr::Resource, nil
         constrain ast, Ast::Schema, Ast::Program
         super(parent, ast)
         @head = SchemaCommand.new(self, ast) if !self.is_a?(Program)

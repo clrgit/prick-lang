@@ -79,6 +79,7 @@ module Prick::Lang
     #
     # Note that #peek has eof default true but #read has eof default false
     def peek(eol: false, eof: true, re: TOKEN_RE)
+      trace
       if peek?
         # Ignore peek'ed EOL or EOF token
         if @peek_token&.kind == :EOL && !eol || @peek_token&.kind == :EOF && !eof
@@ -101,7 +102,7 @@ module Prick::Lang
       end
 
       # Scan blank lines
-      @peek_index = scanlines(@peek_index)
+      @peek_index, @peek_pos = scanlines(@peek_index, @peek_pos)
 
       # Handle after-scan EOF
       return handle_peek_eox(:EOF, eof) if @peek_index >= @lines.size
@@ -188,7 +189,7 @@ module Prick::Lang
 
       @error = nil
       error_index = @index # Index to use if not found
-      @index = scanlines(@index, comment: true) # Ignore initial blank lines
+      @index, @pos = scanlines(@index, @pos, comment: true) # Ignore initial blank lines
 
       token_lineno = lineno # Line number of first non-blank line
 
@@ -309,10 +310,13 @@ module Prick::Lang
 
     # Return index of first non blank line including the current line. Ignore
     # comment-only lines unless :comment is true.  Returns lines.size on eof
-    def scanlines(index = @index, comment: false)
+    def scanlines(index, pos, comment: false)
+      trace index, pos, comment: comment
       re = (!comment ? Token::COMMENT_LINE_RE : Token::BLANK_LINE_RE)
       offset = @lines[index..-1].find_index { |l| !re.match(l) }
-      (offset ? index + offset : @lines.size)
+      index = (offset ? index + offset : @lines.size)
+      pos = 0 if (offset || 1)> 0
+      [index, pos]
     end
 
     # Removes trailing blank or comment-only lines

@@ -11,10 +11,15 @@ module Prick::Lang
     def eof!() @index, @pos = @lines.size, 1 end
 
     public :scanlines
+
+    attr_reader :peek_index
+    attr_reader :peek_pos
   end
 end
 
 describe "Prick::Lang" do
+  using String::Text
+
   describe "Tokenizer" do
     def file = "file.txt" # Considered a constant
 
@@ -96,7 +101,7 @@ describe "Prick::Lang" do
           t.read(eof: true)
           expect(t.peek(eof: true).kind).to eq :EOF
         end
-        it "returns a EOL and then a EOF if both :eol and :eof is true X" do
+        it "returns a EOL and then a EOF if both :eol and :eof is true" do
           l = ["exec "]
           t = make(l)
           opts = { eol: true, eof: true }
@@ -208,7 +213,7 @@ describe "Prick::Lang" do
           t.eof!
           expect(t.read(eof: true).kind).to eq :EOF
         end
-        it "returns a EOL and then a EOF token if both :eol and :eof is true X" do
+        it "returns a EOL and then a EOF token if both :eol and :eof is true" do
           l = ["exec "]
           t = make(l)
           opts = { eol: true, eof: true }
@@ -356,6 +361,16 @@ describe "Prick::Lang" do
         expect(text l).to eq "a\n# comment\nb"
       end
 
+#     it "handles non-indented comments X" do
+#       l = ["", "    a", "    b", "# comment", "  c"]
+#       tk = make(l)
+#       p tk.readtext(4)
+#       p tk.read
+#       tk.dump
+#       exit
+#       expect(text l).to eq "a\n# comment\nb"
+#     end
+
       it "aligns to the least indented non-blank line" do
         l = ["", "    a", "", "  b"]
         expect(text l).to eq "  a\n\nb"
@@ -410,46 +425,57 @@ describe "Prick::Lang" do
     end
 
     describe "#scanlines" do
-      def call(lines) = make(lines).scanlines
+      def call(lines) = make(lines).scanlines(0, 0)
 
       it "skips single empty line" do
         l = ["", "a"]
-        expect(call l).to eq 1
+        expect(call l).to eq [1, 0]
       end
 
       it "skips multiple empty lines" do
         l = ["", "", "a"]
-        expect(call l).to eq 2
+        expect(call l).to eq [2, 0]
       end
 
       it "returns the index of the first non-empty line" do
         l = ["", "", "a", "", "b"]
-        expect(call l).to eq 2
+        expect(call l).to eq [2, 0]
       end
 
       context "when :comment is false (the default)" do
         it "ignores leading comments" do
           l = ["# comment", "b"]
-          expect(call l).to eq 1
+          expect(call l).to eq [1, 0]
         end
 
-        it "ignores embedded comments in otherwise blank lines" do
-          l = ["  # comment", "b"]
-          expect(call l).to eq 1
+        it "resets peek_pos" do
+          l = %(
+              eval
+                ls -l
+                echo
+              # comment
+            }
+          ).align.split("\n")
+          tk = make(l)
+          tk.read
+          tk.readtext(4)
+          tk.peek
+          expect(tk.peek_pos).to eq 0
+          expect(tk.peek.kind).to eq :BRACE_END
         end
       end
 
       context "when :comment is true" do
-        def call(lines) = make(lines).scanlines(comment: true)
+        def call(lines) = make(lines).scanlines(0, 0, comment: true)
 
         it "does not ignore leading comments" do
           l = ["", "# comment", "b"]
-          expect(call l).to eq 1
+          expect(call l).to eq [1, 0]
         end
 
         it "does not ignore embedded comments in otherwise blank lines" do
           l = ["", "  # comment", "b"]
-          expect(call l).to eq 1
+          expect(call l).to eq [1, 0]
         end
       end
     end

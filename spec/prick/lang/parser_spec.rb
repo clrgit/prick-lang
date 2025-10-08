@@ -83,6 +83,7 @@ describe "Prick::Lang" do
           end
         end
 
+
         context "function declarations" do
           it "with a name argument" do
             l = %(

@@ -200,7 +200,6 @@ module Prick::Lang
       part :whens, [When]
       part :else_, Block
     end
-
   end
 end
 

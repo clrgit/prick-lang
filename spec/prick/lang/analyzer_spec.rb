@@ -10,7 +10,7 @@ describe "Prick::Lang" do
       tokenizer = Prick::Lang::Tokenizer.new(file, lines)
       parser = Prick::Lang::Parser.new(tokenizer)
       parser.parse
-      oracle = Prick::Lang::Oracle.new({ cmd: "build", env: "prod", user: "me" })
+      oracle = Prick::Lang::Oracle.new({ cmd: "build", env: "prod", user: "me", ver: Semver.new("1.2.3") })
       analyzer = Prick::Lang::Analyzer.new(parser, oracle)
       analyzer
     end
@@ -22,32 +22,8 @@ describe "Prick::Lang" do
 
     def sig(lines)
       idr = call(lines)
-      capture { idr.sig }.sub(/^file\s/, "").chomp
+      capture { idr.sig }.gsub(/^file\s/m, "").chomp
     end
-
-#   def sig(lines)
-#     idr = call(lines)
-#     sig_block(
-#
-#     if idr.is_a? Prick::Lang::Idr::Program
-#       capture {
-#         idr.schemas.each { |schema|
-#           puts "schema #{schema.ident}"
-#           indent {
-#             puts sig(schema.block)
-#           }
-#         }
-#       }
-#     end
-#
-#     capture { idr.block.each { |node| node.dump } }
-#         .sub(/^file\s/, "")
-#         .chomp
-#         .sub(/^provide\s.*?\n/m, "")
-#   end
-
-#   def sig_block
-#   end
 
     it "evaluates known references to true" do
       l = %(
@@ -104,6 +80,26 @@ describe "Prick::Lang" do
       )
       expect(sig l).to eq %(
         true.sql
+      ).align
+    end
+
+    it "evaluates version expressions" do
+      l = %(
+        if $ver ~> 1.2
+          true.sql
+        else
+          false.sql
+        end
+        if $ver ~> 1.3
+          true.sql
+        else
+          false.sql
+        end
+
+      )
+      expect(sig l).to eq %(
+        true.sql
+        false.sql
       ).align
     end
 

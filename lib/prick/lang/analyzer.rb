@@ -75,7 +75,7 @@ module Prick::Lang
       constrain ast, Ast::Provide
       check_context ast, Idr::Program, Idr::Schema, Idr::Phase
       provide = Idr::Provide.new(oracle.context, ast)
-      oracle.context.block << provide
+      oracle.block << provide
       oracle.add(provide)
       self
     end
@@ -95,7 +95,7 @@ module Prick::Lang
       trace
       constrain ast, Ast::Require
       check_context ast, Idr::Program, Idr::Schema, Idr::Phase
-      oracle.context.block.concat \
+      oracle.block.concat \
           ast.references.map { |ref|
             Idr::RequireCommand.new(oracle.context, ref, ref.value).tap { oracle.requires << _1 }
           }
@@ -104,7 +104,7 @@ module Prick::Lang
     def build_command(ast)
       trace
       constrain ast, Ast::Source, Ast::ExternalCommand, Ast::CallCommand
-      oracle.context.block.concat \
+      oracle.block.concat \
           case ast
             when Ast::Source; ast.files.map { |file| Idr::FileCommand.new(oracle.context, file) }
             when Ast::ExternalCommand; [Idr::ExternalCommand.new(oracle.context, ast)]
@@ -132,7 +132,7 @@ module Prick::Lang
                     oracle.context, ast,
                     evaluator.unresolved, oracle.ensure(evaluator.unresolved))
             oracle.unresolved << unresolved
-            oracle.context.block << unresolved
+            oracle.block << unresolved
             return
           when true
             build_stmts(if_then.then_)
@@ -193,7 +193,7 @@ module Prick::Lang
               oracle.unresolved << node
             else
               progress = true
-              oracle.scope(node, node.block) { build_control(node.ast) }
+              oracle.scope(node.parent, node.block) { build_control(node.ast) }
             end
           end
         end
@@ -208,7 +208,7 @@ module Prick::Lang
     def analyze_resources
       trace
       oracle.requires.each { |require_|
-        oracle.present?(require_.uid) or error req, "Can't find resource '#{require_.uid}'"
+        oracle.present?(require_.uid) or error require_, "Can't find resource '#{require_.uid}'"
         require_.node = oracle.resource(require_.uid)
       }
 

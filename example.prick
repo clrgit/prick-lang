@@ -1,209 +1,75 @@
 
-if $env == prod
-  here.sql
-  schema prod_schema {
-    prod_schema.sql
-  }
-else
-  not-here.sql
-end
-
-__END__
-
-
-
-
-
-
-
-
-#provide r
-#if r?
-# r.sql
-# schema s {
-#   s.sql
-# }
-#end
-
-#__END__
-
-# Late-definition of resource
-if present?
-  schema s1 {
-    s1.sql
-  }
-end
-provide present
-
-# Phase
+# Global phase
 init {
-  outermost-init.sql
-  provide outermost_init
-}
-
-# Another schema
-schema another_schema {
-  another_schema.sql
-  provide has_another_schema
+  init1.sql
+  provide part
+  init2.sql
 }
 
 # Main Schema
 schema my_schema {
   my_schema.sql
-# # Function
-# function my_function {
-#   # Case statment
-#   case version
-#     when ~> 1.2.3
-#       a.sql
-#     when < 4.5.6
-#       b.sql
-#   else
-#     c.sql
-#   end
-# }
+  # Function
+  function my_function {
+    my_function.sql
+  }
+  init {
+  }
 
-# # Phase
-# init {
-#   # If statement with constant expression
-#   if $env == text || $cmd == build
-#     ia.sql
-#   elsif ! $env == prod
-#     ib.sql
-#   else
-#     ic.sql
-#   end
-#   provide inner_init
-#   require my_schema.has_a
-# }
-}
+  # If statement with constant expression
+  if $env == prod
+    env_eq_prod.sql
+  else
+    env_ne_prod.sql
+  end
+  if $env == test
+    env_eq_test.sql
+  else
+    env_ne_test.sql
+  end
 
-__END__
+  # If statement with version expression
+  if $ver ~> 1.2
+    has_ver.sql
+  else
+    not_ver.sql
+  end
 
-  # Require
-# require unknown_schema.unknown_resource
+  # If statement with unresolved expression
+  if r?
+    has_r.sql
+  else
+    not_r.sql
+  end
 
-  p1.sql
+  provide r
+
+# case version
+#   when ~> 1.2.3
+#     a.sql
+#   when < 4.5.6
+#     b.sql
+# else
+#   c.sql
+# end
 
   # Provide
   a.sql
   provide has_a
   b.sql
-  provide has_b # has_b depends on has_a that depends on the schema
-
-  # If statement
-  if env prod
-    c.sql
-    provide has_c
-  else
-    provide has_not_c
-  end
-
-  if ! env prod
-    d.sql e.sql
-    provide has_d
-  else
-    not_env_prod.sql
-  end
-
-  checkpoint.sql
-
-  if resource my_schema.has_c
-    res.sql
-  end
-
-  p2.sql
-
-  TESTING_BUILT_IN_VARS.sql
-  if var env prod
-    var_env_prod.sql
-  else
-    not_var_env_prod.sql
-  end
-
-  TESTING_COMMAND_LINE_VARS.sql
-  if var cmd_var not_a_value cmd_value
-    var_cmd_var.sql
-  else
-    not_var_cmd_var.sql
-  end
-
-  TESTING_COMMAND_LINE_NOT_VARS.sql
-  if var not_cmd_var not_cmd_value
-    var_not_cmd_var.sql
-  else
-    not_var_not_cmd_var.sql
-  end
-
-  p3.sql
-
-# case var prod
-#   when prod
-#     case_var_prod.sql
-#   else
-#     oops.sql
-# end
-  TESTING_UNRESOLVED_IF_STATEMENT.sql
-  # Unresolved if-statement
-  before_unresolved.sql
-  if resource my_schema.has_d
-    has_res_d.sql
-    if resource my_schema.has_e
-      has_res_e.sql
-    else
-      not_res_e.sql
-    end
-  else
-    not_res_d.sql
-    if resource my_schema.has_f
-      has_res_f.sql
-    else
-      not_res_f.sql
-    end
-  end
-  after_unresolved.sql
-
-  p4.sql
-  p44.sql
-
-  before_parallel.sql
-  if ! resource my_schema.has_d
-    not_res_d_2.sql
-    provide has_f
-  end
-  after_parallel.sql
-
-  p5.sql
-  p55.sql
-
-  BEFORE.sql
-  if ! resource my_schema.some_resource
-#   provide some_resource
-    not_some_resource.sql
-  end
-  AFTER.sql
-
-  p6.sql
-
-  # Make
-  exec |
-    if [ file1.sql -nt file.rb -o file2.sql -nt data.txt ]; then
-      something.rb
-    fi
-
-  file1.sql
-  file2.sql
+  provide has_b
 
   # Require
   require another_schema
   require another_schema.has_another_schema
-  require my_schema.has_a
-# require a.b c.d
 
   # Files
+  s.sql
   r.rb
   p.psql
+  f.fox
 
+  # Multiple files
   t1.sql t2.sql t3.sql
 
   # Commands
@@ -216,10 +82,14 @@ __END__
     where column = 42
 
   # Function call
-  #call my_function
+  # call my_function
 }
 
-__END__
-
+# Another schema
+schema another_schema {
+  another_schema.sql
+  require my_schema.r
+  after_require.sql
+  provide has_another_schema
 }
 

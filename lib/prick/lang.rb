@@ -44,7 +44,7 @@ module Prick::Lang
   DUMP_KINDS = %w(tokens ast idr oracle)
 
   # FIXME
-  DEBUG_VARIABLES = { cmd: "build", env: "prod", user: "me" }
+  BUILTIN_VARIABLES = { cmd: "build", env: "prod", ver: Semver.new("1.2.3"), user: "me" }
 
   def self.dump(file, lines = nil, kind, variables)
     tokenizer = Tokenizer.new(file, lines)
@@ -58,11 +58,12 @@ module Prick::Lang
         indent { tokens.each &:dump }
 
       when "ast", nil
+#       p parser.parse
         parser.parse.dump
 #       Ast::Node.dump_model
 
       when "idr", "oracle"
-        oracle = Oracle.new(DEBUG_VARIABLES.merge(variables))
+        oracle = Oracle.new(BUILTIN_VARIABLES.merge(variables))
         analyzer = Analyzer.new(parser, oracle)
         parser.parse
         if kind == "idr"
