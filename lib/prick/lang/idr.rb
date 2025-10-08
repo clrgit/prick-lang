@@ -5,7 +5,7 @@ module Prick::Lang
     class Node
       include ClassFunctions
 
-      attr_reader :parent # Idr::Resource or nil for top-level Program object
+      attr_accessor :parent # Idr::Resource or nil for top-level Program object
 
       attr_reader :ast # Ast::Node
       forward_to :ast, :token
@@ -73,7 +73,14 @@ module Prick::Lang
 
       def flatten
         @block = @block.flat_map { |node|
-          node.is_a?(Unresolved) ? node.flatten : node
+          if node.is_a? Unresolved
+            nodes = node.flatten
+            nodes.each { _1.parent = self }
+            nodes
+          else
+            node
+          end
+#         node.is_a?(Unresolved) ? node.flatten.tap { |node| node.parent = self } : node
         }
       end
     end

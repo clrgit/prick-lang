@@ -167,14 +167,14 @@ if opts.dump?
   kind = opts.dump || "ast"
   Prick::Lang::DUMP_KINDS.include?(kind) or
       ShellOpts::error "Illegal value for --dump '#{kind}'"
-  Prick::Lang.dump(file, kind, VARIABLES)
+  Prick::Lang.dump(file, kind, variables: VARIABLES)
   exit
 end
 
 # Compile
 compiler = Prick::Lang::Compiler.new(file)
 begin
-  compiler.compile(variables)
+  compiler.compile(variables: VARIABLES)
 rescue => ex
   raise Prick::Lang::ErrorFunctions.pretty_backtrace!(ex)
 end

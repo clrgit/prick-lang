@@ -12,11 +12,11 @@ module Prick::Lang
     attr_reader :ast # Ast::Program
     attr_reader :idr # Idr::Program
 
-    def initialize(file, lines = nil)
+    def initialize(file, lines = nil, variables: {})
       @file = file
       @tokenizer = Tokenizer.new(file, lines)
       @parser = Parser.new(@tokenizer)
-      @oracle = Oracle.new # TODO
+      @oracle = Oracle.new(variables)
       @analyzer = Analyzer.new(self, oracle)
     end
 

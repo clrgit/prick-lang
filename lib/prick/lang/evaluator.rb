@@ -19,6 +19,7 @@ module Prick::Lang
     # couldn't be resolved and set #unresolved to the unevaluated resource
     # reference
     def eval(expr)
+      trace
       begin
         eval_expr(expr)
       rescue StopEvaluation => ex
@@ -29,6 +30,7 @@ module Prick::Lang
 
   private
     def eval_expr(expr)
+      trace
       case expr
         when Ast::Reference
           uid = expr.uid = oracle.uid(expr.literal)
@@ -50,18 +52,25 @@ module Prick::Lang
         when Ast::BinaryExpr, Ast::WhenExpr
           lval = eval_expr(expr.lexpr)
           rval = eval_expr(expr.rexpr)
+          constrain lval, String, Semver, true, false
+          constrain rval, String, Semver, true, false
           case expr.oper
             when :OROR; lval || rval
             when :ANDAND; lval && rval
             when :LT; lval < rval
             when :LE; lval <= rval
             when :EQEQ; lval == rval
-            when :NEQ; lval != rval
+            when :NE; lval != rval
             when :GE; lval >= rval
             when :GT; lval > rval
+            when :IN; raise "TODO"
+            when :TIGT; lval.squiggle?(rval)
           else
             raise InternalError, "Unhandled binary operator: #{expr.oper.inspect}"
           end
+
+        when Ast::Var # Must go before Ast::Value below
+          oracle[expr.value] or raise InternalError, "Unknown variable #{expr.value.inspect}"
 
         when Ast::Value
           expr.value
@@ -70,6 +79,27 @@ module Prick::Lang
         raise InternalError, expr.classname
       end
     end
+
+#   def eval_string_expr(oper, lval, rval)
+#     case oper
+#     end
+#   end
+
   end
 end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

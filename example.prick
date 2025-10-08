@@ -1,89 +1,84 @@
 
-provide present
+if $env == prod
+  here.sql
+  schema prod_schema {
+    prod_schema.sql
+  }
+else
+  not-here.sql
+end
 
-# Schema within if
+__END__
+
+
+
+
+
+
+
+
+#provide r
+#if r?
+# r.sql
+# schema s {
+#   s.sql
+# }
+#end
+
+#__END__
+
+# Late-definition of resource
 if present?
   schema s1 {
     s1.sql
   }
 end
+provide present
 
-__END__
-
-
-
-
-
-
-
-
-
-
-
-
-
-if r_a
-  t.sql # FIXME Needed right now
-  schema r_s {
-    r_s.sql
-  }
-  tt.sql
-end
-
-provide r_a
-
-__END__
-
-
-if env prod
-  schema prod_schema {
-    prod_schema.sql
-  }
-end
-
+# Phase
 init {
   outermost-init.sql
   provide outermost_init
 }
 
+# Another schema
 schema another_schema {
   another_schema.sql
   provide has_another_schema
+}
 
-# schema nested_schema {
-#   ups.sql
+# Main Schema
+schema my_schema {
+  my_schema.sql
+# # Function
+# function my_function {
+#   # Case statment
+#   case version
+#     when ~> 1.2.3
+#       a.sql
+#     when < 4.5.6
+#       b.sql
+#   else
+#     c.sql
+#   end
+# }
+
+# # Phase
+# init {
+#   # If statement with constant expression
+#   if $env == text || $cmd == build
+#     ia.sql
+#   elsif ! $env == prod
+#     ib.sql
+#   else
+#     ic.sql
+#   end
+#   provide inner_init
+#   require my_schema.has_a
 # }
 }
 
-# Schema
-schema my_schema {
-
-  # Function
-  function my_function {
-    # Case statment
-    case version
-      when ~> 1.2.3
-        a.sql
-      when < 4.5.6
-        b.sql
-    else
-      c.sql
-    end
-  }
-
-  # Phase
-  init {
-    # If statement with constant expression
-    if ( env text || cmd build )
-      ia.sql
-    elsif ! env prod
-      ib.sql
-    else
-      ic.sql
-    end
-    provide inner_init
-    require my_schema.has_a
-  }
+__END__
 
   # Require
 # require unknown_schema.unknown_resource

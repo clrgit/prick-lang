@@ -3,55 +3,32 @@ module Prick::Lang
   class Oracle
     include ErrorFunctions
 
+    #
     # Runtime variables
+    #
+
+    # Hash of variables
     attr_reader :variables # Symbol => String
 
+    forward_to :@variables, :[], :[]=, :key?
+
+    #
     # Resources
-    attr_reader :resources # UID String => true/false/nil
+    #
+
+    # Map from uid to Idr resource object, false if marked absent,
+    # and nil if unknown
+    attr_reader :resources # UID String => Idr::Node/false/nil
 
     # Unresolved nodes
-    attr_accessor :unresolved # Unresolved
+    attr_accessor :unresolved # [Unresolved]
 
-    # Require commands. Used by the #analyzer to check references
-    attr_accessor :requires
-
-    # Stack of contexts and associated block. Block is usually equal to
-    # resource.block but unresolved nodes sets the resource to the parent
-    # resource but block to its own block
-    attr_accessor :contexts # [[Resource, Block]]
-
-    # Current Resource object
-    def context = @contexts.last.first
-
-    def initialize(variables)
-      @variables = variables
-      @resources = {}
-      @unresolved = []
-      @requires = []
-      @contexts = []
-    end
-
-    def uid(ident)
-      constrain ident, String
-      (ident.index('.') ? ident : [context.uid, ident].compact.join("."))
-    end
-
-    # Execute block with the given context. The current block can be set
-    # explicitly, this is used by Analyze#build_unresolved
-    def scope(context, block = context.block, &code)
-      constrain context, Idr::Resource
-      constrain block, Array
-      @contexts.push [context, block]
-      r = yield
-      @contexts.pop
-      r
-    end
+    # Resource associated with the given uid. Returns a Idr::Node object, true,
+    # or nil
+    def resource(uid) = @resources[uid]
 
     # Add an unknown resource if not present. Return the uid
     def ensure(value)
-#     puts "#ensure(#{value.inspect})"
-#     puts "  value.value: #{value.value.inspect}"
-#     puts "  uid: #{self.uid(value.value)}"
       constrain value, Ast::Value
       uid = self.uid(value.value)
       @resources[uid] = nil if !@resources.key?(uid)
@@ -73,7 +50,7 @@ module Prick::Lang
       @resources[uid] = resource
     end
 
-    # Resources
+    # Lists of present, absent, known, or unknown resources
     def present = @resources.filter_map { _2 and _1 }
     def absent = @resources.filter_map { ! _2.nil? && ! _2 and _1 }
     def known = @resources.filter_map { !_2.nil? and _1 }
@@ -91,9 +68,50 @@ module Prick::Lang
     # True if it is not known if the resource is present or absent
     def unknown?(uid) = entry(uid).nil?
 
-    def [](key) = entry(key)
-
     def mark_unknown_absent = unknown.each { |key| @resources[key] = false }
+
+    #
+    # Requirements (FIXME Unused)
+    #
+
+    # Require commands. Used by the #analyzer to check references
+    attr_accessor :requires
+
+    #
+    # Contexts
+    #
+
+    # Stack of contexts and associated block. Block is usually equal to
+    # resource.block but unresolved nodes sets the resource to the parent
+    # resource but block to its own block
+    attr_accessor :contexts # [[Resource, Block]]
+
+    # Current Resource object
+    def context = @contexts.last.first
+
+    # Execute block with the given context. The current block can be set
+    # explicitly, this is used by Analyze#build_unresolved
+    def scope(context, block = context.block, &code)
+      constrain context, Idr::Resource
+      constrain block, Array
+      @contexts.push [context, block]
+      r = yield
+      @contexts.pop
+      r
+    end
+
+    def uid(ident)
+      constrain ident, String
+      (ident.index('.') ? ident : [context.uid, ident].compact.join("."))
+    end
+
+    def initialize(variables)
+      @variables = variables
+      @resources = {}
+      @unresolved = []
+      @requires = []
+      @contexts = []
+    end
 
     def dump
       puts "Oracle"

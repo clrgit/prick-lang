@@ -16,7 +16,7 @@ module Prick::Lang
       LT: [2, :left, 2],
       LE: [2, :left, 2],
       EQEQ: [2, :left, 2],
-      NEQ: [2, :left, 2],
+      NE: [2, :left, 2],
       GE: [2, :left, 2],
       GT: [2, :left, 2],
       TIGT: [2, :left, 2],
@@ -26,7 +26,7 @@ module Prick::Lang
     }.map { |k,v| [k, { prior: v[0], assoc: v[1], arity: v[2] } ] }.to_h
 
     # Operators for comparing versions
-    VERSION_OPERATORS = Set[:LT, :LE, :EQEQ, :NEQ, :GE, :GT, :TIGT]
+    VERSION_OPERATORS = Set[:LT, :LE, :EQEQ, :NE, :GE, :GT, :TIGT]
 
     def file = @tokenizer.file
     attr_reader :tokenizer
@@ -210,33 +210,6 @@ module Prick::Lang
       exprs
     end
 
-    # Parse an expression. It uses the shunter to compile the source into
-    # reverse polish notation that is then converted into an Ast::Expr
-    def parse_expr
-      trace peek: @tokenizer.peek(eol: true)
-      stack = [] # [Ast::Expr]
-      shunt_exprs.each { |token| # Token is either a value or a operator token
-        if token.is_a? Ast::Value
-          stack.push token
-        else
-          case OPERATORS[token.kind]&.[](:arity)
-            when 1
-              e = Ast::UnaryExpr.new(token)
-              e.expr = stack.pop
-              stack.push e
-            when 2
-              e = Ast::BinaryExpr.new(token)
-              e.rexpr = stack.pop
-              e.lexpr = stack.pop
-              stack.push e
-            when nil
-              stack.size == 1 or unexpected_token_error peek, "expression"
-          end
-        end
-      }
-      stack.first or unexpected_token_error peek, "expression"
-    end
-
     def parse_ruby
       trace
       not_implemented_error "#parse_ruby"
@@ -372,15 +345,41 @@ module Prick::Lang
       end
     end
 
-    # Returns a reversed Polish notation list of SimpleExpression objects and operator tokens
+    # Parse an expression. It uses the shunter to compile the source into
+    # reverse polish notation that is then converted into an Ast::Expr
+    def parse_expr
+      trace peek: @tokenizer.peek(eol: true)
+      stack = [] # [Ast::Expr]
+      shunt_exprs.each { |token| # Token is either a value or a operator token
+        if token.is_a? Ast::Value
+          stack.push token
+        else
+          case OPERATORS[token.kind]&.[](:arity)
+            when 1
+              e = Ast::UnaryExpr.new(token)
+              e.expr = stack.pop
+              stack.push e
+            when 2
+              e = Ast::BinaryExpr.new(token)
+              e.rexpr = stack.pop
+              e.lexpr = stack.pop
+              stack.push e
+#           when Something
+#             e = Ast::ListExpr
+            when nil
+              stack.size == 1 or unexpected_token_error peek, "expression"
+          end
+        end
+      }
+      stack.first or unexpected_token_error peek, "expression"
+    end
+
+    # Returns a reversed Polish notation list of tokens
     def shunt_exprs
       trace
-      stack = []
+      stack = [] # [Token|[Token]]
       output = []
       token_args = {} # Map from list operators 'env' and 'cmd' to array of arguments
-
-#     accept_eols = 0
-
       paren_level = 0
       accept_eol = true # Signals that the expression continues on the next line
       while token = tokenizer.peek(eol: true)
@@ -394,12 +393,37 @@ module Prick::Lang
           when :PAREN_END
             paren_level -= 1
             read(eol: true)
-            while op = stack.pop and op.kind != :PAREN_BEGIN
+
+#           count = 0
+            while op = stack.pop
+              break if op.is_a?(Token) && op.kind == :PAREN_BEGIN
               output << op
             end
+
+            # IDEA Have an output stack where lists create their own
+
+#           while op = stack.pop and op.kind != :PAREN_BEGIN
+#             if !op.is_a?(Array)
+#             output << op
+#           end
+#           while op = stack.pop and op.kind != :PAREN_BEGIN
+#             if !op.is_a?(Array)
+#             output << op
+#             count += 1
+#           end
+#           op.element = (count <= 1)
+#           # Flag on element to signal this can be interpreted as an empty
+#           # or single-element list
+#           op.element
+
+          when :COMMA
+            paren_level > 0 or break
+            stack.push [stack.pop] if !output.last.is_a?(Array)
+            read(eol: true)
           when *Token::VALUES
             accept_eol = false
-            output << parse_value
+#           output << parse_value
+            (output.last.is_a?(Array) ? output.last : output) << parse_value
           when *Token::OPERS
             accept_eol = !token.is_suffix_oper?
             oper = OPERATORS[token.kind] or raise ArgumentError, "Not a known operator '#{token.text}'"
@@ -408,14 +432,14 @@ module Prick::Lang
             while top = OPERATORS[stack.last&.kind]
               break if oper[:prior] > top[:prior]
               break if oper[:prior] == top[:prior] && oper[:assoc] == :right
-              output << stack.pop
+#             output << stack.pop
+              (output.last.is_a?(Array) ? output.last : output) << stack.pop
             end
             stack.push token
           else
             break
         end
       end
-
       output + stack.reverse
     end
 

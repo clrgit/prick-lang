@@ -101,8 +101,7 @@ module Prick::Lang
     end
 
     class Var < Value
-      forward_to :token, :name
-      def value() "UNRESOLVED" end
+      def value() token.name.to_sym end
       def to_s = @token.text
     end
 

@@ -39,7 +39,6 @@ module Prick::Lang
       @idr
     end
 
-
     def inspect() = "<#{self.class}>"
 
   private
@@ -61,7 +60,7 @@ module Prick::Lang
     # afterwards
     def build_schema(ast)
       trace
-      constrain oracle.context, Idr::Program
+      constrain oracle.context, Idr::Program, Idr::Unresolved
       constrain ast, Ast::Schema
       check_context ast, Idr::Program
       schema = Idr::Schema.new(oracle.context, ast)
@@ -210,7 +209,7 @@ module Prick::Lang
       trace
       oracle.requires.each { |require_|
         oracle.present?(require_.uid) or error req, "Can't find resource '#{require_.uid}'"
-        require_.node = oracle[require_.uid]
+        require_.node = oracle.resource(require_.uid)
       }
 
 #     for schema in @idr.schemas

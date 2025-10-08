@@ -185,42 +185,4 @@ describe "Prick::Lang" do
       end
     end
   end
-
-  describe "CharErrorToken" do
-    def make(s) = Prick::Lang::CharErrorToken.new("file.sql", 1, 3, s)
-
-    describe "#charno" do
-      def charno(s) = make(s).charno
-
-      def e(s, pos)
-        expect(charno(s)).to eq pos
-      end
-
-      it "is the postion of the error" do
-        e "@", 3
-      end
-
-      context "scan" do
-        it "words" do e "word@", 7 end
-        it "integers" do e "1234.", 7 end
-        it "identifiers" do e "ident@", 8 end
-        it "references" do
-          s = "root.branch@error"
-          e s, 3 + s.index('@')
-        end
-      end
-    end
-
-    describe "#char" do
-      def error(s) = make(s).error
-      def e(s, c) = expect(error(s)).to eq c
-
-      it "is the error character" do
-        e "word@", "@"
-      end
-      it "...or string" do
-        e "£word", "£word"
-      end
-    end
-  end
 end
