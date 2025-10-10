@@ -103,29 +103,94 @@ describe "Prick::Lang" do
       ).align
     end
 
-    it "evaluates list expressions" do
-      l = %(
-        if $env ^ (prod, test)
+    context "evaluates 'in' expressions" do
+      it "with a multi-element list" do
+        l = %(
+          if $env ^ (prod, test)
+            true.sql
+          else
+            false.sql
+          end
+        )
+        expect(sig l).to eq %(
           true.sql
-        else
-          false.sql
-        end
-        if $cmd ^ (unknown)
+        ).align
+      end
+      it "with a single-element list" do
+        l = %(
+          if $env ^ (prod)
+            true.sql
+          else
+            false.sql
+          end
+        )
+        expect(sig l).to eq %(
           true.sql
-        else
+        ).align
+      end
+      it "with an empty list" do
+        l = %(
+          if $env ^ ()
+            true.sql
+          else
+            false.sql
+          end
+        )
+        expect(sig l).to eq %(
           false.sql
-        end
-        if $cmd ^ ()
+        ).align
+      end
+    end
+
+    context "evaluates '%' expressions" do
+      it "with a multi-element list" do
+        l = %(
+          if $env % (prod, test)
+            true.sql
+          else
+            false.sql
+          end
+        )
+        expect(sig l).to eq %(
           true.sql
-        else
+        ).align
+      end
+      it "with a single-element list" do
+        l = %(
+          if $env % (prod)
+            true.sql
+          else
+            false.sql
+          end
+        )
+        expect(sig l).to eq %(
+          true.sql
+        ).align
+      end
+      it "with an empty list" do
+        l = %(
+          if $env % ()
+            true.sql
+          else
+            false.sql
+          end
+        )
+        expect(sig l).to eq %(
           false.sql
-        end
-      )
-      expect(sig l).to eq %(
-        true.sql
-        false.sql
-        false.sql
-      ).align
+        ).align
+      end
+      it "with a value" do
+        l = %(
+          if $env % prod
+            true.sql
+          else
+            false.sql
+          end
+        )
+        expect(sig l).to eq %(
+          true.sql
+        ).align
+      end
     end
 
     it "allows nested definitions" do

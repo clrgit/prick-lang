@@ -56,8 +56,8 @@ module Prick::Lang
               rval = eval_expr(expr.rexpr)
             elsif expr.rspec.is_a? Ast::ParenExpr
               rval = [eval_expr(expr.rexpr.expr)]
-            else
-              error "ASDF"
+            elsif OPERATORS[expr.oper][:value]
+              rval = [eval_expr(expr.rexpr.expr)]
             end
           else
             rval = eval_expr(expr.rexpr)
@@ -74,12 +74,7 @@ module Prick::Lang
             when :GE; lval >= rval
             when :GT; lval > rval
             when :IN; rval.any? { |r| lval == r }
-            when :PCT;
-              # Handle one or more arguments
-
-            # TODO
-#           when :PCT; ...
-
+            when :PCT; rval.any? { |r| lval == r } # FIXME for now
             when :TIGT; lval.squiggle?(rval)
           else
             raise InternalError, "Unhandled binary operator: #{expr.oper.inspect}"

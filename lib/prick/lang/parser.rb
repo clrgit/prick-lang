@@ -19,20 +19,20 @@ module Prick::Lang
     #   }
     #
     OPERATORS = {
-      OROR: [0, :left, 2, false],
-      ANDAND: [1, :left, 2, false],
-      LT: [2, :left, 2, false],
-      LE: [2, :left, 2, false],
-      EQ: [2, :left, 2, false],
-      NE: [2, :left, 2, false],
-      GE: [2, :left, 2, false],
-      GT: [2, :left, 2, false],
-      TIGT: [2, :left, 2, false],
-      IN: [3, :left, 2, true],
-      PCT: [3, :left, 2, true], # TODO Special case - takes both an array and a value
-      NOT: [3, :right, 1, false],
-      QUEST: [4, :left, 1, false],
-    }.map { |k,v| [k, { prior: v[0], assoc: v[1], arity: v[2], list: v[3] } ] }.to_h
+      OROR: [0, :left, 2, true, false],
+      ANDAND: [1, :left, 2, true, false],
+      LT: [2, :left, 2, true, false],
+      LE: [2, :left, 2, true, false],
+      EQ: [2, :left, 2, true, false],
+      NE: [2, :left, 2, true, false],
+      GE: [2, :left, 2, true, false],
+      GT: [2, :left, 2, true, false],
+      TIGT: [2, :left, 2, true, false],
+      IN: [3, :left, 2, false, true],
+      PCT: [3, :left, 2, true, true], # TODO Special case - takes both an array and a value
+      NOT: [3, :right, 1, true, false],
+      QUEST: [4, :left, 1, true, false],
+    }.map { |k,v| [k, { prior: v[0], assoc: v[1], arity: v[2], value: v[3], list: v[4] } ] }.to_h
 
     # Operators for comparing versions
     VERSION_OPERATORS = Set[:LT, :LE, :EQ, :NE, :GE, :GT, :TIGT]
@@ -397,7 +397,12 @@ module Prick::Lang
                       e.rexpr.elems = [stack.pop]
                     elsif stack.top.is_a? Ast::ListExpr
                       e.rexpr = stack.pop
+                    elsif operator[:value] # Handle value argument to list operator
+                      list = Ast::ListExpr.new(token)
+                      list.elems = [stack.pop]
+                      e.rexpr = list
                     else
+                      p operator
                       unexpected_token_error peek, "list expression"
                     end
                   else
