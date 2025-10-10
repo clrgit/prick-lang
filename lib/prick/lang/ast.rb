@@ -60,7 +60,11 @@ module Prick::Lang
       part :rexpr, Expr
     end
 
-####################################
+    class ParenExpr < Expr
+      part :expr, Expr
+      def elems = [@expr] # Quacks like a list
+    end
+
     class ListExpr < Expr
       part :elems, [Expr]
     end

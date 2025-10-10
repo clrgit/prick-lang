@@ -51,9 +51,19 @@ module Prick::Lang
 
         when Ast::BinaryExpr, Ast::WhenExpr
           lval = eval_expr(expr.lexpr)
-          rval = eval_expr(expr.rexpr)
+          if Parser::OPERATORS[expr.oper][:list]
+            if expr.rexpr.is_a? Ast::ListExpr
+              rval = eval_expr(expr.rexpr)
+            elsif expr.rspec.is_a? Ast::ParenExpr
+              rval = [eval_expr(expr.rexpr.expr)]
+            else
+              error "ASDF"
+            end
+          else
+            rval = eval_expr(expr.rexpr)
+          end
           constrain lval, String, Semver, true, false
-          constrain rval, String, Semver, true, false
+          constrain rval, String, Semver, [String], [Semver], true, false
           case expr.oper
             when :OROR; lval || rval
             when :ANDAND; lval && rval
@@ -63,11 +73,17 @@ module Prick::Lang
             when :NE; lval != rval
             when :GE; lval >= rval
             when :GT; lval > rval
-            when :IN; raise "TODO"
+            when :IN; rval.any? { |r| lval == r }
             when :TIGT; lval.squiggle?(rval)
           else
             raise InternalError, "Unhandled binary operator: #{expr.oper.inspect}"
           end
+
+        when Ast::ParenExpr
+          eval_expr(expr.expr)
+
+        when Ast::ListExpr
+          expr.elems.map { |e| eval_expr(e) }
 
         when Ast::Var # Must go before Ast::Value below
           oracle[expr.value] or raise InternalError, "Unknown variable #{expr.value.inspect}"
@@ -79,27 +95,6 @@ module Prick::Lang
         raise InternalError, expr.classname
       end
     end
-
-#   def eval_string_expr(oper, lval, rval)
-#     case oper
-#     end
-#   end
-
   end
 end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

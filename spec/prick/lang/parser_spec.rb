@@ -41,7 +41,7 @@ describe "Prick::Lang" do
     def esig(expr) # Expression SIGnature
       lines = %(
         if #{expr}
-          t.sql
+          next_line.sql
         end
       )
       sig(lines).sub(/If ([^\n]+)\s*\n.*/m, '\1')
@@ -318,7 +318,7 @@ describe "Prick::Lang" do
         context "expressions" do
           it "does not extend to next line" do
             l = %(
-              if env prod
+              if $env = prod
                 schema a {
                   a.sql
                 }
@@ -431,28 +431,19 @@ describe "Prick::Lang" do
         end
 
         context "lists X" do
-          def make(lines)
-            lines = lines.split "\n", -1
-            tk = Prick::Lang::Tokenizer.new(file, lines)
-            pa = Prick::Lang::Parser.new(tk)
+          it "accepts a comma-separated list of value" do
+            e = "$env ^ (prod, test)"
+            expect(esig(e)).to eq "^($env, (prod, test))"
           end
 
-          it "parses (a,b)" do
-#           l = %(
-#             a ^ (b = 1, c < 2, d > 3 && e = 4)
-#           )
-            l = %(
-              a ^ (b = 1, c < 2, d > 3 && e = 4 || f ^ (aa, bb, cc))
-            )
-            ls = l.split "\n", -1
-            tk = Prick::Lang::Tokenizer.new(file, ls)
-            pa = Prick::Lang::Parser.new(tk)
-#           pa.parse_expr
-            pa.shunt_exprs.each { |elem|
-              puts "> #{elem}"
-            }
+          it "accepts single-element lists" do
+            e = "$env ^ (prod)"
+            expect(esig(e)).to eq "^($env, (prod))"
+          end
 
-
+          it "accepts an empty list" do
+            e = "$env ^ ()"
+            expect(esig(e)).to eq "^($env, ())"
           end
         end
       end
@@ -460,3 +451,20 @@ describe "Prick::Lang" do
   end
 end
 
+__END__
+          it "parses (a,b)" do
+#           l = %(
+#             a ^ (b = 1, c < 2, d > 3 && e = 4)
+#           )
+            l = %(
+              a ^ ((b = 1), c < 2, d > 3 && (e = 4 || f ^ (aa, bb, cc)) || g ^ (aa) )
+            )
+            ls = l.split "\n", -1
+            tk = Prick::Lang::Tokenizer.new(file, ls)
+            pa = Prick::Lang::Parser.new(tk)
+#           pa.shunt_exprs.each { |elem| puts "> #{elem}" }
+#           puts
+            pa.parse_expr.dump
+
+
+          end

@@ -91,8 +91,12 @@ module Prick::Lang
       EOB: nil, # End-of-block
       EOF: nil,
 
-      # Artifical token that marks a list. Used in the parser
+      # Artificial token that marks a list. Used in the parser
       LIST: nil,
+
+      # Artificial token that marks a parentheses (that may be interpreted as a
+      # single-element list)
+      PAREN: nil,
 
       # Error
       ERROR: nil
@@ -113,7 +117,8 @@ module Prick::Lang
       EOL: "end of line",
       EOB: "end of block",
       EOF: "end of file",
-      LIST: "list"
+      LIST: "list",
+      PAREN: "parenthesis"
     })
 
     # Maps from keyword/punctuation-character to kind. Inverse map of TOKENS
@@ -262,6 +267,7 @@ module Prick::Lang
     def is_text? = kind == :TEXT
     def is_punct? = PUNCTS.include? kind
     def is_list? = kind == :LIST
+    def is_paren? = kind == :PAREN
 
     # Format for token in error messages. '%s' may be used as expansion of
     # #text
@@ -274,11 +280,24 @@ module Prick::Lang
 
   class ListToken < Token
     attr_accessor :size
-    def initialize(paren_begin, size = 1)
-      super(paren_begin.file, paren_begin.lineno, paren_begin.charno, paren_begin.text, :LIST)
+    def initialize(token, size = 1)
+      constrain token, Token
+      constrain token.kind, :PAREN_BEGIN
+      super(token.file, token.lineno, token.charno, token.text, :LIST)
       @size = size
     end
-    def to_s = "LIST:#{size}"
+    def to_s = "[#{size}]"
+    def inspect = "#<Token:#{kind} #{lineno}:#{charno} #{text.inspect} #{size}>"
+  end
+
+  class ParenToken < Token
+    attr_accessor :empty
+    def empty? = empty
+    def initialize(token, empty = false)
+      super(token.file, token.lineno, token.charno, token.text, :PAREN)
+      @empty = false
+    end
+    def to_s = empty? ? "(0)" : "(1)"
   end
 
   class VarToken < Token

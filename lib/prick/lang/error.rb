@@ -32,7 +32,8 @@ module Prick::Lang
     def unexpected_error(arg = nil, expected, got)
       arg ||= (got.is_a?(Token) || got.respond_to?(:token) ? got : nil)
       klass = got.is_a?(Class) ? got : got.class
-      error arg, "Expected #{expected.classname}, got #{klass.classname}"
+      expected = expected.respond_to?(:classname) ? expected.classname : expected.to_s
+      error arg, "Expected #{expected}, got #{klass.classname}"
     end
 
   private

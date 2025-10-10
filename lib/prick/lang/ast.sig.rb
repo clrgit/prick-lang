@@ -129,6 +129,10 @@ module Prick::Lang
       def sigtitle = "#{Token::TOKENS[oper]}(_, #{rexpr.sigtitle})"
     end
 
+    class ListExpr
+      def sigtitle = "(#{elems.map(&:sigtitle).join(', ')})"
+    end
+
     class Value
     end
 

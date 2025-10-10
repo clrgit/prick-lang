@@ -8,22 +8,22 @@ module Prick::Lang
     CONSTANTS = [:ENV, :CMD, :USER, :VAR, :VERSION, :SCHEMA, :OBJECT, :RESOURCE]
     COMMANDS = [:EXEC, :EVAL, :RUBY, :SQL, :CALL]
 
-    # Map from operator token kind to tuple of priority, associtivity (:left
-    # or :right), and arity. Used by the shunter
+    # Map from operator token kind to hash of { prior: priority, assoc:
+    # associtivity (:left or :right), arity: Integer, list: Boolean }
     OPERATORS = {
-      OROR: [0, :left, 2],
-      ANDAND: [1, :left, 2],
-      LT: [2, :left, 2],
-      LE: [2, :left, 2],
-      EQ: [2, :left, 2],
-      NE: [2, :left, 2],
-      GE: [2, :left, 2],
-      GT: [2, :left, 2],
-      TIGT: [2, :left, 2],
-      IN: [3, :left, 2],
-      NOT: [3, :right, 1],
-      QUEST: [4, :left, 1],
-    }.map { |k,v| [k, { prior: v[0], assoc: v[1], arity: v[2] } ] }.to_h
+      OROR: [0, :left, 2, false],
+      ANDAND: [1, :left, 2, false],
+      LT: [2, :left, 2, false],
+      LE: [2, :left, 2, false],
+      EQ: [2, :left, 2, false],
+      NE: [2, :left, 2, false],
+      GE: [2, :left, 2, false],
+      GT: [2, :left, 2, false],
+      TIGT: [2, :left, 2, false],
+      IN: [3, :left, 2, true],
+      NOT: [3, :right, 1, false],
+      QUEST: [4, :left, 1, false],
+    }.map { |k,v| [k, { prior: v[0], assoc: v[1], arity: v[2], list: v[3] } ] }.to_h
 
     # Operators for comparing versions
     VERSION_OPERATORS = Set[:LT, :LE, :EQ, :NE, :GE, :GT, :TIGT]
@@ -345,43 +345,74 @@ module Prick::Lang
       end
     end
 
+    class ExprStack < Array
+      alias :_pop :pop
+
+      def pop(*args)
+        while self.top.is_a? Ast::ParenExpr
+          self.push self._pop.expr
+        end
+        super(*args)
+      end
+    end
+
     # Parse an expression. It uses the shunter to compile the source into
     # reverse polish notation that is then converted into an Ast::Expr
     def parse_expr
       trace peek: @tokenizer.peek(eol: true)
-      stack = [] # [Ast::Expr]
-      shunt_exprs.each { |token| # Token is either a value or a operator token
-        if token.is_a? Ast::Value
-          stack.push token
-        elsif token.is_a? Integer
-          e = Ast::ListExpr.new(nil, stack.pop(op))
-          stack.push e
-        else
-          case OPERATORS[token.kind]&.[](:arity)
-            when 1
-              e = Ast::UnaryExpr.new(token)
-              e.expr = stack.pop
-              stack.push e
-            when 2
-              e = Ast::BinaryExpr.new(token)
-              e.rexpr = stack.pop
-              e.lexpr = stack.pop
-              stack.push e
-            when nil
+      stack = ExprStack.new # [Ast::Expr]
+      shunt_exprs.each { |token|
+        case token
+          when ParenToken
+            e = Ast::ParenExpr.new(token)
+            e.expr = stack.pop
+            stack.push e
+          when ListToken
+            e = Ast::ListExpr.new(token)
+            e.elems = stack.pop(token.size)
+            stack.push e
+          when Ast::Value
+            stack.push token
+          else
+            if operator = OPERATORS[token.kind]
+              case operator[:arity]
+                when 1
+                  e = Ast::UnaryExpr.new(token)
+                  e.expr = stack.pop
+                  stack.push e
+                when 2
+                  e = Ast::BinaryExpr.new(token)
+                  if operator[:list]
+                    if stack.top.is_a? Ast::ParenExpr
+                      e.rexpr = Ast::ListExpr.new(token)
+                      e.rexpr.elems = [stack.pop]
+                    elsif stack.top.is_a? Ast::ListExpr
+                      e.rexpr = stack.pop
+                    else
+                      unexpected_token_error peek, "list expression"
+                    end
+                  else
+                    e.rexpr = stack.pop
+                  end
+                  e.lexpr = stack.pop
+                  stack.push e
+                when nil
+              end
+            else
               stack.size == 1 or unexpected_token_error peek, "expression"
-          end
+            end
         end
       }
-      stack.first or unexpected_token_error peek, "expression"
+      r = stack.pop
+      stack.empty? or unexpected_token_error peek, "expression"
+      r
     end
 
     # Returns a reversed Polish notation list of tokens
     def shunt_exprs
       trace
       stack = [] # [Token]. Operator stack
-#     paren = [] # [{type: :group|:list, commas: 0, saw_value: false}]. Parenthesis stack
       output = [] # [Token]
-      token_args = {} # Map from list operators 'env' and 'cmd' to array of arguments
       paren_level = 0
       accept_eol = true # Signals that the expression continues on the next line
       while token = tokenizer.peek(eol: true)
@@ -391,19 +422,29 @@ module Prick::Lang
             read(eol: true)
 
           when :PAREN_BEGIN
-            # TODO: Check if oper expects a list and create ListToken if so
+            read(eol: true)
+            if peek(eol: false)&.kind == :PAREN_END
+              tokenizer.reset_peek # FIXME Problem is that #peek doesn't reset on changed flags
+              read(eol: true)
+              output << ListToken.new(token, 0)
+              accept_eol = false
+            else
+              tokenizer.reset_peek # FIXME
+              paren_level += 1
+              stack.push(token)
+            end
 
-            stack.push(read(eol: true))
-            paren_level += 1
 
           when :PAREN_END
             paren_level -= 1
             read(eol: true)
-            opers = []
+            last_was_list = false # Don't output both PAREN and LIST
             while op = stack.pop
               if op.is_a?(Token) && op.kind == :PAREN_BEGIN
+                output << ParenToken.new(op) if !last_was_list
                 break
               elsif op.is_a? ListToken
+                last_was_list = true
                 op.size += 1
               end
               output << op
@@ -415,8 +456,7 @@ module Prick::Lang
           when :COMMA
             paren_level > 0 or error token, "Unexpected ','"
             read(eol: true)
-            opers = []
-            while op = stack.last
+            while op = stack.top
               if op.is_a?(Token) && op.kind == :PAREN_BEGIN # Only true on first comma
                 stack.push ListToken.new(op)
                 break
@@ -435,7 +475,7 @@ module Prick::Lang
             accept_eol = !token.is_suffix_oper?
             oper = OPERATORS[token.kind] or raise ArgumentError, "Not a known operator '#{token.text}'"
             read eol: true
-            while stack.last.is_a?(Token) && top = OPERATORS[stack.last&.kind]
+            while stack.top.is_a?(Token) && top = OPERATORS[stack.top&.kind]
               break if oper[:prior] > top[:prior]
               break if oper[:prior] == top[:prior] && oper[:assoc] == :right
               output << stack.pop
@@ -468,7 +508,6 @@ module Prick::Lang
       token = args.first.is_a?(Token) ? args.shift : @tokenizer.error || @tokenizer.peek_error || @tokenizer.token or
           raise ArgumentError
       words = seq Array(args).flatten.map! { |w| w.is_a?(Symbol) ? Token::NAMES[w] : w }.compact
-#     words = seq words
       source = token.is_a?(ErrorToken) ? token.text : sprintf(token.format, token.text)
       got = (source.empty? ? "" : ", got #{source}")
       message = "Expected #{words}#{got}"

@@ -103,6 +103,31 @@ describe "Prick::Lang" do
       ).align
     end
 
+    it "evaluates list expressions" do
+      l = %(
+        if $env ^ (prod, test)
+          true.sql
+        else
+          false.sql
+        end
+        if $cmd ^ (unknown)
+          true.sql
+        else
+          false.sql
+        end
+        if $cmd ^ ()
+          true.sql
+        else
+          false.sql
+        end
+      )
+      expect(sig l).to eq %(
+        true.sql
+        false.sql
+        false.sql
+      ).align
+    end
+
     it "allows nested definitions" do
       l = %(
         if r?

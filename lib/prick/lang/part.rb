@@ -1,3 +1,10 @@
+
+# IDEA
+#   Part objects have both a #parts and a #children member method, parts
+#   include #children. There should be two sets of tree functions: One for the
+#   parts hierarchy and one for the children hierarchy
+
+
 module Prick::Lang
   # Acts as a trimmed-down Array of Part objects
   module Parts
@@ -127,9 +134,9 @@ module Prick::Lang
           this = self.instance_variable_get(:"@#{ident}")
           case nodes
             when Array; this.replace nodes
-            when Nodes; this.replace nodes.children
+            when Parts; this.replace nodes.children
           else
-            unexpected_error(element_klass, nodes)
+            unexpected_error("array of #{element_klass.classname}", nodes)
           end
         }
       else

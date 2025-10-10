@@ -64,7 +64,7 @@ module Prick::Lang
     # Return true if at end of file
     def eof?(eol: false) = @index >= @lines.size + (eol ? 1 : 0)
 
-    # Return true if at end of line. #eol? is also when at end of file
+    # Return true if at end of line. #eol? is also true when at end of file
     def eol? = eof?(eol: false) || @pos == line.size
 
     # Return true if at beginning of line. #bol? is also true when at end of
@@ -78,8 +78,8 @@ module Prick::Lang
     # :eol/:eof is true and at the end of line/file
     #
     # Note that #peek has eof default true but #read has eof default false
-    def peek(eol: false, eof: true, re: TOKEN_RE)
-      trace
+    def peek(eol: false, eof: true)
+#     trace
       if peek?
         # Ignore peek'ed EOL or EOF token
         if @peek_token&.kind == :EOL && !eol || @peek_token&.kind == :EOF && !eof
@@ -163,8 +163,8 @@ module Prick::Lang
       @token
     end
 
-    def read(eol: false, eof: false, re: TOKEN_RE)
-      peek(eol: eol, eof: eof, re: re)
+    def read(eol: false, eof: false)
+      peek(eol: eol, eof: eof)
       move
     end
 
@@ -301,6 +301,8 @@ module Prick::Lang
       @peek_token
     end
 
+  public
+    # made public as a hack. Problem is that #peek doesn't reset if flags changed
     def reset_peek
       @peek_index = @index
       @peek_pos = @pos
@@ -308,10 +310,13 @@ module Prick::Lang
       @peek_error = nil # error token from last call to #peek
     end
 
+  protected
     # Return index of first non blank line including the current line. Ignore
     # comment-only lines unless :comment is true.  Returns lines.size on eof
+    #
+    # FIXME: Called A LOT!
     def scanlines(index, pos, comment: false)
-      trace index, pos, comment: comment
+#     trace index, pos, comment: comment
       re = (!comment ? Token::COMMENT_LINE_RE : Token::BLANK_LINE_RE)
       offset = @lines[index..-1].find_index { |l| !re.match(l) }
       index = (offset ? index + offset : @lines.size)

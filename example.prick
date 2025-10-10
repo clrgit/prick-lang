@@ -13,9 +13,6 @@ else
   false.sql
 end
 
-__END__
-
-
 # Global phase
 init {
   init1.sql
