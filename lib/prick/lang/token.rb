@@ -71,6 +71,10 @@ module Prick::Lang
       NOT: "!",
       QUEST: "?",
 
+      # Simple values
+      TRUE: "true",
+      FALSE: "false",
+
       # Identifiers and references
       IDENT: nil,
       REF: nil,
@@ -106,6 +110,8 @@ module Prick::Lang
     # Token names are used in error messages: TOKEN entries that maps to a
     # string are enclosed in quotes, other tokens are defined below
     FORMATS = TOKENS.transform_values { "'#{_1}'" }.merge({
+      TRUE: "true or false",
+      FALSE: "true or false",
       IDENT: "identifier \"%s\"",
       REF: "reference \"%s\"",
       VAR: "variable %s",
@@ -157,9 +163,10 @@ module Prick::Lang
     KINDS = TOKENS.keys # List of all token kinds
     PATHS = [:PATH, :FILE, :DIR]
     PHASES = [:INIT, :TERM, :META, :SEED, :AUTH]
+    BOOLS = [:TRUE, :FALSE]
     IDENTS = [:IDENT] + PHASES
     REFS = [:REF] + IDENTS
-    VALUES = REFS + [:VER, :VAR] + PATHS
+    VALUES = REFS + [:TRUE, :FALSE, :VER, :VAR] + PATHS
     KEYWORDS = TOKENS.select { _2 =~ /^\w+$/ }.keys
     PREFIX_OPERS = [:NOT]
     SUFFIX_OPERS = [:QUEST]
@@ -177,6 +184,7 @@ module Prick::Lang
     EXT_PATTERN = Regexp.union(EXTS) # recognized file extensions
     RELDIR_PATTERN = /\.{1,2}\/|\// # initial '/', '../', or './'
     DIR_PATTERN = /#{RELDIR_PATTERN}?(?:#{FILE_PATTERN}\/)+/ # path ending in '/'
+    BOOL_PATTERN = /\b#{Regexp.union BOOLS.map { TOKENS[_1] }}\b/
     IDENT_PATTERN = /[_a-zA-Z]\w*/ # language identifier
     REF_PATTERN = /#{IDENT_PATTERN}?\.#{IDENT_PATTERN}/
     VAR_PATTERN = /\$#{IDENT_PATTERN}/
@@ -189,6 +197,7 @@ module Prick::Lang
     FILE_RE = /(?<path>#{DIR_PATTERN})?(?<file>#{FILE_PATTERN}\.(?<ext>#{EXT_PATTERN}))/
     PATH_RE = /(?<path>#{DIR_PATTERN}#{FILE_PATTERN})/
     DIR_RE = /(?<dir>#{DIR_PATTERN})/
+    BOOL_RE = /(?<bool>#{BOOL_PATTERN})/
     REF_RE = /(?<ref>#{REF_PATTERN})/
     VAR_RE = /(?<var>#{VAR_PATTERN})/
     IDENT_RE = /(?<ident>#{IDENT_PATTERN})/
@@ -219,6 +228,7 @@ module Prick::Lang
         | #{FILE_RE}
         | #{PATH_RE}
         | #{REF_RE}
+        | #{BOOL_RE}
         | #{IDENT_RE}
         | #{VER_RE}
         | #{ERROR_RE}
@@ -255,6 +265,8 @@ module Prick::Lang
     def is_ref? = REFS.include? kind
     def is_ident? = IDENTS.include? kind
     def is_phase? = PHASES.include? kind
+    def is_true? = kind == :TRUE
+    def is_false? = kind == :FALSE
     def is_ver? = kind == :VER
     def is_path? = PATHS.include? kind
     def is_file? = kind == :FILE

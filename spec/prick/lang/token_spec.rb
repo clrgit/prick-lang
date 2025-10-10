@@ -93,6 +93,15 @@ describe "Prick::Lang" do
       end
     end
 
+    describe "::BOOL_RE" do
+      it "matches 'true'" do
+        e :BOOL_RE, "true"
+      end
+      it "matches 'false'" do
+        e :BOOL_RE, "false"
+      end
+    end
+
     describe "::IDENT_RE" do
       it "matches identifiers" do
         e :IDENT_RE, "id"

@@ -348,6 +348,7 @@ module Prick::Lang
         when *Token::REFS; peek(eol: true).kind == :QUEST ? Ast::Reference.new(token) : Ast::Word.new(token)
         when :VAR; Ast::Var.new(token)
         when :VER; Ast::Ver.new(token)
+#       when :TRUE, Ast::
         when *Token::PATHS; Ast::File.new(token)
       else
         raise InternalError
