@@ -8,8 +8,16 @@ module Prick::Lang
     CONSTANTS = [:ENV, :CMD, :USER, :VAR, :VERSION, :SCHEMA, :OBJECT, :RESOURCE]
     COMMANDS = [:EXEC, :EVAL, :RUBY, :SQL, :CALL]
 
-    # Map from operator token kind to hash of { prior: priority, assoc:
-    # associtivity (:left or :right), arity: Integer, list: Boolean }
+    # Map from operator token kind to hash of
+    #
+    #   {
+    #     prior: Integer        # Priority,
+    #     assoc: :left|:right   # Associtivity
+    #     arity: Integer        # Arity
+    #     value: Boolean        # True if the operator accepts a value rval
+    #     list: Boolean         # True if the operator accepts a list rval
+    #   }
+    #
     OPERATORS = {
       OROR: [0, :left, 2, false],
       ANDAND: [1, :left, 2, false],
@@ -21,6 +29,7 @@ module Prick::Lang
       GT: [2, :left, 2, false],
       TIGT: [2, :left, 2, false],
       IN: [3, :left, 2, true],
+      PCT: [3, :left, 2, true], # TODO Special case - takes both an array and a value
       NOT: [3, :right, 1, false],
       QUEST: [4, :left, 1, false],
     }.map { |k,v| [k, { prior: v[0], assoc: v[1], arity: v[2], list: v[3] } ] }.to_h

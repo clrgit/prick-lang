@@ -74,6 +74,12 @@ module Prick::Lang
             when :GE; lval >= rval
             when :GT; lval > rval
             when :IN; rval.any? { |r| lval == r }
+            when :PCT;
+              # Handle one or more arguments
+
+            # TODO
+#           when :PCT; ...
+
             when :TIGT; lval.squiggle?(rval)
           else
             raise InternalError, "Unhandled binary operator: #{expr.oper.inspect}"
