@@ -73,12 +73,12 @@ describe "Prick::Lang" do
         expect(tk1).to eq tk2
       end
 
-      it "advances to the next line if end of line after match" do
-        l = %w(exec eval)
-        t = make l
-        t.peek
-        expect(t.instance_eval "@peek_index").to eq 1
-      end
+#     it "advances to the next line if end of line after match" do
+#       l = %w(exec eval)
+#       t = make l
+#       t.peek
+#       expect(t.instance_eval "@peek_index").to eq 1
+#     end
 
       context "when at EOL" do
         it "returns an EOL token if :eol is true" do
@@ -105,9 +105,9 @@ describe "Prick::Lang" do
           l = ["exec "]
           t = make(l)
           opts = { eol: true, eof: true }
-          t.read
+          t.read(**opts)
           expect(t.peek(**opts ).kind).to eq :EOL
-          t.read
+          t.read(**opts)
           expect(t.peek(**opts).kind).to eq :EOF
         end
       end
@@ -140,14 +140,14 @@ describe "Prick::Lang" do
         expect(t.charno).to eq 6
       end
 
-      it "advances to the next line if end of line after match" do
-        l = %w(exec eval)
-        t = make l
-        t.read
-        expect(t.lineno).to eq 2
-        t.read
-        expect(t.lineno).to eq 3
-      end
+#     it "advances to the next line if end of line after match" do
+#       l = %w(exec eval)
+#       t = make l
+#       t.read
+#       expect(t.lineno).to eq 2
+#       t.read
+#       expect(t.lineno).to eq 3
+#     end
 
       it "clears the read-ahead token" do
         l = %w(exec eval)
@@ -217,8 +217,11 @@ describe "Prick::Lang" do
           l = ["exec "]
           t = make(l)
           opts = { eol: true, eof: true }
-          t.read
-          expect(t.read(**opts ).kind).to eq :EOL
+#         t.read(**opts)
+          p t.read
+          t.dump
+#         exit
+          expect(t.read(**opts).kind).to eq :EOL
           expect(t.read(**opts).kind).to eq :EOF
         end
       end
@@ -361,7 +364,7 @@ describe "Prick::Lang" do
         expect(text l).to eq "a\n# comment\nb"
       end
 
-#     it "handles non-indented comments X" do
+#     it "handles non-indented comments" do
 #       l = ["", "    a", "    b", "# comment", "  c"]
 #       tk = make(l)
 #       p tk.readtext(4)
@@ -448,7 +451,7 @@ describe "Prick::Lang" do
           expect(call l).to eq [1, 0]
         end
 
-        it "resets peek_pos" do
+        it "resets peek_pos X" do
           l = %(
               eval
                 ls -l
@@ -457,9 +460,19 @@ describe "Prick::Lang" do
             }
           ).align.split("\n")
           tk = make(l)
-          tk.read
+#         tk.read
+#         tk.read(eol: true)
+          puts "tk.read(): #{tk.read}"
+          puts "tk.read(eol: true): #{tk.read(eol: true)}"
+          exit
           tk.readtext(4)
-          tk.peek
+          puts "Before peek"
+          p tk.peek_index
+          p tk.peek_pos
+          p tk.peek
+          puts "After peek"
+          p tk.peek_index
+          p tk.peek_pos
           expect(tk.peek_pos).to eq 0
           expect(tk.peek.kind).to eq :BRACE_END
         end

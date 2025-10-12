@@ -79,8 +79,8 @@ describe "Prick::Lang" do
       it "matches paths" do
         e :FILE_RE, "dir/name.sql"
       end
-      it "sets 'path' capture" do
-        c :FILE_RE, "dir/name/file.sql", :path, "dir/name/"
+      it "sets 'filepath' capture" do
+        c :FILE_RE, "dir/name/file.sql", :filepath, "dir/name/"
       end
       it "sets 'file' capture" do
         c :FILE_RE, "dir/name/file.sql", :file, "file.sql"
@@ -159,14 +159,17 @@ describe "Prick::Lang" do
       it "sets the 'dir' capture" do
         c :TOKEN_RE, "./name/dir/", :dir
       end
+      it "sets the 'filepath' capture" do
+        c :TOKEN_RE, "./dir/name/file.sql", :filepath, "./dir/name/"
+      end
       it "sets the 'file' capture" do
-        c :TOKEN_RE, "dir/name/file.sql", :file, "file.sql"
+        c :TOKEN_RE, "./dir/name/file.sql", :file, "file.sql"
       end
       it "sets the 'ext' capture" do
         c :TOKEN_RE, "dir/name/file.sql", :ext, "sql"
       end
       it "sets the 'path' capture" do
-        c :TOKEN_RE, "dir/name/file.sql", :path, "dir/name/"
+        c :TOKEN_RE, "dir/name/file.unknown", :path, "dir/name/file.unknown"
       end
       it "sets the 'ref' capture" do
         c :TOKEN_RE, "root.branch", :ref
@@ -180,6 +183,9 @@ describe "Prick::Lang" do
       it "sets the 'var' capture" do
         c :TOKEN_RE, "$var", :var
       end
+#     it "parses 'true.sql' as a filename" do
+#       c :TOKEN_RE, "true.sql", :file
+#     end
     end
 
     describe "::ERROR_RE" do

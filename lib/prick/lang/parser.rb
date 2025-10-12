@@ -348,7 +348,7 @@ module Prick::Lang
         when *Token::REFS; peek(eol: true).kind == :QUEST ? Ast::Reference.new(token) : Ast::Word.new(token)
         when :VAR; Ast::Var.new(token)
         when :VER; Ast::Ver.new(token)
-#       when :TRUE, Ast::
+        when :TRUE, :FALSE; Ast::Bool.new(token)
         when *Token::PATHS; Ast::File.new(token)
       else
         raise InternalError
@@ -403,7 +403,6 @@ module Prick::Lang
                       list.elems = [stack.pop]
                       e.rexpr = list
                     else
-                      p operator
                       unexpected_token_error peek, "list expression"
                     end
                   else
@@ -448,7 +447,6 @@ module Prick::Lang
               paren_level += 1
               stack.push(token)
             end
-
 
           when :PAREN_END
             paren_level -= 1
@@ -496,6 +494,7 @@ module Prick::Lang
               output << stack.pop
             end
             stack.push token
+
           else
             break
         end

@@ -6,6 +6,7 @@ module Prick::Lang
       def initialize(reference) @reference = reference end
     end
 
+    # FIXME
     def runtime = { CMD: "build", ENV: "prod", USER: "me" }
 
     attr_reader :oracle
@@ -62,8 +63,10 @@ module Prick::Lang
           else
             rval = eval_expr(expr.rexpr)
           end
+
           constrain lval, String, Semver, true, false
           constrain rval, String, Semver, [String], [Semver], true, false
+
           case expr.oper
             when :OROR; lval || rval
             when :ANDAND; lval && rval

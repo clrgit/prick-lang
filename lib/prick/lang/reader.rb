@@ -1,5 +1,197 @@
 
 module Prick::Lang
+  class Reader
+    using String::Text
+
+    attr_reader :file # Only used in error messages
+    attr_reader :lines
+    attr_reader :index
+    attr_reader :pos
+
+    def line = @lines[@index]
+    def rest = @lines[@index]&.[](pos..-1)
+
+    # Last read token
+    attr_reader :token
+
+    # Error token
+    attr_reader :error
+
+    def initialize(file, lines, reader = nil)
+      @file = file
+      @lines = lines
+      if reader
+        copy(reader)
+      else
+        @index = reader&.index || 0
+        @pos = 0
+      end
+    end
+
+    def copy(reader)
+      @index = reader.index
+      @pos = reader.pos
+      @token = reader.token
+      @error = reader.error
+      self
+    end
+
+    # Return true if at end of file. Note that #eof? only reports on the current
+    # position in the input before empty lines are scanned so it is possible to
+    # have #eof? == false but get a EOF token from #read
+    def eof? = @index >= @lines.size
+
+    # Return true if at end of line. #eol? is also true when at end of file.
+    # Note that #eol? only reports on the current position in the input before
+    # blanks are scanned so it is possible to have #eol? == true but get a EOL
+    # token from #read
+    def eol? = @pos >= (@lines[@index]&.size || 0)
+
+    # Return true if at beginning of line. #bol? is also true when at end of
+    # file (FIXME)
+    def bol? = eof? || @pos == 0
+
+    # EOL and EOF are handled according to the :eol/:eof flags:
+    #
+    #   eol: true  - Return EOL token and advance reader
+    #        false - Ignore EOL
+    #   eof: true  - Return EOF token
+    #        false - Return nil and set #error to EOF token
+    #
+    def read(eol: false, eof: false)
+      @eol, @eof = eol, eof
+
+      # Scan blank and comments
+      scan(eol: eol) if !self.eof?
+      return handle_eox(:EOF, eof) if self.eof?
+
+      # Only happens if eol is true, otherwise the 'self.eof?' above would have triggered
+      if self.eol?
+        constrain eol, true
+        return handle_eox(:EOL, eol)
+      end
+
+      # Match token. This will always match because of scan
+      m = Token::TOKEN_RE.match(@lines[@index], @pos) or raise InternalError
+      args = [file, @index + 1, m.begin(0) + 1, m.match(0)]
+      @pos += m.match_length(0)
+      @error = nil
+
+      # Detect matched token type and extract value
+      @token =
+          if m[:keyword] || m[:punct] || m[:oper]
+            Token.new *args, Token::TOKEN_KINDS[m.match(0)]
+          elsif m[:file]
+            FileToken.new(*args, m[:filepath], m[:file], m[:ext])
+          elsif m[:dir]
+            DirToken.new *args
+          elsif m[:path]
+            PathToken.new *args
+          elsif m[:ident]
+            Token.new *args, :IDENT
+          elsif m[:ref]
+            Token.new *args, :REF
+          elsif m[:bool]
+            Token.new *args, (m[:bool] == "true" ? :TRUE : :FALSE)
+          elsif m[:ver]
+            Token.new *args, :VER
+          elsif m[:var]
+            VarToken.new *args
+          elsif m[:error]
+            @error = ErrorToken.new *args
+            nil
+          else
+            raise InternalError
+          end
+    end
+
+    def dump
+      puts "Reader"; indent {
+        puts "index: #{index}"
+        puts "pos: #{pos}"
+#       puts "lines: #{lines.inspect}"
+        puts "lines:"; indent {
+          puts lines.map.with_index { |l, i| "[#{i}] #{l}" }.join("\n") #.align(empty: true)
+        }
+        puts "line: #{line.inspect}"
+        puts "rest: #{rest.inspect}"
+      }
+    end
+
+    def scan(eol: false, comment: false)
+      re = comment ? Token::SCAN_BLANK_LINE_RE : Token::SCAN_COMMENT_LINE_RE
+
+      # Match against rest-of-line. Stop at eol if not found
+      @pos = re.match(@lines[@index], @pos)&.begin("text") || @lines[@index].size
+
+      # Match against following lines
+      if eol? && !eol
+        @index += 1
+        if offset = @lines[@index..-1].find_index { |l| @pos = re.match(l)&.begin("text") }
+          @index += offset
+        else
+          @index = @lines.size
+          @pos = 0
+        end
+      end
+      self
+    end
+
+    # Handle eol and eof conditions. Advances the reader if emit is true
+    def handle_eox(kind, emit)
+      constrain kind, :EOF, :EOL
+      token = Token.new(file, @index+1, @pos+1, nil, kind)
+      if emit
+        @token, @error = token, nil
+        @index += 1 if !eof?
+        @pos = 0
+      else
+        @token, @error = nil, token
+      end
+      @token
+    end
+  end
+end
+
+__END__
+
+class Tokenizer
+  attr_reader :reader
+  attr_reader :peeker
+
+  def initialize
+    @reader = Reader.new(self)
+    @peeker = Reader.new(self, @reader)
+  end
+
+  def peek(eol: false, eof: true)
+    # peeker.read(flags)
+
+  end
+
+  def read(eol: false, eof: true)
+#   if !@peeker.token
+
+    if @peeker.token
+      if @peeker.eol == eol && @peeker.eof = eof
+        return @reader.copy(@peeker).token
+      else
+        @peeker.sync(reader)
+      end
+    end
+    @peeker.read(eol: eol, eof: eof)
+    @reader.copy(@peeker).token
+  end
+end
+
+
+
+
+
+
+
+
+module Prick::Lang
   class Tokenizer
     # Tokenizer maintains a state for the current point in the file and a state
     # for the point after a token has been peek'ed. It could be modelled with a
@@ -417,5 +609,6 @@ module Prick::Lang
     end
   end
 end
+
 
 

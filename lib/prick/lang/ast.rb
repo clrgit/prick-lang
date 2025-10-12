@@ -102,6 +102,10 @@ module Prick::Lang
       attr_accessor :uid
     end
 
+    class Bool < Value
+      def value = (@token.text == "true")
+    end
+
     class Ver < Value # a version value. See Version
       def value() @value ||= Semver.new(literal) end
     end

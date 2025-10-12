@@ -81,6 +81,7 @@ module Prick::Lang
   end
 end
 
+require_relative './lang/reader.rb'
 require_relative './lang/tokenizer.rb'
 require_relative './lang/parser.rb'
 require_relative './lang/evaluator.rb'

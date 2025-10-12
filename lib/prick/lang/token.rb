@@ -110,8 +110,8 @@ module Prick::Lang
     # Token names are used in error messages: TOKEN entries that maps to a
     # string are enclosed in quotes, other tokens are defined below
     FORMATS = TOKENS.transform_values { "'#{_1}'" }.merge({
-      TRUE: "true or false",
-      FALSE: "true or false",
+      TRUE: "%s",
+      FALSE: "%s",
       IDENT: "identifier \"%s\"",
       REF: "reference \"%s\"",
       VAR: "variable %s",
@@ -194,9 +194,12 @@ module Prick::Lang
     KEYWORD_RE = /(?<keyword>#{KEYWORD_PATTERN})/
     PUNCT_RE = /(?<punct>#{PUNCT_PATTERN})/
     OPER_RE = /(?<oper>#{OPER_PATTERN})/
-    FILE_RE = /(?<path>#{DIR_PATTERN})?(?<file>#{FILE_PATTERN}\.(?<ext>#{EXT_PATTERN}))/
-    PATH_RE = /(?<path>#{DIR_PATTERN}#{FILE_PATTERN})/
+
+#   FILE_RE = /(?<path>#{DIR_PATTERN})?(?<file>#{FILE_PATTERN}\.(?<ext>#{EXT_PATTERN}))/
+    FILE_RE = /(?<filepath>#{DIR_PATTERN})?(?<file>#{FILE_PATTERN}\.(?<ext>#{EXT_PATTERN}))/
     DIR_RE = /(?<dir>#{DIR_PATTERN})/
+    PATH_RE = /(?<path>#{DIR_PATTERN}#{FILE_PATTERN})/
+
     BOOL_RE = /(?<bool>#{BOOL_PATTERN})/
     REF_RE = /(?<ref>#{REF_PATTERN})/
     VAR_RE = /(?<var>#{VAR_PATTERN})/
@@ -211,8 +214,11 @@ module Prick::Lang
     # Matches line endings, ignoring comments. Only used by the tokenizer
     COMMENT_RE = /\s*(?:#.*)?/
 
-    BLANK_LINE_RE = /^\s*$/
-    COMMENT_LINE_RE = /^#{COMMENT_RE}$/
+    # SCAN REs are used to skip spaces, empty lines, and comments. They match
+    # always but sets the 'text' group to the rest of the line starting at the
+    # first non-blank, non-comment character if present
+    SCAN_BLANK_LINE_RE = /^(?:\s*|\s*(?<text>\S.*))$/
+    SCAN_COMMENT_LINE_RE = /^(?:\s*(?:#.*)?|\s*(?<text>\S.*))$/
 
     # TOKEN_RE matches words (keywords and punctuation), directories, files,
     # integer, identifiers, and references in that order; text and terminator
@@ -221,14 +227,14 @@ module Prick::Lang
     # the named captures: word, dir, path, file, ext, int, ident, ref
     TOKEN_RE = /
         #{VAR_RE}
+        | #{FILE_RE}
+        | #{PATH_RE}
+        | #{DIR_RE}
+        | #{BOOL_RE}
         | #{KEYWORD_RE}
         | #{OPER_RE}      # Has to go before PUNCT_RE
         | #{PUNCT_RE}
-        | #{DIR_RE}
-        | #{FILE_RE}
-        | #{PATH_RE}
         | #{REF_RE}
-        | #{BOOL_RE}
         | #{IDENT_RE}
         | #{VER_RE}
         | #{ERROR_RE}
@@ -303,6 +309,7 @@ module Prick::Lang
     def inspect = "#<Token:#{kind} #{lineno}:#{charno} #{text.inspect} #{size}>"
   end
 
+  # TODO Merge with ListToken
   class ParenToken < Token
     attr_accessor :empty
     def empty? = empty
@@ -333,7 +340,7 @@ module Prick::Lang
     alias_method :path, :text
 
     def initialize(*file_args, path)
-      super(*file_args, path, :DIR)
+      super(*file_args, path, :PATH)
     end
   end
 
