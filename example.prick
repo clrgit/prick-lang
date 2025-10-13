@@ -5,6 +5,8 @@
 # false.sql
 #end
 
+include.prick # Effectively include the file
+#example.d/
 
 # IN expressions
 if $env ^ (prod, test)
@@ -33,6 +35,7 @@ schema my_schema {
   # If statement with constant expression
   if $env = prod
     env_eq_prod.sql
+    snippet.prick
   else
     env_ne_prod.sql
   end

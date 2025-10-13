@@ -1,14 +1,20 @@
 
 module Prick::Lang
   class Token
+    # Suffix for prick files
+    PRICK_EXT = "prick"
+
     # List of recognized file types. File types are reserved words and can't be
     # used as object name or even as values. That makes it possible to distinguish
-    # between referencing a resource or referencing a known file type; other
-    # file types have include a directory:
+    # between referencing a resource or referencing a known file type
     #
-    #   if file.sql? || ./file.any? || schema.resource?
+    #   if file.sql? || ./file.any?
     #
-    EXTS = %w(sql psql rb fox prick)
+    # other file types have to include a directory
+    #
+    #   if ./file.any?
+    #
+    EXTS = %w(sql psql rb fox) + [PRICK_EXT]
 
     # Tokens. Maps from token kind to string or nil
     TOKENS = {

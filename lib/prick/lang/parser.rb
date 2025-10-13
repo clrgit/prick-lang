@@ -7,6 +7,7 @@ module Prick::Lang
 
     CONSTANTS = [:ENV, :CMD, :USER, :VAR, :VERSION, :SCHEMA, :OBJECT, :RESOURCE]
     COMMANDS = [:EXEC, :EVAL, :RUBY, :SQL, :CALL]
+    BUILD_FILENAME = "build.#{Token::PRICK_EXT}"
 
     # Map from operator token kind to hash of
     #
@@ -44,22 +45,27 @@ module Prick::Lang
     attr_reader :ast
 
     def initialize(tokenizer)
-      @tokenizer = tokenizer
+      @tokenizers = [] # Stack of tokenizers
+      push_tokenizer(tokenizer)
       @ast = nil
     end
 
     def parse
       trace
       @ast = parse_program
-      if @tokenizer.peek(eof: false) # Can't use #eof? because we may have to scan through comments
-        unexpected_token_error "end of file"
+      read(eof:false)
+      if !@tokenizer.eof?
+        unexpected_token_error token, "end of file"
       end
       @ast
     end
 
     def inspect = "<Parser: #{file}>"
 
-  protected
+  private
+    def push_tokenizer(tokenizer) = @tokenizers.push (@tokenizer = tokenizer)
+    def pop_tokenizer() = @tokenizers.tap { @tokenizer = _1[-2] }.pop
+
     def parse_program
       trace
       @ast = Ast::Program.new(file)
@@ -79,9 +85,10 @@ module Prick::Lang
         when :CASE; parse_case
         when *Token::PHASES; parse_decl(Ast::Phase, peek)
         when :EXEC, :EVAL, :SQL; parse_command
-        when :CALL; parse_call
+        when :CALL; parse_call_command
         when :RUBY; not_implemented_error "'ruby' command"
-        when :FILE; parse_source
+        when :FILE; parse_file_command
+        when :DIR; parse_dir
       else
         return nil
       end
@@ -151,14 +158,14 @@ module Prick::Lang
       command
     end
 
-    def parse_source
+    def parse_file_command
       trace
-      source = Ast::Source.new peek
-      source.files = parse_files
-      source
+      command = Ast::FileCommand.new peek
+      command.file = parse_file
+      command
     end
 
-    def parse_call
+    def parse_call_command
       trace
       call = Ast::CallCommand.new(read)
       call.references = parse_references
@@ -226,15 +233,16 @@ module Prick::Lang
     # Parse a list of files. Return array of File objects. Raise an error if
     # the array is empty and :check is true
     #
-    def parse_files(check: true)
-      trace check: check
-      check_expected "files" do
-        r = []
-        while !@tokenizer.eof? && (token = peek) && token.kind == :FILE
-          r << Ast::File.new(read)
-        end
-        check && r.empty? ? nil : r # nil triggers enclosing #check_expected
-      end
+    def parse_file(check: true)
+      Ast::File.new(read)
+#     trace check: check
+#     check_expected "files" do
+#       r = []
+#       while (token = peek) && [:FILE, :DIR].include?(token.kind)
+#         r << Ast::File.new(read)
+#       end
+#       check && r.empty? ? nil : r # nil triggers enclosing #check_expected
+#     end
     end
 
     def parse_ident?

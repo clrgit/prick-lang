@@ -136,8 +136,9 @@ module Prick::Lang
     class Value
     end
 
-    class File
+    class FileCommand
       def sigtitle = "File #{token.path}"
+      def sig = puts sigtitle
     end
 
     class Reference

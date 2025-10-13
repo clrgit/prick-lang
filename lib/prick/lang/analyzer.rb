@@ -103,10 +103,11 @@ module Prick::Lang
 
     def build_command(ast)
       trace
-      constrain ast, Ast::Source, Ast::ExternalCommand, Ast::CallCommand
+      constrain ast, Ast::FileCommand, Ast::ExternalCommand, Ast::CallCommand
       oracle.block.concat \
           case ast
-            when Ast::Source; ast.files.map { |file| Idr::FileCommand.new(oracle.context, file) }
+#           when Ast::FileCommand; ast.files.map { |file| Idr::FileCommand.new(oracle.context, file) }
+            when Ast::FileCommand; [Idr::FileCommand.new(oracle.context, ast.file)]
             when Ast::ExternalCommand; [Idr::ExternalCommand.new(oracle.context, ast)]
             when Ast::CallCommand; [Idr::CallCommand.new(oracle.context, ast)]
           end
