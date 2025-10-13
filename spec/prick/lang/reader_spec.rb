@@ -4,7 +4,7 @@ describe "Prick::Lang" do
 
   describe "Reader" do
     class Prick::Lang::Reader
-      attr_accessor :index, :pos
+      attr_accessor :index, :pos, :token, :error
     end
 
     def file = "file.txt" # Considered a constanta
@@ -77,7 +77,13 @@ describe "Prick::Lang" do
         expect(r.eol?).to eq true
       end
 
-      it "ignores empty lines and comments" do
+      it "handles multiple tokens on a line" do
+        r = make ["word1 word2"]
+        expect(r.read.text).to eq "word1"
+        expect(r.read.text).to eq "word2"
+      end
+
+      it "ignores empty lines and comments X" do
         r = make %(
 
           # comment
@@ -188,6 +194,247 @@ describe "Prick::Lang" do
       end
     end
 
+    describe "#readline" do
+      def call(l) = make(l).readline
+
+      it "returns a LINE token with the rest of the line" do
+        r = make ["word more words"]
+        r.read
+        t = r.readline
+        expect(t.kind).to eq :LINE
+        expect(t.text).to eq "more words"
+      end
+
+      it "advances the reader" do
+        r = make ["word more words"]
+        r.read
+        r.readline
+        expect(r.eol?).to eq true
+      end
+
+      it "sets #token" do
+        r = make ["more words"]
+        t = r.readline
+        expect(r.token).to eq t
+      end
+
+      it "resets #error" do
+        r = make ["more words"]
+        r.error = "VALUE"
+        t = r.readline
+        expect(r.error).to eq nil
+      end
+
+      context "when at EOL" do
+        it "returns nil" do
+          r = make ["word"]
+          r.read
+          expect(r.readline).to eq nil
+        end
+        it "resets #token" do
+          r = make ["word"]
+          r.read
+          r.readline
+          expect(r.error.kind).to eq :EOL
+        end
+        it "sets #error to EOL" do
+          r = make ["word"]
+          r.read
+          r.readline
+          expect(r.error.kind).to eq :EOL
+        end
+
+        context "when :eol is true" do
+          it "returns a EOL token" do
+            r = make ["word"]
+            r.read
+            expect(r.readline(eol: true).kind).to eq :EOL
+          end
+
+          it "sets #token" do
+            r = make ["word"]
+            r.read
+            t = r.readline(eol: true)
+            expect(r.token).to eq t
+          end
+          it "resets #error" do
+            r = make ["word"]
+            r.read
+            r.error = "ERROR"
+            r.readline(eol: true)
+            expect(r.error).to eq nil
+          end
+        end
+      end
+
+      context "when at EOF" do
+        it "returns nil" do
+          r = make [""]
+          r.read
+          expect(r.readline).to eq nil
+        end
+        it "resets #token" do
+          r = make [""]
+          r.read
+          r.readline
+          expect(r.token).to eq nil
+        end
+        it "sets #error" do
+          r = make [""]
+          r.read
+          r.readline
+          expect(r.error.kind).to eq :EOF
+        end
+        context "when :eof is true" do
+          it "returns a EOF token" do
+            r = make [""]
+            r.read
+            t = r.readline(eof: true)
+            expect(t.kind).to eq :EOF
+          end
+          it "sets #token" do
+            r = make [""]
+            r.read
+            t = r.readline(eof: true)
+            expect(r.token).to eq t
+          end
+          it "resets #error" do
+            r = make [""]
+            r.read
+            r.error = "ERROR"
+            r.readline(eof: true)
+            expect(r.error).to eq nil
+          end
+        end
+      end
+    end
+
+    describe "#readtext" do
+      def call(l) = make(l).readtext
+      it "returns a TEXT token" do
+        l = %(
+          exec
+            line1
+            line2
+          line3
+        ).align
+        r = make(l)
+        r.read # exec token
+        t = r.readtext(0)
+        expect(t.kind).to eq :TEXT
+        expect(t.text).to eq "line1\nline2"
+      end
+
+      context "when not found" do
+        def reader(&block)
+          l = %(
+            exec
+            line3
+          ).align
+          r = make(l)
+          r.read # exec token
+          yield r
+        end
+
+        it "returns nil" do
+          reader { |r|
+            t = r.readtext(0)
+            expect(t).to eq nil
+          }
+        end
+        it "resets #token" do
+          reader { |r|
+            r.token = "TOKEN"
+            t = r.readtext(0)
+            expect(r.token).to eq nil
+          }
+        end
+        it "sets #error to an EOB token" do
+          reader { |r|
+            r.token = "TOKEN"
+            r.readtext(0)
+            expect(r.error.kind).to eq :EOB
+          }
+        end
+      end
+
+      context "when at EOF" do
+        def reader(&block)
+          l = %(
+            exec
+          ).align
+          r = make(l)
+          r.read # exec token
+          yield r
+        end
+
+        it "returns nil" do
+          reader { |r|
+            expect(r.readtext(0)).to eq nil
+          }
+        end
+
+        it "resets #token" do
+          reader { |r|
+            r.token = "TOKEN"
+            r.readtext(0)
+            expect(r.token).to eq nil
+          }
+        end
+
+        it "sets #error to an EOF token" do
+          reader { |r|
+            r.token = "TOKEN"
+            r.readtext(0)
+            expect(r.error.kind).to eq :EOF
+          }
+        end
+
+        context "when :eof is true" do
+          it "returns an EOF token" do
+            reader { |r|
+              t = r.readtext(0, eof: true)
+              expect(t.kind).to eq :EOF
+            }
+          end
+          it "sets #token" do
+            reader { |r|
+              t = r.readtext(0, eof: true)
+              expect(r.token).to eq t
+            }
+          end
+          it "resets #error" do
+            reader { |r|
+              r.error = "ERROR"
+              t = r.readtext(0, eof: true)
+              expect(r.error).to eq nil
+            }
+          end
+        end
+      end
+    end
+
+    describe "#readeol" do
+      it "returns an EOL token" do
+        r = make [""]
+        expect(r.readeol.kind).to eq :EOL
+      end
+      it "sets #token"
+      it "resets #error"
+
+      context "when not at EOL" do
+        it "returns nil" do
+          r = make ["word"]
+          expect(r.readeol).to eq nil
+        end
+        it "sets #error" do
+          r = make ["word"]
+          r.readeol
+          expect(r.error.text).to eq "word"
+        end
+      end
+    end
+
     describe "#scan" do
       def call(l) = make(l).scan
 
@@ -207,6 +454,14 @@ describe "Prick::Lang" do
       end
 
       it "scans rest of line" do
+        r = make ["word1 word2"]
+        r.pos = 5
+        r.scan
+        expect(r.index).to eq 0
+        expect(r.pos).to eq 6
+      end
+
+      it "ignores EOL" do
         r = make ["word"]
         r.pos = 4
         r.scan
@@ -233,6 +488,14 @@ describe "Prick::Lang" do
   end
 end
 
+
+__END__
+      it "handles multiple tokens on a line" do
+        r = make ["word1 word2"]
+        expect(r.read.text).to eq "word1"
+        r.dump
+        expect(r.read.text).to eq "word2"
+      end
 
 
 

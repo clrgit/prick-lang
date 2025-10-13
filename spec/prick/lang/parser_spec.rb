@@ -430,7 +430,7 @@ describe "Prick::Lang" do
           end
         end
 
-        context "lists X" do
+        context "lists" do
           it "accepts a comma-separated list of value" do
             e = "$env ^ (prod, test)"
             expect(esig(e)).to eq "^($env, (prod, test))"

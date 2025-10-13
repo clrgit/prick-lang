@@ -1,21 +1,4 @@
 
-module Prick::Lang
-  class Tokenizer
-    # Return rest of line
-    def rest = @lines[@index][@pos..-1]
-
-    # Set end of line (but not eof)
-    def eol!() @pos = line&.size || 0 end
-
-    # Set eof (and eol)
-    def eof!() @index, @pos = @lines.size, 1 end
-
-    public :scanlines
-
-    attr_reader :peek_index
-    attr_reader :peek_pos
-  end
-end
 
 describe "Prick::Lang" do
   using String::Text
@@ -24,10 +7,50 @@ describe "Prick::Lang" do
     def file = "file.txt" # Considered a constant
 
     def make(lines)
-#     lines = lines.split "\n", -1
-#     allow(IO).to receive(:readlines).with('file.txt').and_return(lines)
+      lines = lines.align.split("\n", -1) if lines.is_a? String
       Prick::Lang::Tokenizer.new(file, lines)
     end
+
+    describe "#peek" do
+      it "returns the next token" do
+        t = make "a b"
+        expect(t.peek.text).to eq "a"
+      end
+      it "does not advance the reader" do
+        t = make "a b"
+        t.peek
+        expect(t.peek.text).to eq "a"
+      end
+      it "re-reads the token if flags changed" do
+        t = make %(
+          a
+          b
+        )
+        t.read
+        expect(t.peek(eol: true).kind).to eq :EOL
+        expect(t.peek(eol: false).kind).to eq :IDENT
+      end
+    end
+
+    describe "#read" do
+      it "reads tokens" do
+        t = make "a b"
+        expect(t.read.text).to eq "a"
+        expect(t.read.text).to eq "b"
+      end
+      it "returns peek'ed token if present" do
+        t = make "a b"
+        t.read(eof: false)
+        tk = t.peek(eof: false)
+        expect(t.read).to eq tk
+      end
+    end
+
+
+  end
+end
+
+__END__
 
     describe "#initialize" do
       it "skips trailing blanks" do

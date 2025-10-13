@@ -217,8 +217,8 @@ module Prick::Lang
     # SCAN REs are used to skip spaces, empty lines, and comments. They match
     # always but sets the 'text' group to the rest of the line starting at the
     # first non-blank, non-comment character if present
-    SCAN_BLANK_LINE_RE = /^(?:\s*|\s*(?<text>\S.*))$/
-    SCAN_COMMENT_LINE_RE = /^(?:\s*(?:#.*)?|\s*(?<text>\S.*))$/
+    SCAN_BLANK_LINE_RE = /(?:\s*(?<text>\S.*)|\s*)$/
+    SCAN_COMMENT_LINE_RE = /(?:\s*(?<text>[^\s#].*)|\s*(?:#.*)?)$/
 
     # TOKEN_RE matches words (keywords and punctuation), directories, files,
     # integer, identifiers, and references in that order; text and terminator

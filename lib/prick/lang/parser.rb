@@ -51,7 +51,7 @@ module Prick::Lang
     def parse
       trace
       @ast = parse_program
-      if !@tokenizer.peek? # Can't use #eof? because we may have to scan through comments
+      if @tokenizer.peek(eof: false) # Can't use #eof? because we may have to scan through comments
         unexpected_token_error "end of file"
       end
       @ast
@@ -89,28 +89,26 @@ module Prick::Lang
 
     def parse_stmts(check: true)
       trace
-#     check_expected "statement" do
-        stmts = []
-        while stmt = parse_stmt
-          stmts << stmt
-        end
-        stmts
-#       check && stmts.empty? ? nil : stmts # nil triggers enclosing #check_expected
-#     end
+      stmts = []
+      while stmt = parse_stmt
+        stmts << stmt
+      end
+      stmts
     end
 
     # Parse a statement block (a list of statements). Checks for non-empty when
     # :check is true (the default)
     #
     def parse_block(token = nil, check: true)
-      trace token, peek
-      check_expected "block" do
-        block = Ast::Block.new(token) # Note that token may be nil, it is assigned later if so
-        block.stmts = parse_stmts
-        next nil if block.stmts.empty? && check
+      trace token, check: check
+      block = Ast::Block.new(token) # Note that token may be nil, it is assigned later if so
+      block.stmts = parse_stmts
+      if block.stmts.empty? && !check
+        unexpected_token_error token, "block" if check
+      else
         block.token ||= block.start_token # Default token to start token
-        block
       end
+      block
     end
 
     # Schema, phase, or function declarations. Uses that they have the same
@@ -118,6 +116,7 @@ module Prick::Lang
     def parse_decl(klass, token)
       trace klass, token
       decl = klass.new(token)
+#     decl = klass.new(read)
       decl.ident = parse_name
       token = readkind(:BRACE_BEGIN)
       decl.block = parse_block(token, check: false)
@@ -140,12 +139,12 @@ module Prick::Lang
     end
 
     def parse_command
-      trace
+      trace peek: peek
       command = Ast::ExternalCommand.new(read)
       if peek.kind == :PIPE
-        min_indent = @tokenizer.indent + 1
-        read
-        command.source = readtext(min_indent)&.text
+        limit = @tokenizer.line.indentation
+        @tokenizer.readeol
+        command.source = readtext(limit)&.text
       else
         command.source = readline&.text
       end or unexpected_token_error peek, "command"
@@ -255,15 +254,30 @@ module Prick::Lang
     # because we later want to compute the uid
     def parse_name
       trace
-      Token::IDENTS.include?(peek&.kind) ? Ast::Reference.new(read) : nil
+      Token::IDENTS.include?(peek.kind) ? Ast::Reference.new(read) : nil
     end
     def parse_name? = Ast::Reference.new(readpred :is_ident? )
 
-    def parse_reference? = Token::REFS.include?(peek.kind) ? Ast::Reference.new(read) : nil
-    def parse_reference = Ast::Reference.new(readpred :is_ref?)
+#   def parse_reference? = Token::REFS.include?(peek.kind) ? Ast::Reference.new(read) : nil
+    def parse_reference?()
+      trace
+      Token::REFS.include?(peek.kind) ? Ast::Reference.new(read) : nil
+    end
 
-    def parse_references? = readwhile? { parse_reference? }
-    def parse_references = check_expected("reference") { readwhile { parse_reference? } }
+#   def parse_reference = Ast::Reference.new(readpred :is_ref?)
+    def parse_reference() trace; Ast::Reference.new(readpred :is_ref?) end
+
+#   def parse_references? = readwhile? { parse_reference? }
+    def parse_references?
+      trace
+      readwhile? { parse_reference? }
+    end
+
+#   def parse_references = check_expected("reference") { readwhile { parse_reference? } }
+    def parse_references
+      trace
+      check_expected("reference") { readwhile { parse_reference? } }
+    end
 
     # Parse a space-separated list of values. Values are IDENT, REF, or a version match
     def parse_list?
@@ -293,7 +307,7 @@ module Prick::Lang
     # Functions from tokenizer with error handling
     #
     def peek(**opts) = @tokenizer.peek(**opts) or error(@tokenizer.error_token)
-    def peek?(**opts) = @tokenizer.peek?(**opts)
+    def peek?(**opts) = @tokenizer.peek(**opts)
 
     def read(**opts) = @tokenizer.read(**opts) or error(@tokenizer.error_token)
     def read?(**opts) = @tokenizer.read(**opts)
@@ -301,8 +315,8 @@ module Prick::Lang
     def readline(**opts) = @tokenizer.readline(**opts) or error(@tokenizer.error_token)
     def readline?(**opts) = @tokenizer.readline(**opts)
 
-    def readtext(indent, **opts) = @tokenizer.readtext(indent, **opts) or error(@tokenizer.error_token)
-    def readtext?(indent, **opts) = @tokenizer.readtext(indent, **opts)
+    def readtext(limit, **opts) = @tokenizer.readtext(limit, **opts) or error(@tokenizer.error_token)
+    def readtext?(limit, **opts) = @tokenizer.readtext(limit, **opts)
 
     def readkind(*kinds, **opts) = readkind?(*kinds, **opts) or unexpected_token_error kinds
     def readkind?(*kinds, **opts) = kinds.include?(peek(**opts)&.kind) ? read(**opts) : nil
@@ -438,12 +452,10 @@ module Prick::Lang
           when :PAREN_BEGIN
             read(eol: true)
             if peek(eol: false)&.kind == :PAREN_END
-              tokenizer.reset_peek # FIXME Problem is that #peek doesn't reset on changed flags
               read(eol: true)
               output << ListToken.new(token, 0)
               accept_eol = false
             else
-              tokenizer.reset_peek # FIXME
               paren_level += 1
               stack.push(token)
             end
