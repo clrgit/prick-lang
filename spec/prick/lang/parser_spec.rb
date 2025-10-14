@@ -173,6 +173,11 @@ describe "Prick::Lang" do
           end
         end
 
+        context "prick files" do
+          it "in a file statement"
+          it "in a directory statement"
+        end
+
         context "if statements" do
           it "with only a then clause" do
             l = %(
@@ -289,7 +294,7 @@ describe "Prick::Lang" do
           end
         end
 
-        context "source commands" do
+        context "bash commands" do
           it "with a LINE argument" do
             l = %(eval ls -l)
             expect(sig l).to eq "Eval ls -l"

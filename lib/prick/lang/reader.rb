@@ -3,7 +3,7 @@ module Prick::Lang
   class Reader
     using String::Text
 
-    attr_reader :file # Only used in error messages
+    attr_reader :file
     attr_reader :lines
     attr_reader :index
     attr_reader :pos

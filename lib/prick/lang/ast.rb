@@ -130,6 +130,12 @@ module Prick::Lang
       part :stmts, [Stmt]
     end
 
+    # A prick source file. Eg. 'build.prick'
+    class Source < Stmt
+      part :file, [File]
+      part :block, Block
+    end
+
     class Provide < Stmt
       part :ident, Reference # Always initialized with a single identifier
     end
@@ -169,7 +175,7 @@ module Prick::Lang
     class Command < Stmt; end
 
     # Sequence of .sql/.psql files
-    class FileCommand < Command
+    class FileCommand < Command # TODO: Rename FileCommand
       part :file, File
     end
 

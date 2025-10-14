@@ -5,8 +5,9 @@
 # false.sql
 #end
 
-include.prick # Effectively include the file
-#example.d/
+# Including prick files
+include.prick
+example.d/
 
 # IN expressions
 if $env ^ (prod, test)

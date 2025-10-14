@@ -160,6 +160,7 @@ module Prick::Lang
           when Ast::Require; build_require(stmt)
           when Ast::Phase; build_phase(stmt)
           when Ast::Command; build_command(stmt)
+          when Ast::Source; build_stmts(stmt.block)
           when Ast::Control; build_control(stmt)
           when Ast::Function; puts "TODO: Function not implemented"
         else
