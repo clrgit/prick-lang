@@ -6,15 +6,12 @@ module Prick::Lang
       def initialize(reference) @reference = reference end
     end
 
+    def compiler = Compiler.instance
+
     # FIXME
     def runtime = { CMD: "build", ENV: "prod", USER: "me" }
 
-    attr_reader :oracle
     attr_reader :unresolved # Ast::Reference. First unresolved reference
-
-    def initialize(oracle = Oracle.new)
-      @oracle = oracle
-    end
 
     # Evaluate expr and return true/false. Return nil if the expression
     # couldn't be resolved and set #unresolved to the unevaluated resource
@@ -34,9 +31,9 @@ module Prick::Lang
       trace
       case expr
         when Ast::Reference
-          uid = expr.uid = oracle.uid(expr.literal)
-          if oracle.known?(uid)
-            oracle.present?(uid)
+          uid = expr.uid = compiler.uid(expr.literal)
+          if compiler.known?(uid)
+            compiler.present?(uid)
           else
             raise StopEvaluation.new(expr)
           end
@@ -90,7 +87,8 @@ module Prick::Lang
           expr.elems.map { |e| eval_expr(e) }
 
         when Ast::Var # Must go before Ast::Value below
-          oracle[expr.value] or raise InternalError, "Unknown variable #{expr.value.inspect}"
+          # FIXME COMPILER BRACE -> compiler.variables[...]
+          compiler[expr.value] or raise InternalError, "Unknown variable #{expr.value.inspect}"
 
         when Ast::Value
           expr.value

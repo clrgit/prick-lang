@@ -22,18 +22,18 @@ describe "Prick::Lang" do
 #     end
 #   end
 
-    def make(lines)
-      lines = lines.split "\n", -1
-      tk = Prick::Lang::Tokenizer.new(file, lines)
-      pa = Prick::Lang::Parser.new(tk)
+    def make
+      Prick::Lang::Compiler.new
+      Prick::Lang::Parser.new
     end
 
     def call(lines)
-      make(lines).parse
+      lines = lines.split "\n", -1
+      make.parse(file, lines)
     end
 
     def sig(lines)
-      ast = make(lines.align).parse
+      ast = call(lines.align)
 #     capture { ast.sig }.sub(/^Program\s*\n\s*Block\n/m, "").align
       capture { ast.sig }.align
     end

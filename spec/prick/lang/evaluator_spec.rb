@@ -6,13 +6,17 @@ describe "Prick::Lang" do
 
     # Return an Analyzer object
     def make(lines)
-      lines = lines.split "\n", -1
-      tokenizer = Prick::Lang::Tokenizer.new(file, lines)
-      parser = Prick::Lang::Parser.new(tokenizer)
-      parser.parse
-      oracle = Prick::Lang::Oracle.new({ cmd: "build", env: "prod", user: "me", ver: Semver.new("1.2.3") })
-      analyzer = Prick::Lang::Analyzer.new(parser, oracle)
-      analyzer
+#     lines = lines.split "\n", -1
+#     tokenizer = Prick::Lang::Tokenizer.new(file, lines)
+#     parser = Prick::Lang::Parser.new(tokenizer)
+#     parser.parse
+#     oracle = Prick::Lang::Oracle.new({ cmd: "build", env: "prod", user: "me", ver: Semver.new("1.2.3") })
+#     analyzer = Prick::Lang::Analyzer.new(parser, oracle)
+#     analyzer
+
+      compiler = make_compiler
+      compiler.parser.parse(file, lines.split("\n", -1))
+      compiler.analyzer
     end
 
     # Return an Idr object

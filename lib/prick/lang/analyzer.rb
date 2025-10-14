@@ -4,22 +4,21 @@ module Prick::Lang
     using String::Text
     include ErrorFunctions
 
+    def compiler = Compiler.instance
+
     def file = @ast.file
-    attr_reader :parser
-    attr_reader :oracle
     attr_reader :evaluator
-    attr_reader :ast
+
+    def ast = compiler.ast
     attr_reader :idr
 
     def runtime = { CMD: "build", ENV: "prod", USER: "me" }
 
-    def initialize(parser, oracle)
-      @parser = parser
-      @oracle = oracle
-      @evaluator = Evaluator.new(oracle)
+    def initialize
+      @evaluator = Evaluator.new
     end
 
-    def analyze(oracle: true)
+    def analyze(compiler: true)
       trace
       build_idr
       analyze_idr
@@ -28,7 +27,6 @@ module Prick::Lang
 
     def build_idr
       trace
-      @ast = parser.ast
       @idr = build_program(ast)
       @idr
     end
@@ -46,27 +44,27 @@ module Prick::Lang
       trace
       constrain ast, Ast::Program
       program = Idr::Program.new(ast)
-      oracle.scope(program) { build_stmts(ast.block) }
+      compiler.scope(program) { build_stmts(ast.block) }
       program
     end
 
     # The ast argument is only used in the error message
     def check_context(ast, *expected)
-      expected.include?(oracle.context.klass) or
-          error ast, "#{ast.classname} can't be nested within a #{oracle.context.classname}"
+      expected.include?(compiler.context.klass) or
+          error ast, "#{ast.classname} can't be nested within a #{compiler.context.classname}"
     end
 
-    # Note: Sets oracle.schema while processing contained nodes and resets it to nil
+    # Note: Sets compiler.schema while processing contained nodes and resets it to nil
     # afterwards
     def build_schema(ast)
       trace
-      constrain oracle.context, Idr::Program, Idr::Unresolved
+      constrain compiler.context, Idr::Program, Idr::Unresolved
       constrain ast, Ast::Schema
       check_context ast, Idr::Program
-      schema = Idr::Schema.new(oracle.context, ast)
-      oracle.context.schemas << schema
-      oracle.add(schema)
-      oracle.scope(schema) { build_stmts(ast.block) }
+      schema = Idr::Schema.new(compiler.context, ast)
+      compiler.context.schemas << schema
+      compiler.add(schema)
+      compiler.scope(schema) { build_stmts(ast.block) }
       []
     end
 
@@ -74,9 +72,9 @@ module Prick::Lang
       trace
       constrain ast, Ast::Provide
       check_context ast, Idr::Program, Idr::Schema, Idr::Phase
-      provide = Idr::Provide.new(oracle.context, ast)
-      oracle.block << provide
-      oracle.add(provide)
+      provide = Idr::Provide.new(compiler.context, ast)
+      compiler.block << provide
+      compiler.add(provide)
       self
     end
 
@@ -84,10 +82,10 @@ module Prick::Lang
       trace
       constrain ast, Ast::Phase
       check_context ast, Idr::Program, Idr::Schema
-      phase = Idr::Phase.new(oracle.context, ast)
-      oracle.context.send(phase.write_attr, phase)
-      oracle.add(phase)
-      oracle.scope(phase) { build_stmts(ast.block) }
+      phase = Idr::Phase.new(compiler.context, ast)
+      compiler.context.send(phase.write_attr, phase)
+      compiler.add(phase)
+      compiler.scope(phase) { build_stmts(ast.block) }
       []
     end
 
@@ -95,21 +93,21 @@ module Prick::Lang
       trace
       constrain ast, Ast::Require
       check_context ast, Idr::Program, Idr::Schema, Idr::Phase
-      oracle.block.concat \
+      compiler.block.concat \
           ast.references.map { |ref|
-            Idr::RequireCommand.new(oracle.context, ref, ref.value).tap { oracle.requires << _1 }
+            Idr::RequireCommand.new(compiler.context, ref, ref.value).tap { compiler.requires << _1 }
           }
     end
 
     def build_command(ast)
       trace
       constrain ast, Ast::FileCommand, Ast::ExternalCommand, Ast::CallCommand
-      oracle.block.concat \
+      compiler.block.concat \
           case ast
-#           when Ast::FileCommand; ast.files.map { |file| Idr::FileCommand.new(oracle.context, file) }
-            when Ast::FileCommand; [Idr::FileCommand.new(oracle.context, ast.file)]
-            when Ast::ExternalCommand; [Idr::ExternalCommand.new(oracle.context, ast)]
-            when Ast::CallCommand; [Idr::CallCommand.new(oracle.context, ast)]
+#           when Ast::FileCommand; ast.files.map { |file| Idr::FileCommand.new(compiler.context, file) }
+            when Ast::FileCommand; [Idr::FileCommand.new(compiler.context, ast.file)]
+            when Ast::ExternalCommand; [Idr::ExternalCommand.new(compiler.context, ast)]
+            when Ast::CallCommand; [Idr::CallCommand.new(compiler.context, ast)]
           end
     end
 
@@ -130,10 +128,10 @@ module Prick::Lang
           when nil
             unresolved =
                 Idr::Unresolved.new(
-                    oracle.context, ast,
-                    evaluator.unresolved, oracle.ensure(evaluator.unresolved))
-            oracle.unresolved << unresolved
-            oracle.block << unresolved
+                    compiler.context, ast,
+                    evaluator.unresolved, compiler.ensure(evaluator.unresolved))
+            compiler.unresolved << unresolved
+            compiler.block << unresolved
             return
           when true
             build_stmts(if_then.then_)
@@ -151,7 +149,7 @@ module Prick::Lang
 
     def build_stmts(ast)
       trace
-      constrain oracle.context, Idr::Resource
+      constrain compiler.context, Idr::Resource
       constrain ast, Ast::Block
       ast.stmts.each { |stmt|
         case stmt
@@ -178,29 +176,29 @@ module Prick::Lang
     #
     def build_unresolved
       trace
-      return if oracle.unresolved.empty?
+      return if compiler.unresolved.empty?
 
       # Save unresolved nodes that are to be flattened later. New nodes are not
       # included but they will always be nested within original nodes
-      original = oracle.unresolved
+      original = compiler.unresolved
 
       while true # Last-resort loop that marks unknown resources absent
         progress = true
         while progress # Resolve later-defined resources iteratively
-          unresolved = oracle.unresolved
-          oracle.unresolved = []
+          unresolved = compiler.unresolved
+          compiler.unresolved = []
           progress = false
           for node in unresolved
-            if oracle.unknown?(node.unresolved_uid)
-              oracle.unresolved << node
+            if compiler.unknown?(node.unresolved_uid)
+              compiler.unresolved << node
             else
               progress = true
-              oracle.scope(node.parent, node.block) { build_control(node.ast) }
+              compiler.scope(node.parent, node.block) { build_control(node.ast) }
             end
           end
         end
-        break if oracle.unresolved.empty?
-        oracle.mark_unknown_absent
+        break if compiler.unresolved.empty?
+        compiler.mark_unknown_absent
       end
 
       # Flatten now-resolved nodes into parent blocks
@@ -209,9 +207,9 @@ module Prick::Lang
 
     def analyze_resources
       trace
-      oracle.requires.each { |require_|
-        oracle.present?(require_.uid) or error require_, "Can't find resource '#{require_.uid}'"
-        require_.node = oracle.resource(require_.uid)
+      compiler.requires.each { |require_|
+        compiler.present?(require_.uid) or error require_, "Can't find resource '#{require_.uid}'"
+        require_.node = compiler.resource(require_.uid)
       }
 
 #     for schema in @idr.schemas

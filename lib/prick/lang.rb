@@ -3,6 +3,7 @@
 require_relative "lang/version"
 
 require 'set'
+require 'pathname'
 
 require 'constrain'
 require 'forward_to'
@@ -17,8 +18,9 @@ using String::Text
 
 require_relative './lang/ext/semver.rb'
 require_relative './lang/ext/tree.rb'
-require_relative './lang/ext/trace.rb' # Debug
 require_relative './lang/ext/x_array.rb'
+require_relative './lang/ext/time.rb'
+require_relative './lang/ext/trace.rb' # Debug
 require_relative './lang/common.rb'
 require_relative './lang/error.rb'
 
@@ -28,8 +30,6 @@ require_relative './lang/ast.rb'
 require_relative './lang/ast.dump.rb'
 require_relative './lang/idr.rb'
 require_relative './lang/idr.dump.rb'
-
-require_relative './lang/oracle.rb'
 
 module Prick::Lang
   class Error < StandardError; end
@@ -42,38 +42,34 @@ module Prick::Lang
     Token.define_method(:initialize) { |*args| orig_initialize(*args); tokens << self; }
   end
 
-  DUMP_KINDS = %w(tokens ast idr oracle)
+  DUMP_KINDS = %w(tokens ast idr state)
 
   # FIXME
   BUILTIN_VARIABLES = { cmd: "build", env: "prod", ver: Semver.new("1.2.3"), user: "me" }
 
   def self.dump(file, lines = nil, kind, variables)
-    tokenizer = Tokenizer.new(file, lines)
-    parser = Parser.new(tokenizer)
+    compiler = Compiler.new(variables: BUILTIN_VARIABLES)
     case kind
       when "token", "tokens"
         tokens = []
         install_token_listener(tokens)
-        parser.parse
+        compiler.parse(file, lines)
         puts "Processed #{tokens.size} tokens"
         indent { tokens.each &:dump }
 
       when "ast", nil
-#       p parser.parse
-        parser.parse.dump
-#       Ast::Node.dump_model
+        compiler.parser.parse(file, lines)
+        compiler.ast.dump
 
-      when "idr", "oracle"
-        oracle = Oracle.new(BUILTIN_VARIABLES.merge(variables))
-        analyzer = Analyzer.new(parser, oracle)
-        parser.parse
+      when "idr", "state"
+        compiler.parse(file, lines)
         if kind == "idr"
-          idr = analyzer.analyze
-          idr.dump
+          compiler.analyzer.analyze
+          compiler.idr.dump
 #         analyzer.analyze.dump
-        else
-          analyzer.build_idr
-          oracle.dump
+        else # == "state"
+          compiler.analyzer.build_idr
+          compiler.dump
         end
     else
       raise ArgumentError

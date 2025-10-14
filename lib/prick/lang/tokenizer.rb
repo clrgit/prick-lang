@@ -5,8 +5,15 @@ module Prick::Lang
     include ErrorFunctions
     class TokenizerError < Prick::Lang::Error; end
 
-    # Source file
+    # Compiler
+    def compiler = Compiler.instance
+
+    # Source file as referred to in the source (eg. ./t.prick)
     attr_reader :file
+
+    # Path to file relative to the current directory of the user running the
+    # program
+    attr_reader :path
 
     # Reader object
     attr_reader :reader
@@ -18,10 +25,10 @@ module Prick::Lang
       constrain file, String
       constrain lines, [String], nil
       @file = file
+      @path = compiler.userpath(file)
       @lines = (lines || IO.readlines(file)).map(&:rstrip).take_while { _1 !~ /^__END__$/ }
-#     trimlines
-      @reader = Reader.new(@file, @lines)
-      @peeker = Reader.new(@file, @lines)
+      @reader = Reader.new(@path, @lines)
+      @peeker = Reader.new(@path, @lines)
     end
 
     forward_to :@reader, :line, :rest, :token, :error, :eof?, :eol?

@@ -3,7 +3,7 @@ module Prick::Lang
   class Reader
     using String::Text
 
-    attr_reader :file
+    attr_reader :path # Path relative to the user's current directory
     attr_reader :lines
     attr_reader :index
     attr_reader :pos
@@ -17,8 +17,8 @@ module Prick::Lang
     # Error token
     attr_reader :error
 
-    def initialize(file, lines, reader = nil)
-      @file = file
+    def initialize(path, lines, reader = nil)
+      @path = path
       @lines = lines
       if reader
         copy(reader)
@@ -49,19 +49,19 @@ module Prick::Lang
     end
 
 
-    # Return true if at end of file. Note that #eof? only reports on the current
+    # Return true if at end of path. Note that #eof? only reports on the current
     # position in the input before empty lines are scanned so it is possible to
     # have #eof? == false but get a EOF token from #read
     def eof? = @index >= @lines.size
 
-    # Return true if at end of line. #eol? is also true when at end of file.
+    # Return true if at end of line. #eol? is also true when at end of path.
     # Note that #eol? only reports on the current position in the input before
     # blanks are scanned so it is possible to have #eol? == true but get a EOL
     # token from #read
     def eol? = @pos >= (@lines[@index]&.size || 0)
 
     # Return true if at beginning of line. #bol? is also true when at end of
-    # file (FIXME)
+    # path (FIXME)
     def bol? = eof? || @pos == 0
 
     # Return next token
@@ -88,7 +88,7 @@ module Prick::Lang
 
       # Match token. This will always match because of scan
       m = Token::TOKEN_RE.match(@lines[@index], @pos) or raise InternalError
-      args = [file, @index + 1, m.begin(0) + 1, m.match(0)]
+      args = [path, @index + 1, m.begin(0) + 1, m.match(0)]
       @pos += m.match_length(0)
 
       # Detect matched token type and extract value
@@ -124,7 +124,7 @@ module Prick::Lang
       !eof? or return handle_eox(:EOF, eof)
       !eol? or return handle_eox(:EOL, eol)
       @error = nil
-      @token = Token.new(file, @index+1, @pos+1, @lines[@index][@pos..-1].lstrip, :LINE)
+      @token = Token.new(path, @index+1, @pos+1, @lines[@index][@pos..-1].lstrip, :LINE)
       @pos = @lines[@index].size
       @token
     end
@@ -176,7 +176,7 @@ module Prick::Lang
 
       # Create token using position of first non-blank character
       @error = nil
-      @token = Token.new(file, token_lineno, token_charno, source, :TEXT)
+      @token = Token.new(path, token_lineno, token_charno, source, :TEXT)
     end
 
     # Read a EOL token. Returns false
@@ -223,7 +223,7 @@ module Prick::Lang
     # Handle eol and eof conditions. Advances the reader if emit is true
     def handle_eox(kind, emit)
       constrain kind, :EOF, :EOL, :EOB
-      token = Token.new(file, @index+1, @pos+1, nil, kind)
+      token = Token.new(path, @index+1, @pos+1, nil, kind)
       if emit
         @token, @error = token, nil
         @index += 1 if !eof? && kind != :EOB

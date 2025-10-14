@@ -7,6 +7,7 @@ describe "Prick::Lang" do
     def file = "file.txt" # Considered a constant
 
     def make(lines)
+      compiler = Prick::Lang::Compiler.new(file)
       lines = lines.align.split("\n", -1) if lines.is_a? String
       Prick::Lang::Tokenizer.new(file, lines)
     end
