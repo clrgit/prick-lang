@@ -15,7 +15,8 @@ describe "Prick::Lang" do
 #     analyzer
 
       compiler = make_compiler
-      compiler.parser.parse(file, lines.split("\n", -1))
+      compiler.parse(file, lines.split("\n", -1))
+      compiler.convert
       compiler.analyzer
     end
 

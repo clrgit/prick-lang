@@ -3,19 +3,30 @@
 module Prick::Lang
   module Idr
     class Node
+      include Tree
       include ClassFunctions
-
-      attr_accessor :parent # Idr::Resource or nil for top-level Program object
 
       attr_reader :ast # Ast::Node
       forward_to :ast, :token
 
+      # Previous node or nil
+      attr_accessor :prev
+
+      # List of nodes that must preceed this node in the build sequence.
+      # Initially the empty list, assigned later by the analyzer
+      attr_reader :dependencies # [Node]
+
       def initialize(parent, ast)
         constrain parent, Idr::Resource, nil
         constrain ast, Ast::Node, nil
-        @parent = parent
+        Tree.initialize(self, parent)
         @ast = ast
+        @requires = []
       end
+
+#     def self.instances(tree)
+#       trees(self)
+#     end
 
       def inspect = "<#{self.class}>"
     end
@@ -75,10 +86,12 @@ module Prick::Lang
       def flatten
         @block = @block.flat_map { |node|
           if node.is_a? Unresolved
+#           puts "Flattening unresolved node #{node.uid}"
             nodes = node.flatten
 #           nodes.each { _1.parent = self }
             nodes
           else
+#           puts "Pass through #{node.classname} node"
             node
           end
 #         node.is_a?(Unresolved) ? node.flatten.tap { |node| node.parent = self } : node
@@ -99,14 +112,12 @@ module Prick::Lang
     class Function < Resource
     end
 
-    # TODO: End-of-schema-marker (or use schema itself - like other resources)
     class Schema < Resource
       attr_reader :head # Command
       attr_reader :functions # [Function]
       Phase::ATTRS.each { |phase| attr_accessor phase }
       def phases = Phase::ATTRS.map { |phase| [phase, self.send(phase)] }.to_h
       def initialize(parent, ast)
-#       constrain parent, Idr::Program, nil
         constrain parent, Idr::Resource, nil
         constrain ast, Ast::Schema, Ast::Program
         super(parent, ast)
@@ -129,6 +140,7 @@ module Prick::Lang
     # U N R E S O L V E D
     #
 
+    # Temporary node for unresolved conditional expressions
     class Unresolved < Resource
       forward_to :parent, :klass, :ident, :uid
 

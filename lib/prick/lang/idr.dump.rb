@@ -58,7 +58,7 @@ module Prick::Lang
     end
 
     class ExternalCommand
-      def dump_value
+      def dump
         command = ast.kind.downcase
         if ast.multiline?
           puts command; indent { puts source }
@@ -73,7 +73,7 @@ module Prick::Lang
     end
 
     class RequireCommand
-      def dump = puts "require #{uid} -> #{node.classname}"
+      def dump = puts "require #{uid} -> #{node ? node.classname : node.inspect}"
     end
 
     # Can be a schema, phase, provide, or function

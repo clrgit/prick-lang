@@ -13,7 +13,7 @@ SPEC = %(
     Throw exceptions instead of using ShellOpts error message. Useful to
     pinpoint the source of an error when developing
 
-  -d,dump=tokens|ast|idr?
+  -d,dump=token|tokens|ast|idr|state?
     Dump debug. Default is 'ast'
 
   -t,trace
@@ -40,6 +40,10 @@ SPEC = %(
       | CASE-STMT
       | COMMAND-STMT
       | FILE-STMT
+      | DUMP-STMT
+      | LOAD-STMT
+      | SNAPSHOT-STMT
+      | RESTORE-STMT
       | RETURN-STMT
 
     DECL-STMT ::=
@@ -80,6 +84,12 @@ SPEC = %(
       | ruby RUBY_SCRIPT ARGUMENTS...
       | sql SOURCE
       | call REF+
+
+    DUMP-STMT ::=
+      dump BACKUP BACKUP_KINDS OBJECT_BLOCK
+      load BACKUP ( schema | data )? OBJECT_BLOCK
+      snapshot BACKUP OBJECT_BLOCK
+      restore BACKUP OBJECT_BLOCK
 
     FILE-STMT ::= FILE+
 

@@ -42,7 +42,7 @@ module Prick::Lang
     Token.define_method(:initialize) { |*args| orig_initialize(*args); tokens << self; }
   end
 
-  DUMP_KINDS = %w(tokens ast idr state)
+  DUMP_KINDS = %w(token tokens ast idr state)
 
   # FIXME
   BUILTIN_VARIABLES = { cmd: "build", env: "prod", ver: Semver.new("1.2.3"), user: "me" }
@@ -55,7 +55,8 @@ module Prick::Lang
         install_token_listener(tokens)
         compiler.parse(file, lines)
         puts "Processed #{tokens.size} tokens"
-        indent { tokens.each &:dump }
+        indent { puts tokens } # FIXME DUPLICATES in OUTPUT
+#       indent { tokens.each &:dump }
 
       when "ast", nil
         compiler.parser.parse(file, lines)
@@ -64,11 +65,12 @@ module Prick::Lang
       when "idr", "state"
         compiler.parse(file, lines)
         if kind == "idr"
-          compiler.analyzer.analyze
+          compiler.convert
+          compiler.analyze
           compiler.idr.dump
-#         analyzer.analyze.dump
         else # == "state"
-          compiler.analyzer.build_idr
+          compiler.convert
+          compiler.analyze
           compiler.dump
         end
     else
@@ -81,6 +83,7 @@ require_relative './lang/reader.rb'
 require_relative './lang/tokenizer.rb'
 require_relative './lang/parser.rb'
 require_relative './lang/evaluator.rb'
+require_relative './lang/converter.rb'
 require_relative './lang/analyzer.rb'
 #require_relative 'lang/generator.rb'
 require_relative './lang/compiler.rb'

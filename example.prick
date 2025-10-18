@@ -111,3 +111,4 @@ schema another_schema {
   provide has_another_schema
 }
 
+require my_schema

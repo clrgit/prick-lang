@@ -6,19 +6,21 @@ module Prick::Lang
     attr_reader :dir # Current directory when the compiler was invoked
     attr_reader :file # Start file. Only used in error messages. May be nil, initialized by #parse if so
     attr_reader :parser # Initialized by #parse
+    attr_reader :converter # Initialized by #convert
     attr_reader :analyzer # Initialized by #analyze
 
     def ast = @parser.ast # Ast::Program. Initialized by #parse
-    def idr = @analyzer.idr # Idr::Program. Initialized by #analyzer
+    def idr = @converter.idr # Idr::Program. Initialized by #convert and updated by #analyze
 
     def initialize(file = nil, variables: {})
-#     @@INSTANCE.nil? or raise ArgumentError, "Compiler is a singleton"
+#     @@INSTANCE.nil? or raise ArgumentError, "Compiler is a singleton" # Interferes with testing
       @@INSTANCE = self
       @dir = Dir.getwd
       @dir_pathname = Pathname.new(@dir) # pre-computed, used in #userpath
       @file = file
       @variables = variables
       @parser = Parser.new
+      @converter = Converter.new
       @analyzer = Analyzer.new
       @resources = {}
       @unresolved = []
@@ -56,6 +58,10 @@ module Prick::Lang
       @parser.parse(file, lines)
     end
 
+    def convert
+      @converter.convert
+    end
+
     def analyze
       @analyzer.analyze
     end
@@ -63,6 +69,10 @@ module Prick::Lang
     def compile(file, lines = nil)
       time "Parsing #{file}" do
         parse(file, lines)
+      end
+
+      time "Converting" do
+        convert
       end
 
       time "Analyzing" do
@@ -120,7 +130,7 @@ module Prick::Lang
       @resources[uid] = resource
     end
 
-    # Lists of present, absent, known, or unknown resources
+    # Lists of present, absent, known, or unknown resource UIDs
     def present = @resources.filter_map { _2 and _1 }
     def absent = @resources.filter_map { ! _2.nil? && ! _2 and _1 }
     def known = @resources.filter_map { !_2.nil? and _1 }
@@ -181,7 +191,7 @@ module Prick::Lang
         puts "variables"; indent { puts variables.map { |k,v| "#{k}: #{v}" } }
         puts "resources:"
         indent {
-          puts "present:"; indent { puts present }
+          puts "present:"; indent { puts present.map { "#{_1} (#{resource(_1).classname})" } }
           puts "absent:"; indent { puts absent }
           puts "unknown:"; indent { puts unknown }
         }
