@@ -128,8 +128,11 @@ describe "Tree" do
   end
 
   describe "#nodes" do
-    it "returns nodes that satisfy the constraint" do
+    it "returns all nodes that satisfy the constraint" do
       expect(make.nodes { %w(c d e).include? _1.name }.map(&:name)).to eq %w(c d e)
+    end
+    it "includes the root node" do
+      expect(make.nodes { %w(root c d e).include? _1.name }.map(&:name)).to eq %w(root c d e)
     end
     context "with a klass argument" do
       it "only considers nodes of that class" do

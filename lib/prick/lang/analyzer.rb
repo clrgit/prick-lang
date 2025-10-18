@@ -11,38 +11,75 @@ module Prick::Lang
     end
 
     def analyze
-      analyze_resources
+      assign_default_phases
+      assign_nop_nodes
+      resolve_references
+      link_block_nodes
+      link_phases
       idr
     end
 
     def inspect() = "<#{self.class}>"
 
   private
-    def analyze_resources
+    def assign_default_phases
+      # Assign default phases
+      idr.nodes(Idr::Schema).each { |schema|
+        Token::PHASES.each { |kind|
+          ident = kind.downcase
+          if schema.get_phase(ident).nil?
+            phase = Idr::DefaultPhase.new(schema, kind)
+            schema.set_phase(ident, phase)
+          end
+        }
+      }
+    end
+
+    def assign_nop_nodes
+      # Add a Nop node to empty blocks
+      idr.nodes(Idr::Resource).each { |resource|
+        if resource.block.empty?
+          resource.block << Idr::Nop.new(resource)
+        end
+      }
+    end
+
+    def resolve_references
       # Link up requirements
       compiler.requires.each { |require_|
         compiler.present?(require_.uid) or error require_, "Can't find resource '#{require_.uid}'"
         require_.node = compiler.resource(require_.uid)
       }
+    end
 
+    def link_block_nodes
       # Link up nodes in resource blocks. The first node has the resource
       # itself as the previous node
-      idr.trees(Idr::Resource) { |resource|
-        prev = resource
+      idr.nodes(Idr::Resource).each { |resource|
+        prev = nil
         resource.block.each { |node|
           node.prev = prev
           prev = node
         }
       }
+    end
 
+    def link_phases
+      idr.nodes(Idr::Schema).each { |schema|
+        schema.init.prev = schema.head.dep
+        schema.block.first.prev = schema.init.dep
+        schema.seed.prev = schema.block.last.dep
+        schema.term.prev = schema.seed.dep
+        schema.auth.prev = schema.term.dep
+        schema.prev = schema.term.dep
+      }
 
+#     idr.dump_deps
+#     exit
 
-      # Link up
-
-#     for schema in @idr.schemas
-#       schema.block.each { |node|
-#         if node
-#     end
+#     idr.nodes(Idr::Resource).each { |resource|
+#       resource.
+#     }
     end
   end
 end

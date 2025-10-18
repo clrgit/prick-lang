@@ -31,9 +31,9 @@ module Prick::Lang
       # Phases. Phases are not keywords but builtin identifirs and can be
       # used in references
       INIT: "init",
-      TERM: "term",
       META: "meta",
       SEED: "seed",
+      TERM: "term", # TODO Make this a drop-schema hook and create a FINAL phase instead
       AUTH: "auth",
 
       # Control structures

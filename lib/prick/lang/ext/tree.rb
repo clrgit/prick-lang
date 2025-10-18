@@ -50,7 +50,7 @@ module Tree
   end
 
   # Return subtrees of any of the given classes and for which expr yields true.
-  # The expression defaults to true and classes are considered by default
+  # The expression defaults to true and all classes are considered by default
   def trees(*klass, &expr)
     klasses = klass_expr(klass)
     acc = []
@@ -58,10 +58,14 @@ module Tree
     acc
   end
 
+
+  # Return nodes of any of the given classes and for which expr yields true.
+  # The expression defaults to true and all classes are considered by default
   def nodes(*klass, &expr)
     klasses = klass_expr(klass)
     acc = []
-    @children.each { |node| node.nodes_impl(acc, klasses, &expr) }
+    self.nodes_impl(acc, klasses, &expr)
+#   @children.each { |node| node.nodes_impl(acc, klasses, &expr) }
     acc
   end
 

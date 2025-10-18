@@ -12,9 +12,17 @@ module Prick::Lang
       # Previous node or nil
       attr_accessor :prev
 
+      # The node to refer to if an object depends on this node. This is usually
+      # equal to self but resources have dep equal to the last node in the
+      # block
+      def dep = self
+
       # List of nodes that must preceed this node in the build sequence.
       # Initially the empty list, assigned later by the analyzer
       attr_reader :dependencies # [Node]
+
+      # Used in debug. May be removed
+      attr_reader :serial
 
       def initialize(parent, ast)
         constrain parent, Idr::Resource, nil
@@ -22,13 +30,13 @@ module Prick::Lang
         Tree.initialize(self, parent)
         @ast = ast
         @requires = []
+        @serial = (@@SERIAL += 1)
       end
 
-#     def self.instances(tree)
-#       trees(self)
-#     end
-
       def inspect = "<#{self.class}>"
+
+    private
+      @@SERIAL = 0
     end
 
     #
@@ -65,6 +73,10 @@ module Prick::Lang
       end
     end
 
+    class Nop < Command
+      def initialize(parent) = super(parent, nil)
+    end
+
     #
     # R E S O U R C E
     #
@@ -75,9 +87,14 @@ module Prick::Lang
       attr_reader :ident # String
       attr_reader :block # [Node]
       def uid = [parent&.uid, ident].compact.join(".")
+
+      def prev = block.first.prev
+      def prev=(node) block.first.prev = node end
+      def dep = block.last
+
       def initialize(parent, ast)
-        constrain ast, Ast::Decl, Ast::Provide, nil # Should quack #ident, nil because of Program
         constrain parent, Resource, nil
+        constrain ast, Ast::Decl, Ast::Provide, nil # Should quack #ident, nil because of Program
         super(parent, ast)
         @ident = ast&.ident&.value
         @block = []
@@ -86,15 +103,11 @@ module Prick::Lang
       def flatten
         @block = @block.flat_map { |node|
           if node.is_a? Unresolved
-#           puts "Flattening unresolved node #{node.uid}"
             nodes = node.flatten
-#           nodes.each { _1.parent = self }
             nodes
           else
-#           puts "Pass through #{node.classname} node"
             node
           end
-#         node.is_a?(Unresolved) ? node.flatten.tap { |node| node.parent = self } : node
         }
       end
     end
@@ -102,8 +115,18 @@ module Prick::Lang
     class Phase < Resource
       ATTRS = Token::PHASES.map(&:downcase)
       def kind = ast.kind # Symbol
-      def read_attr = ast.kind.downcase # Reader method in parent object
+      def read_attr = kind.downcase # Reader method in parent object
       def write_attr = :"#{read_attr}=" # Writer method in parent object
+    end
+
+    class DefaultPhase < Phase
+      attr_reader :kind
+      def initialize(parent, kind)
+        super(parent, nil)
+        @kind = kind
+        @ident = read_attr
+#       block << Nop.new(self, nil)
+      end
     end
 
     class Provide < Resource
@@ -112,16 +135,31 @@ module Prick::Lang
     class Function < Resource
     end
 
+    # Exec
+    #   head
+    #   init
+    #   block
+    #   seed
+    #   term
+    #   auth
+    #
+
     class Schema < Resource
       attr_reader :head # Command
       attr_reader :functions # [Function]
       Phase::ATTRS.each { |phase| attr_accessor phase }
+
+      def get_phase(ident) = self.send(ident)
+      def set_phase(ident, value) = self.send(:"#{ident}=", value)
+
+      # Only used in idr.dump
       def phases = Phase::ATTRS.map { |phase| [phase, self.send(phase)] }.to_h
+
       def initialize(parent, ast)
         constrain parent, Idr::Resource, nil
         constrain ast, Ast::Schema, Ast::Program
         super(parent, ast)
-        @head = SchemaCommand.new(self, ast) if !self.is_a?(Program)
+        @head = self.is_a?(Program) ? Nop.new(self) : SchemaCommand.new(self, ast)
         @functions = []
       end
     end

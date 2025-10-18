@@ -26,6 +26,7 @@ init {
 # Main Schema
 schema my_schema {
   my_schema.sql
+
   # Function
   function my_function {
     my_function.sql

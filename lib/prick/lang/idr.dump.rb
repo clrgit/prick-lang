@@ -43,6 +43,18 @@ module Prick::Lang
           }
         end
       end
+
+      def dump_deps
+        self.nodes(Idr::Command, Idr::Provide).each { |node|
+#       self.nodes.each { |node|
+          printf "%3s %3s ", node.serial, node.prev&.serial || 'nil'
+          node.dump
+        }
+      end
+    end
+
+    class Nop
+      def dump = super("NOP")
     end
 
     class Command
