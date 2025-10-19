@@ -5,6 +5,8 @@ module Prick::Lang
     class Node
       PARTS = []
 
+      def dumpline = puts "#{self.classname} #{self.token&.text}"
+
       def dump(text = nil)
         puts text if text
         dump_parts
@@ -45,31 +47,29 @@ module Prick::Lang
       end
 
       def dump_deps
-        self.nodes(Idr::Command, Idr::Provide).each { |node|
-#       self.nodes.each { |node|
+#       self.nodes(Idr::Command, Idr::Provide).each { |node|
+        self.nodes.each { |node|
           printf "%3s %3s ", node.serial, node.prev&.serial || 'nil'
           node.dump
         }
       end
     end
 
-    class Nop
-      def dump = super("NOP")
-    end
-
     class Command
+      def dump = dumpline
     end
 
     # Artificial node that creates a schema
     class SchemaCommand
-      def dump = puts "sql create schema"
+      def dumpline = puts "sql create schema"
     end
 
     class FileCommand
-      def dump = puts "file #{path}"
+      def dumpline = puts "file #{path}"
     end
 
     class ExternalCommand
+      def dumpline = puts "#{ast.kind.downcase} #{source.sub(/\..*/m, "")}"
       def dump
         command = ast.kind.downcase
         if ast.multiline?
@@ -81,11 +81,15 @@ module Prick::Lang
     end
 
     class CallCommand
-      def dump = puts "call #{ident}"
+      def dumpline = puts "call #{ident}"
     end
 
     class RequireCommand
-      def dump = puts "require #{uid} -> #{node ? node.classname : node.inspect}"
+      def dumpline = puts "require #{uid} -> #{node ? node.classname : node.inspect}"
+    end
+
+    class NopCommand
+      def dumpline = puts "NOP"
     end
 
     # Can be a schema, phase, provide, or function
@@ -94,7 +98,8 @@ module Prick::Lang
     end
 
     class Provide
-      def dump = puts "provide #{uid}"
+      def dumpline = puts "provide #{uid}"
+      def dump = dumpline
       def dump_parts = nil # nop
     end
 
@@ -104,6 +109,10 @@ module Prick::Lang
 
     class Phase
       PARTS = [:block]
+    end
+
+    class DefaultPhase
+      def dumpline = puts "Phase #{kind.downcase}"
     end
 
     class Schema
@@ -116,7 +125,7 @@ module Prick::Lang
     end
 
     class Unresolved
-      def dump() = super "UNRESOLVED #{uid}"
+      def dumpline = puts "UNRESOLVED #{uid}"
     end
   end
 end

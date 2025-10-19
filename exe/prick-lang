@@ -13,7 +13,7 @@ SPEC = %(
     Throw exceptions instead of using ShellOpts error message. Useful to
     pinpoint the source of an error when developing
 
-  -d,dump=token|tokens|ast|idr|state?
+  -d,dump=token|tokens|ast|idr|dep|state?
     Dump debug. Default is 'ast'
 
   -t,trace

@@ -42,7 +42,7 @@ module Prick::Lang
     Token.define_method(:initialize) { |*args| orig_initialize(*args); tokens << self; }
   end
 
-  DUMP_KINDS = %w(token tokens ast idr state)
+  DUMP_KINDS = %w(token tokens ast idr dep state)
 
   # FIXME
   BUILTIN_VARIABLES = { cmd: "build", env: "prod", ver: Semver.new("1.2.3"), user: "me" }
@@ -62,17 +62,17 @@ module Prick::Lang
         compiler.parser.parse(file, lines)
         compiler.ast.dump
 
-      when "idr", "state"
+      when "idr", "dep", "state"
         compiler.parse(file, lines)
-        if kind == "idr"
-          compiler.convert
-          compiler.analyze
-          compiler.idr.dump
-        else # == "state"
-          compiler.convert
-          compiler.analyze
-          compiler.dump
+        compiler.convert
+        compiler.analyze
+        case kind
+          when "idr"; compiler.idr.dump
+          when "dep"; compiler.dump_deps
+          when "state"; compiler.dump
         end
+      when "dep"
+
     else
       raise ArgumentError
     end

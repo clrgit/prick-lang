@@ -10,9 +10,18 @@ module Tree
     this.instance_variable_set(:@children, [])
   end
 
+  # Fix this
+  #   attach(parent)
+  #   detach()
+  #   retach(parent)
+
   def attach(child) @children << child; child.instance_variable_set(:@parent, self) end
   def detach(child) = @children.delete(child)&.instance_variable_set(:@parent, nil)
   def retach(child) child.parent&.detach(child); attach(child) end
+# def detach(child = nil)
+#   child ? @children.delete(child)&.instance_variable_set(:@parent, nil) : parent.detach(self)
+# end
+# def retach(parent) self.detach; parent.attach(self) end
 
   def concat(nodes) nodes.each { attach _1 }; self end
   def move(nodes) nodes.each { retach _1 }; self end

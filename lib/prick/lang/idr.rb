@@ -25,7 +25,7 @@ module Prick::Lang
       attr_reader :serial
 
       def initialize(parent, ast)
-        constrain parent, Idr::Resource, nil
+        constrain parent, Idr::Resource, Provide, nil
         constrain ast, Ast::Node, nil
         Tree.initialize(self, parent)
         @ast = ast
@@ -62,6 +62,14 @@ module Prick::Lang
     class CallCommand < Command
     end
 
+#   class ProvideCommand < Command
+#     attr_accessor :provide # Resource
+#     def initialize(parent, ast)
+#       super(parent, ast)
+#       @provide = Provide.new(self, ast)
+#     end
+#   end
+
     class RequireCommand < Command
       attr_accessor :uid # UID of required node
       attr_accessor :node # Required node
@@ -73,7 +81,7 @@ module Prick::Lang
       end
     end
 
-    class Nop < Command
+    class NopCommand < Command
       def initialize(parent) = super(parent, nil)
     end
 
@@ -93,7 +101,7 @@ module Prick::Lang
       def dep = block.last
 
       def initialize(parent, ast)
-        constrain parent, Resource, nil
+        constrain parent, Resource, Provide, nil
         constrain ast, Ast::Decl, Ast::Provide, nil # Should quack #ident, nil because of Program
         super(parent, ast)
         @ident = ast&.ident&.value
@@ -104,6 +112,7 @@ module Prick::Lang
         @block = @block.flat_map { |node|
           if node.is_a? Unresolved
             nodes = node.flatten
+            node.parent.detach(node)
             nodes
           else
             node
@@ -125,24 +134,16 @@ module Prick::Lang
         super(parent, nil)
         @kind = kind
         @ident = read_attr
-#       block << Nop.new(self, nil)
       end
     end
 
     class Provide < Resource
+      attr_accessor :prev
+      def dep = self
     end
 
     class Function < Resource
     end
-
-    # Exec
-    #   head
-    #   init
-    #   block
-    #   seed
-    #   term
-    #   auth
-    #
 
     class Schema < Resource
       attr_reader :head # Command
@@ -159,7 +160,7 @@ module Prick::Lang
         constrain parent, Idr::Resource, nil
         constrain ast, Ast::Schema, Ast::Program
         super(parent, ast)
-        @head = self.is_a?(Program) ? Nop.new(self) : SchemaCommand.new(self, ast)
+        @head = self.is_a?(Program) ? NopCommand.new(self) : SchemaCommand.new(self, ast)
         @functions = []
       end
     end

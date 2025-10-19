@@ -25,12 +25,13 @@ init {
 
 # Main Schema
 schema my_schema {
-  my_schema.sql
+# my_schema.sql
 
-  # Function
-  function my_function {
-    my_function.sql
-  }
+# # Function
+# function my_function {
+#   my_function.sql
+# }
+
   init {
   }
 

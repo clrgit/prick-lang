@@ -39,7 +39,7 @@ module Prick::Lang
       # Add a Nop node to empty blocks
       idr.nodes(Idr::Resource).each { |resource|
         if resource.block.empty?
-          resource.block << Idr::Nop.new(resource)
+          resource.block << Idr::NopCommand.new(resource)
         end
       }
     end
@@ -52,13 +52,14 @@ module Prick::Lang
       }
     end
 
+    # Link up nodes in resource blocks. The first node has the resource itself
+    # as the previous node
     def link_block_nodes
-      # Link up nodes in resource blocks. The first node has the resource
-      # itself as the previous node
       idr.nodes(Idr::Resource).each { |resource|
+        next if resource.is_a?(Idr::Provide)
         prev = nil
         resource.block.each { |node|
-          node.prev = prev
+          node.prev = prev&.dep
           prev = node
         }
       }
@@ -73,13 +74,6 @@ module Prick::Lang
         schema.auth.prev = schema.term.dep
         schema.prev = schema.term.dep
       }
-
-#     idr.dump_deps
-#     exit
-
-#     idr.nodes(Idr::Resource).each { |resource|
-#       resource.
-#     }
     end
   end
 end

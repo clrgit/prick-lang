@@ -206,6 +206,13 @@ module Prick::Lang
       }
     end
 
+    def dump_deps
+      idr.trees(Idr::Command, Idr::Provide).each { |node|
+        printf "%3s %3s >> ", node.serial, node.prev&.serial || 'nil'
+        node.dumpline
+      }
+    end
+
   private
     @@INSTANCE = nil
 
