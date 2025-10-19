@@ -89,7 +89,7 @@ module Prick::Lang
     end
 
     class NopCommand
-      def dumpline = puts "NOP"
+      def dumpline = puts "NOP #{parent.uid || parent.class}"
     end
 
     # Can be a schema, phase, provide, or function
@@ -112,7 +112,7 @@ module Prick::Lang
     end
 
     class DefaultPhase
-      def dumpline = puts "Phase #{kind.downcase}"
+      def dumpline = puts "Phase #{uid}"
     end
 
     class Schema

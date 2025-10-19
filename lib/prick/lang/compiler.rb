@@ -207,9 +207,17 @@ module Prick::Lang
     end
 
     def dump_deps
-      idr.trees(Idr::Command, Idr::Provide).each { |node|
-        printf "%3s %3s >> ", node.serial, node.prev&.serial || 'nil'
+#     idr.nodes.sort_by(&:serial).each { |node|
+      idr.trees(Idr::Command, Idr::Provide).sort_by(&:serial).each { |node|
+#       printf "%3s -> %3s / %3s ", node.serial, (node.prev&.serial || node.this&.serial).inspect, node.dep&.serial.inspect
+        printf "%3s -> %3s ", node.serial, node.dep&.serial.inspect
+#       printf "%3s -> %3s ", node.serial, node.prev&.serial.inspect
         node.dumpline
+      }
+
+      present.each { |uid|
+        r = resources[uid]
+        puts "#{uid} -> #{r.this.serial}"
       }
     end
 

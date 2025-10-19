@@ -12,10 +12,16 @@ module Prick::Lang
       # Previous node or nil
       attr_accessor :prev
 
-      # The node to refer to if an object depends on this node. This is usually
-      # equal to self but resources have dep equal to the last node in the
-      # block
-      def dep = self
+      # Node to build. This is usually equal to self but resources redefine it
+      # to be the last node in the block
+      def this = self
+
+      # If a
+
+#     # The node to refer to if an object depends on this node. This is usually
+#     # equal to self but resources have dep equal to the last node in the
+#     # block
+      def dep = prev
 
       # List of nodes that must preceed this node in the build sequence.
       # Initially the empty list, assigned later by the analyzer
@@ -98,6 +104,7 @@ module Prick::Lang
 
       def prev = block.first.prev
       def prev=(node) block.first.prev = node end
+      def this = block.last
       def dep = block.last
 
       def initialize(parent, ast)
@@ -139,7 +146,8 @@ module Prick::Lang
 
     class Provide < Resource
       attr_accessor :prev
-      def dep = self
+      def this = self
+      def dep = prev # Provide doesn't have a block
     end
 
     class Function < Resource
@@ -149,6 +157,11 @@ module Prick::Lang
       attr_reader :head # Command
       attr_reader :functions # [Function]
       Phase::ATTRS.each { |phase| attr_accessor phase }
+
+      def prev = head.prev
+      def prev=(node) head.prev = node end
+      def this = term.this
+      def dep = this
 
       def get_phase(ident) = self.send(ident)
       def set_phase(ident, value) = self.send(:"#{ident}=", value)

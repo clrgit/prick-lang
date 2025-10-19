@@ -52,14 +52,12 @@ module Prick::Lang
       }
     end
 
-    # Link up nodes in resource blocks. The first node has the resource itself
-    # as the previous node
+    # Link up nodes in resource blocks. The first node has no previous node
     def link_block_nodes
       idr.nodes(Idr::Resource).each { |resource|
-        next if resource.is_a?(Idr::Provide)
         prev = nil
         resource.block.each { |node|
-          node.prev = prev&.dep
+          node.prev = prev
           prev = node
         }
       }
@@ -67,21 +65,35 @@ module Prick::Lang
 
     def link_phases
       idr.nodes(Idr::Schema).each { |schema|
-        schema.init.prev = schema.head.dep
-        schema.block.first.prev = schema.init.dep
-        schema.seed.prev = schema.block.last.dep
-        schema.term.prev = schema.seed.dep
-        schema.auth.prev = schema.term.dep
-        schema.prev = schema.term.dep
+        schema.init.prev = schema.head.this
+        schema.block.first.prev = schema.init.this
+        schema.seed.prev = schema.block.last.this
+        schema.term.prev = schema.seed.this
+        schema.auth.prev = schema.term.this
       }
     end
   end
 end
 
-
-
-
-
+# schema
+#   init
+#     init.sql
+#   self
+#     self.sql
+#   seed
+#     seed.sql
+#   term
+#     term.sql
+#
+# schema.prev -> term
+# term.prev -> seed
+# seed.prev -> self
+# self.prev -> init
+# init.prev -> decl
+# decl.prev -> nil
+#
+# term.sql -> seed.sql
+#
 
 
 
