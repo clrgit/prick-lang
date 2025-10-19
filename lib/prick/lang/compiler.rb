@@ -118,7 +118,7 @@ module Prick::Lang
     # Add a present resource. It is an error if the resource is absent but not
     # if it is unknown
     def add(resource)
-      constrain resource, Idr::Resource
+      constrain resource, Idr::Resource, Idr::ProvideCommand
       uid = resource.uid
       if !@resources[uid].nil?
         if @resources[uid]
@@ -207,8 +207,8 @@ module Prick::Lang
     end
 
     def dump_deps
-#     idr.nodes.sort_by(&:serial).each { |node|
-      idr.trees(Idr::Command, Idr::Provide).sort_by(&:serial).each { |node|
+      idr.trees(Idr::Command).sort_by(&:serial).each { |node|
+#     idr.trees(Idr::Command).sort_by(&:serial).each { |node|
 #       printf "%3s -> %3s / %3s ", node.serial, (node.prev&.serial || node.this&.serial).inspect, node.dep&.serial.inspect
         printf "%3s -> %3s ", node.serial, node.dep&.serial.inspect
 #       printf "%3s -> %3s ", node.serial, node.prev&.serial.inspect

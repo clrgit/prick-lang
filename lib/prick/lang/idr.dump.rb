@@ -92,15 +92,15 @@ module Prick::Lang
       def dumpline = puts "NOP #{parent.uid || parent.class}"
     end
 
+    class ProvideCommand
+      def dumpline = puts "PROP #{uid}"
+      def dump = dumpline
+      def dump_parts = nil # nop
+    end
+
     # Can be a schema, phase, provide, or function
     class Resource
       def dump(ident = self.ident) puts ident; dump_parts end
-    end
-
-    class Provide
-      def dumpline = puts "provide #{uid}"
-      def dump = dumpline
-      def dump_parts = nil # nop
     end
 
     class Function

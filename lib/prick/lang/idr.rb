@@ -16,26 +16,23 @@ module Prick::Lang
       # to be the last node in the block
       def this = self
 
-      # If a
-
-#     # The node to refer to if an object depends on this node. This is usually
-#     # equal to self but resources have dep equal to the last node in the
-#     # block
+      # The node to refer to if an object depends on this node. This is usually
+      # equal to self but resources have dep equal to the last node in the
+      # block
       def dep = prev
 
-      # List of nodes that must preceed this node in the build sequence.
-      # Initially the empty list, assigned later by the analyzer
-      attr_reader :dependencies # [Node]
+#     # List of nodes that must preceed this node in the build sequence.
+#     # Initially the empty list, assigned later by the analyzer
+#     attr_reader :dependencies # [Node]
 
       # Used in debug. May be removed
       attr_reader :serial
 
       def initialize(parent, ast)
-        constrain parent, Idr::Resource, Provide, nil
+        constrain parent, Idr::Resource, nil
         constrain ast, Ast::Node, nil
         Tree.initialize(self, parent)
         @ast = ast
-        @requires = []
         @serial = (@@SERIAL += 1)
       end
 
@@ -68,14 +65,6 @@ module Prick::Lang
     class CallCommand < Command
     end
 
-#   class ProvideCommand < Command
-#     attr_accessor :provide # Resource
-#     def initialize(parent, ast)
-#       super(parent, ast)
-#       @provide = Provide.new(self, ast)
-#     end
-#   end
-
     class RequireCommand < Command
       attr_accessor :uid # UID of required node
       attr_accessor :node # Required node
@@ -88,7 +77,15 @@ module Prick::Lang
     end
 
     class NopCommand < Command
-      def initialize(parent) = super(parent, nil)
+      def initialize(parent, ast = nil) = super(parent, nil)
+    end
+
+    class ProvideCommand < NopCommand
+      attr_accessor :uid
+      def initialize(parent, ast, uid)
+        super(parent, ast)
+        @uid = uid
+      end
     end
 
     #
@@ -108,8 +105,8 @@ module Prick::Lang
       def dep = block.last
 
       def initialize(parent, ast)
-        constrain parent, Resource, Provide, nil
-        constrain ast, Ast::Decl, Ast::Provide, nil # Should quack #ident, nil because of Program
+        constrain parent, Resource, nil
+        constrain ast, Ast::Decl, nil # Should quack #ident, nil because of Program
         super(parent, ast)
         @ident = ast&.ident&.value
         @block = []
@@ -142,12 +139,6 @@ module Prick::Lang
         @kind = kind
         @ident = read_attr
       end
-    end
-
-    class Provide < Resource
-      attr_accessor :prev
-      def this = self
-      def dep = prev # Provide doesn't have a block
     end
 
     class Function < Resource

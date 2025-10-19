@@ -55,16 +55,6 @@ module Prick::Lang
       []
     end
 
-    def convert_provide(ast)
-      trace
-      constrain ast, Ast::Provide
-      check_context ast, Idr::Program, Idr::Schema, Idr::Phase
-      provide = Idr::Provide.new(compiler.context, ast)
-      compiler.block << provide
-      compiler.add(provide)
-      self
-    end
-
     def convert_phase(ast)
       trace
       constrain ast, Ast::Phase
@@ -95,6 +85,15 @@ module Prick::Lang
             when Ast::ExternalCommand; [Idr::ExternalCommand.new(compiler.context, ast)]
             when Ast::CallCommand; [Idr::CallCommand.new(compiler.context, ast)]
           end
+    end
+
+    def convert_provide(ast)
+      trace
+      constrain ast, Ast::Provide
+      check_context ast, Idr::Program, Idr::Schema, Idr::Phase
+      provide = Idr::ProvideCommand.new(compiler.context, ast, compiler.uid(ast.ident.value))
+      compiler.block << provide
+      compiler.add(provide)
     end
 
     def convert_control(ast)
