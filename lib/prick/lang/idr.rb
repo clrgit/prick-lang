@@ -24,7 +24,7 @@ module Prick::Lang
       # List of nodes that must preceed this node in the build sequence.
       # Usually equal to [dep] but require statements adds the required
       # resources
-      def deps = [dep]
+      def deps = [dep].compact
 
       # Used in debug. May be removed
       attr_reader :serial
@@ -48,6 +48,7 @@ module Prick::Lang
     #
 
     class Command < Node
+      attr_accessor :schema # Used in set search_path before each file is executed. Assigned by the #analyzer
     end
 
     # Artificial node that creates a schema
@@ -66,7 +67,19 @@ module Prick::Lang
     class CallCommand < Command
     end
 
-    class RequireCommand < Command
+    class NopCommand < Command
+      def initialize(parent, ast = nil) = super(parent, nil)
+    end
+
+    # Fake command that gets appended to the blocks of all resources. The
+    # executor uses it to tell when a schema is fully built and doesn't need to
+    # be rebuilt when using 'prick make'. It includes phases but we then need a
+    # 'self' phase to make that useful. It also includes functions which is
+    # doubtful
+    class ResourceCommand < NopCommand
+    end
+
+    class RequireCommand < NopCommand
       attr_accessor :uid # UID of required node
       attr_accessor :node # Required node
       def deps = [dep, node]
@@ -76,10 +89,6 @@ module Prick::Lang
         super(parent, ast)
         @uid = uid
       end
-    end
-
-    class NopCommand < Command
-      def initialize(parent, ast = nil) = super(parent, nil)
     end
 
     class ProvideCommand < NopCommand
@@ -177,6 +186,7 @@ module Prick::Lang
     class Program < Schema
       def key = nil
       def uid = nil
+#     def uid = "public"
       attr_reader :schemas
       def initialize(ast)
         super(nil, ast)

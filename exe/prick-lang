@@ -7,21 +7,29 @@ require 'shellopts'
 SPEC = %(
   @ Compile a prick file
 
-  -- FILE
+  -- CMD [UID] [VAR=VAL...]
 
-  -x,exception
+
+  BUILD
+
+  MAKE
+
+  RUN
+
+
+  -f,file=FILE|DIR
+    Prick source file. The default is the 'make.prick' file in the project main
+    directory
+
+  -X,exception
     Throw exceptions instead of using ShellOpts error message. Useful to
     pinpoint the source of an error when developing
 
-  -d,dump=token|tokens|ast|idr|dep|state?
+  -D,dump=token|tokens|ast|idr|dep|state?
     Dump debug. Default is 'ast'
 
-  -t,trace
+  -T,trace
     Enable tracer. Used for debugging
-
-  +v,var=ASSIGNMENT
-    Add a key/value to the compile time set of constants. ASSIGNMENT has the
-    format "NAME=VALUE". Eg. "--var=site=home" or "-v site=home"
 
   Syntax
 
@@ -159,17 +167,28 @@ SPEC = %(
 )
 
 opts, args = ShellOpts.process(SPEC, ARGV)
+
+file = opts.file || 'make.prick'
 USE_EXCEPTION = opts.exception?
 Trace.enable if opts.trace?
 ShellOpts.exception = USE_EXCEPTION
-file = args.expect(1)
 
+# Extract command
+cmd = args.extract(1)
+%w(build make run).include?(cmd) or ShellOpts::error "Illegal command: #{cmd}"
+
+# Extract uid
+uid = args.first&.index('=').nil? && args.shift || '<main>'
+
+# Extract variable assignments
 VARIABLES = {}
-if opts.var?
-  opts.var.each { |litt|
-    litt =~ /^(\w+)=(\S*)$/ or ShellOpts::error "Illegal value for --var '#{litt}'"
-    VARIABLES[$1.to_sym] = $2
-  }
+if arg = args.shift
+  case arg
+    when /^(\w+)=(\S*)$/
+      VARIABLES[$1.to_sym] = $2
+    else
+      ShellOpts::error "Illegal argument '#{arg}'"
+  end
 end
 
 # Handle dump option
@@ -177,7 +196,7 @@ if opts.dump?
   kind = opts.dump || "ast"
   Prick::Lang::DUMP_KINDS.include?(kind) or
       ShellOpts::error "Illegal value for --dump '#{kind}'"
-  Prick::Lang.dump(file, kind, variables: VARIABLES)
+  Prick::Lang.dump(file, kind, uid, variables: VARIABLES)
   exit
 end
 

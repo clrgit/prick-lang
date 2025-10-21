@@ -3,14 +3,16 @@ module Prick::Lang
   class Compiler
     include ErrorFunctions
 
-    attr_reader :dir # Current directory when the compiler was invoked
+    attr_reader :dir # Current user directory when the compiler was invoked
     attr_reader :file # Start file. Only used in error messages. May be nil, initialized by #parse if so
-    attr_reader :parser # Initialized by #parse
-    attr_reader :converter # Initialized by #convert
-    attr_reader :analyzer # Initialized by #analyze
+    attr_reader :parser
+    attr_reader :converter
+    attr_reader :analyzer
+    attr_reader :generator
 
     def ast = @parser.ast # Ast::Program. Initialized by #parse
     def idr = @converter.idr # Idr::Program. Initialized by #convert and updated by #analyze
+    def units = @generator.units # [Unit::Node]. Initialized by #generate
 
     def initialize(file = nil, variables: {})
 #     @@INSTANCE.nil? or raise ArgumentError, "Compiler is a singleton" # Interferes with testing
@@ -22,6 +24,7 @@ module Prick::Lang
       @parser = Parser.new
       @converter = Converter.new
       @analyzer = Analyzer.new
+      @generator = Generator.new
       @resources = {}
       @unresolved = []
       @requires = []
@@ -30,24 +33,6 @@ module Prick::Lang
 
     # Singleton instance
     def self.instance = @@INSTANCE
-
-    #
-    # Utilities
-    #
-
-    # Compute fully qualified uid - prepends the current context uid to the
-    # ident if absent
-    def uid(ident)
-      constrain ident, String
-      (ident.index('.') ? ident : [context.uid, ident].compact.join("."))
-    end
-    def self.uid(ident) = instance.uid(ident)
-
-    # Compute path relative to #dir, this is used in error messages
-    def userpath(path)
-      Pathname.new(File.expand_path(path)).relative_path_from(@dir_pathname).to_s
-    end
-    def self.userpath(path) = instance.userpath(path)
 
     #
     # General methods
@@ -66,6 +51,10 @@ module Prick::Lang
       @analyzer.analyze
     end
 
+    def generate(targets = ["<main>"])
+      @generator.generate(targets)
+    end
+
     def compile(file, lines = nil)
       time "Parsing #{file}" do
         parse(file, lines)
@@ -79,9 +68,31 @@ module Prick::Lang
         analyze
       end
 
+      time "Generating" do
+        generate
+      end
+
 #     puts "Dumping"
 #     program.dump
     end
+
+    #
+    # Utilities
+    #
+
+    # Compute fully qualified uid - prepends the current context uid to the
+    # ident if absent
+    def uid(ident)
+      constrain ident, String
+      (ident.index('.') ? ident : [context.uid, ident].compact.join("."))
+    end
+    def self.uid(ident) = instance.uid(ident)
+
+    # Compute path relative to #dir, this is used in error messages
+    def userpath(path)
+      Pathname.new(File.expand_path(path)).relative_path_from(@dir_pathname).to_s
+    end
+    def self.userpath(path) = instance.userpath(path)
 
     #
     # Runtime variables
@@ -197,21 +208,8 @@ module Prick::Lang
       }
     end
 
-    def dump_deps
-      idr.trees(Idr::Command).sort_by(&:serial).each { |node|
-        if node.is_a? Idr::RequireCommand
-          printf "%3s -> %s ", node.serial, node.deps.map(&:serial).inspect
-        else
-          printf "%3s -> %3s ", node.serial, node.dep&.serial.inspect
-        end
-        node.dumpline
-      }
-
-      puts
-      present.each { |uid|
-        r = resources[uid]
-        puts "#{uid} -> #{r.this.serial}"
-      }
+    def dump_units
+      units.each { |unit| puts "TODO" }
     end
 
   private

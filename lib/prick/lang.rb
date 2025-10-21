@@ -42,15 +42,15 @@ module Prick::Lang
     Token.define_method(:initialize) { |*args| orig_initialize(*args); tokens << self; }
   end
 
-  DUMP_KINDS = %w(token tokens ast idr dep state)
+  DUMP_KINDS = %w(tokens ast idr deps state units)
 
   # FIXME
   BUILTIN_VARIABLES = { cmd: "build", env: "prod", ver: Semver.new("1.2.3"), user: "me" }
 
-  def self.dump(file, lines = nil, kind, variables)
+  def self.dump(file, lines = nil, kind, uid, variables)
     compiler = Compiler.new(variables: BUILTIN_VARIABLES)
     case kind
-      when "token", "tokens"
+      when "tokens"
         tokens = []
         install_token_listener(tokens)
         compiler.parse(file, lines)
@@ -62,16 +62,18 @@ module Prick::Lang
         compiler.parser.parse(file, lines)
         compiler.ast.dump
 
-      when "idr", "dep", "state"
+      when "idr", "deps", "state", "units"
         compiler.parse(file, lines)
         compiler.convert
         compiler.analyze
         case kind
           when "idr"; compiler.idr.dump
-          when "dep"; compiler.dump_deps
+          when "deps"; compiler.analyzer.dump
           when "state"; compiler.dump
+          when "units"
+            compiler.generate([uid])
+            compiler.generator.dump
         end
-      when "dep"
 
     else
       raise ArgumentError
@@ -85,5 +87,5 @@ require_relative './lang/parser.rb'
 require_relative './lang/evaluator.rb'
 require_relative './lang/converter.rb'
 require_relative './lang/analyzer.rb'
-#require_relative 'lang/generator.rb'
+require_relative './lang/generator.rb'
 require_relative './lang/compiler.rb'

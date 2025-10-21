@@ -13,6 +13,7 @@ module Prick::Lang
     def analyze
       assign_default_phases
       assign_nop_nodes
+      assign_command_schema
       resolve_references
       link_block_nodes
       link_phases
@@ -20,6 +21,26 @@ module Prick::Lang
     end
 
     def inspect() = "<#{self.class}>"
+
+    def dump
+      puts "Nodes"; indent {
+        idr.trees(Idr::Command).sort_by(&:serial).each { |node|
+          if node.is_a? Idr::RequireCommand
+            printf "%3s -> %s ", node.serial, node.deps.map(&:serial).join(", ")
+          else
+            printf "%3s -> %3s ", node.serial, node.dep&.serial.inspect
+          end
+          node.dumpdep
+        }
+      }
+
+      puts "Resources"; indent {
+        compiler.present.each { |uid|
+          r = compiler.resources[uid]
+          puts "#{uid} -> #{r.this.serial}"
+        }
+      }
+    end
 
   private
     def assign_default_phases
@@ -38,11 +59,18 @@ module Prick::Lang
     def assign_nop_nodes
       # Add a Nop node to empty blocks
       idr.nodes(Idr::Resource).each { |resource|
-        if resource.block.empty?
-          resource.block << Idr::NopCommand.new(resource)
-        end
+#       if resource.block.empty?
+          resource.block << Idr::ResourceCommand.new(resource)
+#       end
       }
     end
+
+    def assign_command_schema
+      idr.nodes(Idr::Schema).each { |schema|
+        schema.trees(Idr::Command) { |command| command.schema = schema }
+      }
+    end
+
 
     # Link up require statements with the referenced resources
     def resolve_references
@@ -65,7 +93,7 @@ module Prick::Lang
 
     def link_phases
       idr.nodes(Idr::Schema).each { |schema|
-        schema.init.prev = schema.head.this
+        schema.init.prev = schema.head.this # TODO: No! schema.head is special-handled
         schema.block.first.prev = schema.init.this
         schema.seed.prev = schema.block.last.this
         schema.term.prev = schema.seed.this

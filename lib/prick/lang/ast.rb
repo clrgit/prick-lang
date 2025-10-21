@@ -164,7 +164,7 @@ module Prick::Lang
 
     class Program < Decl
       def initialize(file)
-        super Token.new(file, 1, 1, "::", :PROGRAM)
+        super Token.new(file, 1, 1, "public", :PROGRAM)
       end
     end
 

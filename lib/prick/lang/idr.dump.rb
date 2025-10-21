@@ -12,6 +12,8 @@ module Prick::Lang
         dump_parts
       end
 
+      def dumpdep = dumpline
+
       def dump_parts
         for part in self.class::PARTS
           value = self.send(part)
@@ -61,10 +63,11 @@ module Prick::Lang
 
     # Artificial node that creates a schema
     class SchemaCommand
-      def dumpline = puts "sql create schema"
+      def dumpline = puts "sql create schema #{schema.uid}"
     end
 
     class FileCommand
+#     def dumpline = puts "file #{path} (#{self.schema.uid})"
       def dumpline = puts "file #{path}"
     end
 
@@ -86,15 +89,27 @@ module Prick::Lang
 
     class RequireCommand
       def dumpline = puts "require #{uid} -> #{node ? node.classname : node.inspect}"
+      def dumpdep = puts "REQ #{uid}"
     end
 
     class NopCommand
       def dumpline = puts "NOP #{parent.uid || parent.class}"
     end
 
+    class ResourceCommand
+      def dumpdep
+        if parent.is_a?(Idr::Schema)
+          puts "RES #{parent.uid || "public"}.self"
+        else
+          puts "RES #{parent.uid || parent.class}"
+        end
+      end
+    end
+
     class ProvideCommand
       def dumpline = puts "provide #{uid}"
       def dump = dumpline
+      def dumpdep = puts "PROP #{uid}"
       def dump_parts = nil # nop
     end
 
