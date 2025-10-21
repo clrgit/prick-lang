@@ -145,6 +145,7 @@ module Prick::Lang
     # True if it is not known if the resource is present or absent
     def unknown?(uid) = entry(uid).nil?
 
+    # Mark all unknown nodes as absent
     def mark_unknown_absent = unknown.each { |key| @resources[key] = false }
 
     #
@@ -198,7 +199,11 @@ module Prick::Lang
 
     def dump_deps
       idr.trees(Idr::Command).sort_by(&:serial).each { |node|
-        printf "%3s -> %3s ", node.serial, node.dep&.serial.inspect
+        if node.is_a? Idr::RequireCommand
+          printf "%3s -> %s ", node.serial, node.deps.map(&:serial).inspect
+        else
+          printf "%3s -> %3s ", node.serial, node.dep&.serial.inspect
+        end
         node.dumpline
       }
 

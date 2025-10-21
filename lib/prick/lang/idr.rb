@@ -21,9 +21,10 @@ module Prick::Lang
       # node in the block
       def dep = prev
 
-#     # List of nodes that must preceed this node in the build sequence.
-#     # Initially the empty list, assigned later by the analyzer
-#     attr_reader :dependencies # [Node]
+      # List of nodes that must preceed this node in the build sequence.
+      # Usually equal to [dep] but require statements adds the required
+      # resources
+      def deps = [dep]
 
       # Used in debug. May be removed
       attr_reader :serial
@@ -68,6 +69,7 @@ module Prick::Lang
     class RequireCommand < Command
       attr_accessor :uid # UID of required node
       attr_accessor :node # Required node
+      def deps = [dep, node]
       def initialize(parent, ast, uid = nil)
         constrain parent, Idr::Resource
         constrain ast, Ast::Reference
