@@ -89,23 +89,17 @@ module Prick::Lang
 
     # Hash of variables
     attr_reader :variables # Symbol => String
-
     forward_to :@variables, :[], :[]=, :key?
 
     #
     # Resources
     #
+    # A resource is a phase, function, schema, or program Idr object or a
+    # provide statement
 
     # Map from uid to Idr resource object, false if marked absent,
     # and nil if unknown
     attr_reader :resources # UID String => Idr::Node/false/nil
-
-    # Unresolved nodes
-    attr_accessor :unresolved # [Unresolved]
-
-    # Resource associated with the given uid. Returns a Idr::Node object, true,
-    # or nil
-    def resource(uid) = @resources[uid]
 
     # Add an unknown resource if not present. Return the uid
     def ensure(value)
@@ -117,9 +111,9 @@ module Prick::Lang
 
     # Add a present resource. It is an error if the resource is absent but not
     # if it is unknown
-    def add(resource)
-      constrain resource, Idr::Resource, Idr::ProvideCommand
-      uid = resource.uid
+    def add(resource, uid = nil)
+      constrain resource, Idr::Resource, Idr::ProvideCommand # FIXME Any Idr node is ok
+      uid ||= resource.uid
       if !@resources[uid].nil?
         if @resources[uid]
           error resource.token, "Redefinition of '#{uid}'"
@@ -129,6 +123,9 @@ module Prick::Lang
       end
       @resources[uid] = resource
     end
+
+    # Unresolved nodes
+    attr_accessor :unresolved # [Unresolved]
 
     # Lists of present, absent, known, or unknown resource UIDs
     def present = @resources.filter_map { _2 and _1 }
@@ -149,13 +146,6 @@ module Prick::Lang
     def unknown?(uid) = entry(uid).nil?
 
     def mark_unknown_absent = unknown.each { |key| @resources[key] = false }
-
-    #
-    # Requirements (FIXME Unused)
-    #
-
-    # Require commands. Used by the #analyzer to check references
-    attr_accessor :requires
 
     #
     # Contexts
@@ -208,13 +198,11 @@ module Prick::Lang
 
     def dump_deps
       idr.trees(Idr::Command).sort_by(&:serial).each { |node|
-#     idr.trees(Idr::Command).sort_by(&:serial).each { |node|
-#       printf "%3s -> %3s / %3s ", node.serial, (node.prev&.serial || node.this&.serial).inspect, node.dep&.serial.inspect
         printf "%3s -> %3s ", node.serial, node.dep&.serial.inspect
-#       printf "%3s -> %3s ", node.serial, node.prev&.serial.inspect
         node.dumpline
       }
 
+      puts
       present.each { |uid|
         r = resources[uid]
         puts "#{uid} -> #{r.this.serial}"

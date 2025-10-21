@@ -93,7 +93,7 @@ module Prick::Lang
     end
 
     class ProvideCommand
-      def dumpline = puts "PROP #{uid}"
+      def dumpline = puts "provide #{uid}"
       def dump = dumpline
       def dump_parts = nil # nop
     end

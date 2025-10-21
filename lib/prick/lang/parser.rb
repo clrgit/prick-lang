@@ -57,7 +57,6 @@ module Prick::Lang
     end
 
     def parse(file, lines)
-      trace
       @file = file
       push_tokenizer Tokenizer.new(file, lines)
       @ast = parse_program
@@ -76,14 +75,12 @@ module Prick::Lang
     def pop_tokenizer() = @tokenizers.tap { @tokenizer = _1[-2] }.pop
 
     def parse_program
-      trace
       @ast = Ast::Program.new(file)
       @ast.block = parse_block(check: false)
       @ast
     end
 
     def parse_stmt
-      trace
       case peek&.kind
         when :SCHEMA; parse_decl(Ast::Schema, read)
         when :FUNCTION; parse_decl(Ast::Function, read)
@@ -104,7 +101,6 @@ module Prick::Lang
     end
 
     def parse_stmts(check: true)
-      trace
       stmts = []
       while stmt = parse_stmt
         stmts << stmt
@@ -116,7 +112,6 @@ module Prick::Lang
     # :check is true (the default)
     #
     def parse_block(token = nil, check: true)
-      trace token, check: check
       block = Ast::Block.new(token) # Note that token may be nil, it is assigned later if so
       block.stmts = parse_stmts
       if block.stmts.empty? && !check
@@ -130,9 +125,7 @@ module Prick::Lang
     # Schema, phase, or function declarations. Uses that they have the same
     # parts
     def parse_decl(klass, token)
-      trace klass, token
       decl = klass.new(token)
-#     decl = klass.new(read)
       decl.ident = parse_name
       token = readkind(:BRACE_BEGIN)
       decl.block = parse_block(token, check: false)
@@ -141,21 +134,18 @@ module Prick::Lang
     end
 
     def parse_provide
-      trace
       provide = Ast::Provide.new(read)
       provide.ident = parse_name
       provide
     end
 
     def parse_require
-      trace
       require_ = Ast::Require.new(read)
       require_.references = parse_references
       require_
     end
 
     def parse_command
-      trace peek: peek
       command = Ast::ExternalCommand.new(read)
       if peek.kind == :PIPE
         limit = @tokenizer.line.indentation
@@ -168,7 +158,6 @@ module Prick::Lang
     end
 
     def parse_file
-      trace
       if peek.extname == Token::PRICK_EXT
         parse_prick_file
       else
@@ -179,12 +168,10 @@ module Prick::Lang
     end
 
     def parse_dir
-      trace
       parse_prick_file File.join(peek_token.path, BUILD_FILENAME)
     end
 
     def parse_prick_file(path = nil)
-      trace
       read
       path ||= token.path
       File.readable?(path) or error token, "Can't read #{path}"
@@ -201,7 +188,6 @@ module Prick::Lang
     end
 
     def parse_call_command
-      trace
       call = Ast::CallCommand.new(read)
       call.references = parse_references
 #     readkinds(:REF, :IDENT).each { call.references << Ast::Reference.new(_1) }
@@ -209,7 +195,6 @@ module Prick::Lang
     end
 
     def parse_if
-      trace
       if_ = Ast::If.new(peek)
       loop do
         if_then = Ast::IfThen.new(read)
@@ -227,7 +212,6 @@ module Prick::Lang
     end
 
     def parse_case
-      trace
       case_ = Ast::Case.new(read)
       case_.expr = parse_expr
       while peek.kind == :WHEN
@@ -248,7 +232,6 @@ module Prick::Lang
     # Parse a comma-separated list of when-expr. A when-expr is an optional
     # operator followed by a value
     def parse_when_exprs
-      trace
       exprs = []
       while true
         token = peek.is_oper? ? read : peek
@@ -261,34 +244,12 @@ module Prick::Lang
     end
 
     def parse_ruby
-      trace
       not_implemented_error "#parse_ruby"
     end
 
-    # Parse a list of files. Return array of File objects. Raise an error if
-    # the array is empty and :check is true
     #
-#   def parse_file(check: true)
-#
-#     token = read
-#     if token.extname == Token::PRICK_EXT
-#       File.exist?(token.path) or error token, "Can't read #{token.path}"
-#       tokenizer = Tokenizer.new(token.path)
-#       push_tokenizer
-#       parse_
-#     else
-#       Ast::File.new(token)
-#     end
-#
-#     trace check: check
-#     check_expected "files" do
-#       r = []
-#       while (token = peek) && [:FILE, :DIR].include?(token.kind)
-#         r << Ast::File.new(read)
-#       end
-#       check && r.empty? ? nil : r # nil triggers enclosing #check_expected
-#     end
-#   end
+    # S I M P L E   E L E M E N T S
+    #
 
     def parse_ident?
       return nil if @tokenizer.eol?
@@ -298,43 +259,21 @@ module Prick::Lang
     def parse_ident = Ast::Ident.new(readpred(:is_ident?, eol: true))
 
     def parse_idents? = readwhile? { parse_ident? }
-    def parse_idents
-      trace
-      check_expected("identifier", eol: true) { readwhile { parse_ident? } }
-    end
+    def parse_idents = check_expected("identifier", eol: true) { readwhile { parse_ident? } }
 
     # Single-component reference used in declarations. It parsed as a Reference object
     # because we later want to compute the uid
-    def parse_name
-      trace
-      Token::IDENTS.include?(peek.kind) ? Ast::Reference.new(read) : nil
-    end
+    def parse_name = Token::IDENTS.include?(peek.kind) ? Ast::Reference.new(read) : nil
     def parse_name? = Ast::Reference.new(readpred :is_ident? )
 
-#   def parse_reference? = Token::REFS.include?(peek.kind) ? Ast::Reference.new(read) : nil
-    def parse_reference?()
-      trace
-      Token::REFS.include?(peek.kind) ? Ast::Reference.new(read) : nil
-    end
+    def parse_reference?() = Token::REFS.include?(peek.kind) ? Ast::Reference.new(read) : nil
+    def parse_reference() Ast::Reference.new(readpred :is_ref?) end
 
-#   def parse_reference = Ast::Reference.new(readpred :is_ref?)
-    def parse_reference() trace; Ast::Reference.new(readpred :is_ref?) end
-
-#   def parse_references? = readwhile? { parse_reference? }
-    def parse_references?
-      trace
-      readwhile? { parse_reference? }
-    end
-
-#   def parse_references = check_expected("reference") { readwhile { parse_reference? } }
-    def parse_references
-      trace
-      check_expected("reference") { readwhile { parse_reference? } }
-    end
+    def parse_references? = readwhile? { parse_reference? }
+    def parse_references = check_expected("reference") { readwhile { parse_reference? } }
 
     # Parse a space-separated list of values. Values are IDENT, REF, or a version match
     def parse_list?
-      trace
       case peek.kind
         when *Token::REFS
           Ast::Reference.new(read)
@@ -409,7 +348,6 @@ module Prick::Lang
     # If token is a (qualified) identfier and the next token is '?', a
     # Ast::Reference token is returned
     def parse_value # token should be equal to #peek
-      trace peek: peek(eol: true)
       token = read(eol: true)
       case token.kind
         when *Token::REFS; peek(eol: true).kind == :QUEST ? Ast::Reference.new(token) : Ast::Word.new(token)
@@ -436,7 +374,6 @@ module Prick::Lang
     # Parse an expression. It uses the shunter to compile the source into
     # reverse polish notation that is then converted into an Ast::Expr
     def parse_expr
-      trace peek: @tokenizer.peek(eol: true)
       stack = ExprStack.new # [Ast::Expr]
       shunt_exprs.each { |token|
         case token
@@ -491,7 +428,6 @@ module Prick::Lang
 
     # Returns a reversed Polish notation list of tokens
     def shunt_exprs
-      trace
       stack = [] # [Token]. Operator stack
       output = [] # [Token]
       paren_level = 0
@@ -594,7 +530,6 @@ module Prick::Lang
     end
 
     def check_expected(words, eol: false, &block)
-      trace words, eol: eol
       token = peek(eol: eol) and token.kind != :EOL and r = yield(token) or unexpected_token_error token, words
       r
     end

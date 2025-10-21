@@ -23,13 +23,13 @@ module Prick::Lang
 
   private
     def assign_default_phases
-      # Assign default phases
+      # Assign default phases and add them to the resource repository
       idr.nodes(Idr::Schema).each { |schema|
-        Token::PHASES.each { |kind|
-          ident = kind.downcase
-          if schema.get_phase(ident).nil?
+        Idr::Phase::PHASES.each { |kind, (attr, _)|
+          if schema.get_phase(attr).nil?
             phase = Idr::DefaultPhase.new(schema, kind)
-            schema.set_phase(ident, phase)
+            schema.set_phase(attr, phase)
+            compiler.add(phase)
           end
         }
       }
@@ -44,11 +44,11 @@ module Prick::Lang
       }
     end
 
+    # Link up require statements with the referenced resources
     def resolve_references
-      # Link up requirements
-      compiler.requires.each { |require_|
+      idr.nodes(Idr::RequireCommand).each { |require_|
         compiler.present?(require_.uid) or error require_, "Can't find resource '#{require_.uid}'"
-        require_.node = compiler.resource(require_.uid)
+        require_.node = compiler.resources[require_.uid]
       }
     end
 

@@ -16,7 +16,6 @@ module Prick::Lang
     end
 
     def convert(compiler: true)
-      trace
       @idr = convert_program(ast)
       convert_unresolved
       @idr
@@ -28,10 +27,10 @@ module Prick::Lang
     attr_reader :evaluator
 
     def convert_program(ast)
-      trace
       constrain ast, Ast::Program
       program = Idr::Program.new(ast)
       compiler.scope(program) { convert_stmts(ast.block) }
+      compiler.add(program, '<main>')
       program
     end
 
@@ -41,10 +40,7 @@ module Prick::Lang
           error ast, "#{ast.classname} can't be nested within a #{compiler.context.classname}"
     end
 
-    # Note: Sets compiler.schema while processing contained nodes and resets it to nil
-    # afterwards
     def convert_schema(ast)
-      trace
       constrain compiler.context, Idr::Program, Idr::Unresolved
       constrain ast, Ast::Schema
       check_context ast, Idr::Program
@@ -56,7 +52,6 @@ module Prick::Lang
     end
 
     def convert_phase(ast)
-      trace
       constrain ast, Ast::Phase
       check_context ast, Idr::Program, Idr::Schema
       phase = Idr::Phase.new(compiler.context, ast)
@@ -67,17 +62,15 @@ module Prick::Lang
     end
 
     def convert_require(ast)
-      trace
       constrain ast, Ast::Require
       check_context ast, Idr::Program, Idr::Schema, Idr::Phase
       compiler.block.concat \
           ast.references.map { |ref|
-            Idr::RequireCommand.new(compiler.context, ref, ref.value).tap { compiler.requires << _1 }
+            Idr::RequireCommand.new(compiler.context, ref, ref.value)
           }
     end
 
     def convert_command(ast)
-      trace
       constrain ast, Ast::FileCommand, Ast::ExternalCommand, Ast::CallCommand
       compiler.block.concat \
           case ast
@@ -88,7 +81,6 @@ module Prick::Lang
     end
 
     def convert_provide(ast)
-      trace
       constrain ast, Ast::Provide
       check_context ast, Idr::Program, Idr::Schema, Idr::Phase
       provide = Idr::ProvideCommand.new(compiler.context, ast, compiler.uid(ast.ident.value))
@@ -97,7 +89,6 @@ module Prick::Lang
     end
 
     def convert_control(ast)
-      trace
       constrain ast, Ast::Control
       case ast
         when Ast::If; convert_if(ast)
@@ -106,7 +97,6 @@ module Prick::Lang
     end
 
     def convert_if(ast)
-      trace
       constrain ast, Ast::If
       for if_then in ast.if_thens
         case evaluator.eval(if_then.expr)
@@ -127,13 +117,11 @@ module Prick::Lang
     end
 
     def convert_case
-      trace
       raise
       []
     end
 
     def convert_stmts(ast)
-      trace
       constrain compiler.context, Idr::Resource
       constrain ast, Ast::Block
       ast.stmts.each { |stmt|
@@ -160,7 +148,6 @@ module Prick::Lang
     # are marked absent and the process start again
     #
     def convert_unresolved
-      trace
       return if compiler.unresolved.empty?
 
       # Save unresolved nodes that are to be flattened later. New nodes are not

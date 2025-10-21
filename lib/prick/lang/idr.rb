@@ -9,16 +9,16 @@ module Prick::Lang
       attr_reader :ast # Ast::Node
       forward_to :ast, :token
 
-      # Previous node or nil
+      # Previous node in block or nil
       attr_accessor :prev
 
       # Node to build. This is usually equal to self but resources redefine it
-      # to be the last node in the block
+      # to be the last node in its block
       def this = self
 
       # The node to refer to if an object depends on this node. This is usually
-      # equal to self but resources have dep equal to the last node in the
-      # block
+      # equal to the previous node but resources have dep equal to the last
+      # node in the block
       def dep = prev
 
 #     # List of nodes that must preceed this node in the build sequence.
@@ -126,10 +126,13 @@ module Prick::Lang
     end
 
     class Phase < Resource
-      ATTRS = Token::PHASES.map(&:downcase)
+      KINDS = Token::PHASES
+      ATTRS = KINDS.map(&:downcase)
+      PHASES = KINDS.map { |kind| [kind, [kind.downcase, :"#{kind.downcase}="]] }.to_h
+
       def kind = ast.kind # Symbol
       def read_attr = kind.downcase # Reader method in parent object
-      def write_attr = :"#{read_attr}=" # Writer method in parent object
+      def write_attr = :"#{kind.downcase}=" # Writer method in parent object
     end
 
     class DefaultPhase < Phase
