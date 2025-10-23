@@ -195,6 +195,7 @@ module Prick::Lang
     REF_PATTERN = /#{IDENT_PATTERN}?\.#{IDENT_PATTERN}/
     VAR_PATTERN = /\$#{IDENT_PATTERN}/
     VER_PATTERN = /\d+(?:\.(\d+)(?:\.(\d+))?)?/
+    TARGET_PATTERN = /#{IDENT_PATTERN}(?:\.#{IDENT_PATTERN})?/ # Only used on command line arguments
 
     # *_RE regular expressions generate captures
     KEYWORD_RE = /(?<keyword>#{KEYWORD_PATTERN})/

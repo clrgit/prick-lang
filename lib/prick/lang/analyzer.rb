@@ -43,8 +43,8 @@ module Prick::Lang
     end
 
   private
+    # Assign default phases and add them to the resource repository
     def assign_default_phases
-      # Assign default phases and add them to the resource repository
       idr.nodes(Idr::Schema).each { |schema|
         Idr::Phase::PHASES.each { |kind, (attr, _)|
           if schema.get_phase(attr).nil?
@@ -56,15 +56,15 @@ module Prick::Lang
       }
     end
 
+    # Add a Nop node to empty blocks
     def assign_nop_nodes
-      # Add a Nop node to empty blocks
       idr.nodes(Idr::Resource).each { |resource|
-#       if resource.block.empty?
-          resource.block << Idr::ResourceCommand.new(resource)
-#       end
+        resource.block << Idr::ResourceCommand.new(resource)
       }
     end
 
+    # Add schema to all commands. This is used to control the postgres
+    # search_path when executing the script
     def assign_command_schema
       idr.nodes(Idr::Schema).each { |schema|
         schema.trees(Idr::Command) { |command| command.schema = schema }
@@ -91,48 +91,29 @@ module Prick::Lang
       }
     end
 
+    # Link phases
     def link_phases
+      # Link up schemas (and program) internally
       idr.nodes(Idr::Schema).each { |schema|
-        schema.init.prev = schema.head.this # TODO: No! schema.head is special-handled
+        schema.init.prev = schema.head.this
         schema.block.first.prev = schema.init.this
         schema.seed.prev = schema.block.last.this
         schema.term.prev = schema.seed.this
         schema.auth.prev = schema.term.this
+
+        # Dependency on program#init
+        #
+        # FIXME: This will add dependencies to full schemas even if only a part
+        # of it is required
+        if !schema.is_a? Idr::Program
+          schema.head.prev = idr.init.this
+          idr.block.first.deps << schema.block.last.this
+          idr.seed.deps << schema.seed.this
+          idr.term.deps << schema.term.this
+          idr.auth.deps << schema.auth.this
+        end
       }
     end
   end
 end
-
-# schema
-#   init
-#     init.sql
-#   self
-#     self.sql
-#   seed
-#     seed.sql
-#   term
-#     term.sql
-#
-# schema.prev -> term
-# term.prev -> seed
-# seed.prev -> self
-# self.prev -> init
-# init.prev -> decl
-# decl.prev -> nil
-#
-# term.sql -> seed.sql
-#
-
-
-
-
-
-
-
-
-
-
-
-
-
 

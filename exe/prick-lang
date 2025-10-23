@@ -7,7 +7,7 @@ require 'shellopts'
 SPEC = %(
   @ Compile a prick file
 
-  -- CMD [UID] [VAR=VAL...]
+  -- CMD [TARGET...] [VAR=VAL...]
 
 
   BUILD
@@ -20,6 +20,9 @@ SPEC = %(
   -f,file=FILE|DIR
     Prick source file. The default is the 'make.prick' file in the project main
     directory
+
+  +x,exclude=SCHEMA,
+    Comma-separated list of excluded schemas
 
   -X,exception
     Throw exceptions instead of using ShellOpts error message. Useful to
@@ -172,38 +175,48 @@ file = opts.file || 'make.prick'
 USE_EXCEPTION = opts.exception?
 Trace.enable if opts.trace?
 ShellOpts.exception = USE_EXCEPTION
+exclude = opts.exclude
 
 # Extract command
 cmd = args.extract(1)
 %w(build make run).include?(cmd) or ShellOpts::error "Illegal command: #{cmd}"
+# TODO: Use cmd
 
-# Extract uid
-uid = args.first&.index('=').nil? && args.shift || '<main>'
+# Extract targets
+targets = []
+while arg = args.first
+  break if arg !~ /^#{Prick::Lang::Token::TARGET_PATTERN}$/
+  targets << args.shift
+end
+
+targets = [Prick::Lang::Compiler::DEFAULT_TARGET] if targets.empty?
+
+# FIXME
+BUILTIN_VARIABLES = { cmd: "build", env: "prod", ver: Semver.new("1.2.3"), user: "me" }
 
 # Extract variable assignments
-VARIABLES = {}
+variables = BUILTIN_VARIABLES.dup
 if arg = args.shift
   case arg
     when /^(\w+)=(\S*)$/
-      VARIABLES[$1.to_sym] = $2
+      variables[$1.to_sym] = $2
     else
       ShellOpts::error "Illegal argument '#{arg}'"
   end
 end
 
-# Handle dump option
+# Handle dump option. 'ast' is the default
 if opts.dump?
   kind = opts.dump || "ast"
-  Prick::Lang::DUMP_KINDS.include?(kind) or
-      ShellOpts::error "Illegal value for --dump '#{kind}'"
-  Prick::Lang.dump(file, kind, uid, variables: VARIABLES)
+  Prick::Lang::DUMP_KINDS.include?(kind) or ShellOpts::error "Illegal value for --dump '#{kind}'"
+  Prick::Lang.dump(kind, file, nil, targets, exclude, variables)
   exit
 end
 
 # Compile
-compiler = Prick::Lang::Compiler.new(file)
+compiler = Prick::Lang::Compiler.new(file, targets, exclude: exclude, variables: variables)
 begin
-  compiler.compile(variables: VARIABLES)
+  compiler.compile
 rescue => ex
   raise Prick::Lang::ErrorFunctions.pretty_backtrace!(ex)
 end

@@ -111,6 +111,13 @@ schema another_schema {
   require my_schema.r
   after_require.sql
   provide has_another_schema
+  seed {
+    another_schema_seed.sql
+  }
+}
+
+seed {
+  global-seed.sql
 }
 
 require my_schema

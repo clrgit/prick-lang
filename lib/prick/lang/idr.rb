@@ -2,6 +2,9 @@
 
 module Prick::Lang
   module Idr
+
+    # Idr nodes are either Command objects or Resource objects
+    #
     class Node
       include Tree
       include ClassFunctions
@@ -25,6 +28,11 @@ module Prick::Lang
       # Usually equal to [dep] but require statements adds the required
       # resources
       def deps = [dep].compact
+
+      # True if the node should be excluded from the build. Used in 'prick
+      # make' to only build dirty schemas. Initially true but the generator
+      # updates it
+      attr_accessor :exclude
 
       # Used in debug. May be removed
       attr_reader :serial
@@ -140,6 +148,10 @@ module Prick::Lang
       KINDS = Token::PHASES
       ATTRS = KINDS.map(&:downcase)
       PHASES = KINDS.map { |kind| [kind, [kind.downcase, :"#{kind.downcase}="]] }.to_h
+
+      # Program phases depends on both its previous phase and the enclosed
+      # schemas' phases
+      def deps() @deps ||= super end
 
       def kind = ast.kind # Symbol
       def read_attr = kind.downcase # Reader method in parent object

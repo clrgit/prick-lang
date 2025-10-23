@@ -8,9 +8,6 @@ module Prick::Lang
 
     def compiler = Compiler.instance
 
-    # FIXME
-    def runtime = { CMD: "build", ENV: "prod", USER: "me" }
-
     attr_reader :unresolved # Ast::Reference. First unresolved reference
 
     # Evaluate expr and return true/false. Return nil if the expression

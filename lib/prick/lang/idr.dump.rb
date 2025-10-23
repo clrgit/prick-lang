@@ -14,6 +14,8 @@ module Prick::Lang
 
       def dumpdep = dumpline
 
+      def dumpunit = puts "#{self.token.kind} #{self.token&.text}"
+
       def dump_parts
         for part in self.class::PARTS
           value = self.send(part)
@@ -63,22 +65,33 @@ module Prick::Lang
 
     # Artificial node that creates a schema
     class SchemaCommand
-      def dumpline = puts "sql create schema #{schema.uid}"
+      def dumpunit = puts "SQL create schema #{schema.uid}"
+      def dumpline = puts "SQL create schema #{schema.uid}"
     end
 
     class FileCommand
 #     def dumpline = puts "file #{path} (#{self.schema.uid})"
-      def dumpline = puts "file #{path}"
+      def dumpline = puts "FILE #{path}"
     end
 
     class ExternalCommand
-      def dumpline = puts "#{ast.kind.downcase} #{source.sub(/\..*/m, "")}"
+      def dumpunit
+        command = ast.kind
+        if ast.multiline?
+          puts command; indent { puts source }
+        else
+          puts "#{command} #{source}"
+        end
+      end
+
+      def dumpline = puts "#{ast.kind} #{source.sub(/\..*/m, "")}"
+
       def dump
         command = ast.kind.downcase
         if ast.multiline?
           puts command; indent { puts source }
         else
-          puts "#{command}: #{source}"
+          puts "#{command} #{source}"
         end
       end
     end

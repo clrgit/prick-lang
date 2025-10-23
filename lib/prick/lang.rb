@@ -30,6 +30,7 @@ require_relative './lang/ast.rb'
 require_relative './lang/ast.dump.rb'
 require_relative './lang/idr.rb'
 require_relative './lang/idr.dump.rb'
+require_relative './lang/unit.rb'
 
 module Prick::Lang
   class Error < StandardError; end
@@ -44,11 +45,8 @@ module Prick::Lang
 
   DUMP_KINDS = %w(tokens ast idr deps state units)
 
-  # FIXME
-  BUILTIN_VARIABLES = { cmd: "build", env: "prod", ver: Semver.new("1.2.3"), user: "me" }
-
-  def self.dump(file, lines = nil, kind, uid, variables)
-    compiler = Compiler.new(variables: BUILTIN_VARIABLES)
+  def self.dump(kind, file, lines = nil, targets, exclude, variables)
+    compiler = Compiler.new(file, targets, exclude: exclude, variables: variables)
     case kind
       when "tokens"
         tokens = []
@@ -71,7 +69,7 @@ module Prick::Lang
           when "deps"; compiler.analyzer.dump
           when "state"; compiler.dump
           when "units"
-            compiler.generate([uid])
+            compiler.generate
             compiler.generator.dump
         end
 
