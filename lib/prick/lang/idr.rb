@@ -56,7 +56,8 @@ module Prick::Lang
     #
 
     class Command < Node
-      attr_accessor :schema # Used in set search_path before each file is executed. Assigned by the #analyzer
+      # Used to set search_path. Assigned by the #analyzer
+      attr_accessor :schema
     end
 
     # Artificial node that creates a schema
@@ -79,12 +80,12 @@ module Prick::Lang
       def initialize(parent, ast = nil) = super(parent, nil)
     end
 
-    # Fake command that gets appended to the blocks of all resources. The
-    # executor uses it to tell when a schema is fully built and doesn't need to
-    # be rebuilt when using 'prick make'. It includes phases but we then need a
-    # 'self' phase to make that useful. It also includes functions which is
-    # doubtful
-    class ResourceCommand < NopCommand
+    # Fake command that gets appended to the blocks of all resources. It serves
+    # as an anchor when chaining and the executor also uses it to tell when a
+    # schema is fully built and doesn't need rebuilding when using 'prick
+    # make'. It includes phases but we then need a 'self' phase to make that
+    # useful (FIXME What?). It also includes functions which is doubtful
+    class MarkCommand < NopCommand
     end
 
     class RequireCommand < NopCommand

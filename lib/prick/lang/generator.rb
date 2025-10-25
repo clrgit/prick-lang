@@ -35,12 +35,13 @@ module Prick::Lang
       @units
     end
 
-
     def build_units(nodes)
       nodes.each { |node|
         case node
           when Idr::SchemaCommand
             @schemas << Unit::Command.new(node)
+          when Idr::MarkCommand
+            @units << Unit::Mark.new(node)
           when Idr::NopCommand
             ;
           when Idr::Command
@@ -50,25 +51,6 @@ module Prick::Lang
         else
           raise
         end
-      }
-    end
-
-#   def build_units
-#     @units = idr.map { |node|
-#       case node
-#         when Idr::Command
-#           Unit::Command.new(node)
-#         when Idr::Resource
-#           Unit::Resource.new(node)
-#       end
-#     }
-#   end
-
-
-
-    def add_namespace(nodes)
-      current_schema = nil
-      nodes.flat_map { |node|
       }
     end
 

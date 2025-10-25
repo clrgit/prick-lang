@@ -24,11 +24,21 @@ module Prick::Lang
 
     class Command < Node
       def is_schema_command? = node.is_a?(Idr::SchemaCommand)
+      def dumpunit
+        case node
+          when Idr::MarkCommand; node.dumpline
+          else super
+        end
+      end
+    end
+
+    class Mark < Node
+      def dumpunit = node.dumpline
     end
 
     # Resource nodes are created but later removed because they only serves as
     # anchors
-    class Resource < Node
-    end
+#   class Resource < Node
+#   end
   end
 end

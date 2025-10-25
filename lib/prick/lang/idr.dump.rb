@@ -109,14 +109,15 @@ module Prick::Lang
       def dumpline = puts "NOP #{parent.uid || parent.class}"
     end
 
-    class ResourceCommand
-      def dumpdep
+    class MarkCommand
+      def dumpline
         if parent.is_a?(Idr::Schema)
-          puts "RES #{parent.uid || "public"}.self"
+          puts "MARK #{parent.uid || "public"}.self"
         else
-          puts "RES #{parent.uid || parent.class}"
+          puts "MARK #{parent.uid || parent.class}"
         end
       end
+      def dumpdep = dumpline
     end
 
     class ProvideCommand

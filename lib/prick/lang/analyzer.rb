@@ -56,10 +56,10 @@ module Prick::Lang
       }
     end
 
-    # Add a Nop node to empty blocks
+    # Add a Nop node to empty blocks #. Schemas gets a SchemaEnd nop
     def assign_nop_nodes
       idr.nodes(Idr::Resource).each { |resource|
-        resource.block << Idr::ResourceCommand.new(resource)
+        resource.block << Idr::MarkCommand.new(resource)
       }
     end
 
