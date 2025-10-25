@@ -16,14 +16,15 @@ module Prick::Lang
     end
 
     def generate
-      # Exclude nodes (schemas) from the command line
-      transitive_closure(exclude).each { |node| node.exclude = true }
-
-      # Exclude completed_resources
-      transitive_closure(completed_resources).each { |node| node.exclude = true }
+#     # Exclude nodes (schemas) from the command line
+#     transitive_closure(exclude).each { |node| node.exclude = true }
+#
+#     # Exclude completed_resources
+#     transitive_closure(completed_resources).each { |node| node.exclude = true }
 
       # Find reachable nodes
-      reachable_nodes = transitive_closure(targets).reject(&:exclude)
+#     reachable_nodes = transitive_closure(targets).reject(&:exclude)
+      reachable_nodes = transitive_closure(targets).select(&:include)
 
       # Build graph
       @graph = reachable_nodes.map { |unit| [unit, unit.deps] }.to_h

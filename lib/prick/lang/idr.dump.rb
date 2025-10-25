@@ -112,7 +112,7 @@ module Prick::Lang
     class MarkCommand
       def dumpline
         if parent.is_a?(Idr::Schema)
-          puts "MARK #{parent.uid || "public"}.self"
+          puts "MARK #{parent.uid || "public"}"
         else
           puts "MARK #{parent.uid || parent.class}"
         end

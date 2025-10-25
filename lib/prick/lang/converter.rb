@@ -30,7 +30,7 @@ module Prick::Lang
       constrain ast, Ast::Program
       program = Idr::Program.new(ast)
       compiler.scope(program) { convert_stmts(ast.block) }
-      compiler.add(program, '<main>')
+      compiler.add(program, Compiler::DEFAULT_TARGET)
       program
     end
 

@@ -30,9 +30,12 @@ module Prick::Lang
       def deps = [dep].compact
 
       # True if the node should be excluded from the build. Used in 'prick
-      # make' to only build dirty schemas. Initially true but the generator
+      # make' to only build dirty schemas. Initially false but the generator
       # updates it
       attr_accessor :exclude
+
+      # True if the node should be included in the build. Initially false
+      attr_accessor :include
 
       # Used in debug. May be removed
       attr_reader :serial
@@ -43,7 +46,54 @@ module Prick::Lang
         Tree.initialize(self, parent)
         @ast = ast
         @serial = (@@SERIAL += 1)
+        @exclude = false
+        @include = false
       end
+
+      # Return the transitive closure using #deps. Only nodes with #exclude
+      # equal to false are considered
+      def transitive_deps = Idr.transitive_closure([self])
+
+      # Return the transitive closure of the given nodes using #deps. Only
+      # nodes with #exclude equal to false are considered
+      def Idr.transitive_closure(nodes)
+        stack = nodes.dup
+        seen = Set.new
+        while node = stack.pop
+          seen << node
+          stack.concat node.deps if !node.exclude
+        end
+        seen.to_a
+      end
+
+      def exclude!() @exclude = true end
+
+      def Idr.exclude!(nodes)
+        stack = nodes.dup
+        seen = Set.new
+        while node = stack.pop
+          next if seen.include?(node)
+          seen << node
+          stack.concat node.deps if !node.exclude
+          node.exclude = true
+        end
+        seen.to_a
+      end
+
+      def include!() @include = true end
+
+      def Idr.include!(nodes)
+        stack = nodes.dup
+        seen = Set.new
+        while node = stack.pop
+          next if seen.include?(node) || node.exclude
+          seen << node
+          stack.concat node.deps
+          node.include = true
+        end
+        seen.to_a
+      end
+
 
       def inspect = "<#{self.class}>"
 
@@ -183,6 +233,8 @@ module Prick::Lang
       def prev=(node) head.prev = node end
       def this = term.this
       def dep = this
+
+      def exclude = head.exclude
 
       def get_phase(ident) = self.send(ident)
       def set_phase(ident, value) = self.send(:"#{ident}=", value)

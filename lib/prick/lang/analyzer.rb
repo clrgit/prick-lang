@@ -6,6 +6,18 @@ module Prick::Lang
 
     def compiler = Compiler.instance
     def idr = compiler.idr
+    def program = compiler.idr
+    def targets
+      @targets ||=
+        if compiler.targets.include? Compiler::DEFAULT_TARGET
+          program.schemas.reject(&:exclude)
+        else
+          compiler.targets.map { compiler.resources[_1] }
+        end
+    end
+
+    attr_reader :reachable_nodes
+    attr_reader :reachable_schemas
 
     def initialize
     end
@@ -17,6 +29,8 @@ module Prick::Lang
       resolve_references
       link_block_nodes
       link_phases
+      select_nodes
+      link_program
       idr
     end
 
@@ -90,27 +104,39 @@ module Prick::Lang
       }
     end
 
-    # Link phases
+    # Link up schemas (and program) internally
     def link_phases
-      # Link up schemas (and program) internally
-      idr.nodes(Idr::Schema).each { |schema|
+      ([program] + program.schemas).each { |schema|
+        schema.head.prev = idr.init.this if schema != program
         schema.init.prev = schema.head.this
         schema.block.first.prev = schema.init.this
         schema.seed.prev = schema.block.last.this
         schema.term.prev = schema.seed.this
         schema.auth.prev = schema.term.this
+      }
+    end
 
-        # Dependency on program#init
-        #
-        # FIXME: This will add dependencies to full schemas even if only a part
-        # of it is required
-        if !schema.is_a? Idr::Program
-          schema.head.prev = idr.init.this
-          idr.block.first.deps << schema.block.last.this
-          idr.seed.deps << schema.seed.this
-          idr.term.deps << schema.term.this
-          idr.auth.deps << schema.auth.this
-        end
+    # Mark excluded/included nodes
+    def select_nodes
+      # Exclude nodes (schemas) from the command line
+      Idr.exclude! compiler.exclude.map { compiler.resources[_1] }
+
+      # Exclude completed_resources
+#     Idr.transitive_closure(completed_resources).each { |node| node.exclude = true }
+
+      # Find reachable nodes and schemas
+      @reachable_nodes = Idr.include! targets
+      @reachable_schemas = @reachable_nodes.select { _1.is_a?(Idr::Schema) && !_1.is_a?(Idr::Program) }
+    end
+
+    # Link included schemas with program
+    def link_program
+      @reachable_schemas.each { |schema|
+        next if schema == program
+        program.block.first.deps << schema.block.last.this
+        program.seed.deps << schema.seed.this
+        program.term.deps << schema.term.this
+        program.auth.deps << schema.auth.this
       }
     end
   end
