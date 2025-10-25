@@ -5,12 +5,15 @@ module Prick::Lang
 
     DEFAULT_TARGET = "<main>"
 
-    # Source
+    # File or completed resources. Used by 'prick make'
+    COMPLETED_RESOURCES_FILE = ".prick-resources"
+
+    # Source and environment
     attr_reader :dir # Current user directory when the compiler was invoked
     attr_reader :file # Start file. Only used in error messages. May be nil, initialized by #parse if so
-    attr_reader :targets # [String] # Target UIDs
-    attr_reader :exclude # [String] # Excluded UIDs
-    attr_reader :variables # {Var=>Val} # Command-line and built-in variables
+    attr_reader :targets # [String] - Target UIDs
+    attr_reader :exclude # [String] - Excluded UIDs
+    attr_reader :variables # {Var=>Val} - Command-line and built-in variables
 
     # Processors
     attr_reader :parser
@@ -23,7 +26,11 @@ module Prick::Lang
     def idr = @converter.idr # Idr::Program. Initialized by #convert and updated by #analyze
     def units = @generator.units # [Unit::Node]. Initialized by #generate
 
-    def initialize(file, targets = [DEFAULT_TARGET], exclude: [], variables: {})
+    # Meta data
+    attr_reader :completed_resources # [uid] - Completed resource
+    attr_reader :completed_resources_file # String - Completed resource file
+
+    def initialize(file, targets = [DEFAULT_TARGET], resource_file: nil, exclude: [], variables: {})
       constrain file, String
       constrain targets, [String]
       constrain exclude, [String]
@@ -36,6 +43,9 @@ module Prick::Lang
       @targets = targets
       @exclude = exclude
       @variables = variables
+      @completed_resources_file = completed_resources_file || COMPLETED_RESOURCES_FILE
+#     @completed_resources = load_completed_resources
+      @completed_resources = []
       @parser = Parser.new
       @converter = Converter.new
       @analyzer = Analyzer.new
@@ -44,9 +54,13 @@ module Prick::Lang
       @unresolved = []
       @requires = []
       @contexts = []
-
-      # TODO: Somehow mark excluded as present
     end
+
+    # Load and store completed resources
+    def load_completed_resources
+      File.exist?(completed_resources_file) ? IO.readlines(completed_resources_file).map(&:chomp) : []
+    end
+    def save_compleated_resources(resources) = File.open(completed_resources_file, "w") { _1.puts resources }
 
     # Singleton instance
     def self.instance = @@INSTANCE
@@ -213,7 +227,7 @@ module Prick::Lang
       puts "Compiler"
       indent {
         puts "variables"; indent { puts variables.map { |k,v| "#{k}: #{v}" } }
-        puts "resources:"
+        puts "resource:"
         indent {
           puts "present:"; indent { puts present.map { "#{_1} (#{resource(_1).classname})" } }
           puts "absent:"; indent { puts absent }

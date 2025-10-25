@@ -38,12 +38,16 @@ module Prick::Lang
   class TokenizerError < Error; end
   class EofError < Error; end # Not an error but used as a signal
 
+  # Supported dump kinds
+  DUMP_KINDS = %w(tokens ast idr deps state units)
+
+  # Used to dump tokens as they are processed. The problem is that the kind of
+  # a token depends on the context so we need to run the parser to get the
+  # right interpretation
   def self.install_token_listener(tokens)
     Token.alias_method(:orig_initialize, :initialize)
     Token.define_method(:initialize) { |*args| orig_initialize(*args); tokens << self; }
   end
-
-  DUMP_KINDS = %w(tokens ast idr deps state units)
 
   def self.dump(kind, file, lines = nil, targets, exclude, variables)
     compiler = Compiler.new(file, targets, exclude: exclude, variables: variables)
@@ -87,3 +91,5 @@ require_relative './lang/converter.rb'
 require_relative './lang/analyzer.rb'
 require_relative './lang/generator.rb'
 require_relative './lang/compiler.rb'
+
+

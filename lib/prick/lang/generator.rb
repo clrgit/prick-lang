@@ -4,11 +4,10 @@ module Prick::Lang
     include ErrorFunctions
 
     def compiler = Compiler.instance
-    def targets = compiler.targets
-    def exclude = compiler.exclude
+    forward_to :compiler, :targets, :exclude, :completed_resources
 
-    attr_reader :graph
-    attr_reader :units
+    attr_reader :graph # {Node=>[Node]} Hash from node to list of dependencies
+    attr_reader :units # [Unit]
     attr_reader :schemas # Involved schemas that should be (re)created
 
     def initialize
@@ -19,6 +18,9 @@ module Prick::Lang
     def generate
       # Exclude nodes (schemas) from the command line
       transitive_closure(exclude).each { |node| node.exclude = true }
+
+      # Exclude completed_resources
+      transitive_closure(completed_resources).each { |node| node.exclude = true }
 
       # Find reachable nodes
       reachable_nodes = transitive_closure(targets).reject(&:exclude)
@@ -34,6 +36,8 @@ module Prick::Lang
 
       @units
     end
+
+    def exclude_nodes(nodes) = transitive_closure(nodes).each { _1.exclude = true }
 
     def build_units(nodes)
       nodes.each { |node|

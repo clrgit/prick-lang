@@ -3,7 +3,8 @@
 module Prick::Lang
   module Idr
 
-    # Idr nodes are either Command objects or Resource objects
+    # Idr nodes are either Command objects, Resource objects, or transient
+    # Unresolved objects
     #
     class Node
       include Tree
@@ -24,9 +25,8 @@ module Prick::Lang
       # node in the block
       def dep = prev
 
-      # List of nodes that must preceed this node in the build sequence.
-      # Usually equal to [dep] but require statements adds the required
-      # resources
+      # List of nodes that this node depends on.  Usually equal to [dep] but
+      # require statements adds the required resources
       def deps = [dep].compact
 
       # True if the node should be excluded from the build. Used in 'prick
@@ -76,15 +76,18 @@ module Prick::Lang
     class CallCommand < Command
     end
 
+    # No OPeration command. They have no function except to serve as anchors or
+    # to add dependencies
     class NopCommand < Command
       def initialize(parent, ast = nil) = super(parent, nil)
     end
 
-    # Fake command that gets appended to the blocks of all resources. It serves
-    # as an anchor when chaining and the executor also uses it to tell when a
-    # schema is fully built and doesn't need rebuilding when using 'prick
-    # make'. It includes phases but we then need a 'self' phase to make that
-    # useful (FIXME What?). It also includes functions which is doubtful
+    # Marks the end of the phase and is automatically added to blocks of all
+    # resources. It serves as an anchor when chaining and the executor uses it
+    # to tell when an object is fully built and doesn't need rebuilding when
+    # using 'prick make'. It includes phases but we then need a 'self' phase to
+    # make that useful (a 'self' phase is a new phase that includes the block
+    # of the resource). It also includes functions which is doubtful
     class MarkCommand < NopCommand
     end
 

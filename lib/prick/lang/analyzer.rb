@@ -71,7 +71,6 @@ module Prick::Lang
       }
     end
 
-
     # Link up require statements with the referenced resources
     def resolve_references
       idr.nodes(Idr::RequireCommand).each { |require_|

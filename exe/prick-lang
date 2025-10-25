@@ -5,17 +5,11 @@ require_relative '../lib/prick/lang.rb'
 require 'shellopts'
 
 SPEC = %(
-  @ Compile a prick file
+  @ Prick compiler
 
   -- CMD [TARGET...] [VAR=VAL...]
 
-
-  BUILD
-
-  MAKE
-
-  RUN
-
+  Compile a prick project
 
   -f,file=FILE|DIR
     Prick source file. The default is the 'make.prick' file in the project main
@@ -24,12 +18,16 @@ SPEC = %(
   +x,exclude=SCHEMA,
     Comma-separated list of excluded schemas
 
-  -X,exception
-    Throw exceptions instead of using ShellOpts error message. Useful to
-    pinpoint the source of an error when developing
+  --resource-file=FILE
+    Mark state file. The mark file contains a list of completed targets and is
+    used by 'prick make'. Default is #{Prick::Lang::Compiler::COMPLETED_RESOURCES_FILE}
 
   -D,dump=token|tokens|ast|idr|dep|state?
     Dump debug. Default is 'ast'
+
+  -X,exception
+    Throw exceptions instead of using ShellOpts error message. Useful to
+    pinpoint the source of an error when developing
 
   -T,trace
     Enable tracer. Used for debugging
@@ -176,6 +174,7 @@ USE_EXCEPTION = opts.exception?
 Trace.enable if opts.trace?
 ShellOpts.exception = USE_EXCEPTION
 exclude = opts.exclude
+resource_file = opts.resource_file
 
 # Extract command
 cmd = args.extract(1)
@@ -188,7 +187,6 @@ while arg = args.first
   break if arg !~ /^#{Prick::Lang::Token::TARGET_PATTERN}$/
   targets << args.shift
 end
-
 targets = [Prick::Lang::Compiler::DEFAULT_TARGET] if targets.empty?
 
 # FIXME
@@ -214,7 +212,8 @@ if opts.dump?
 end
 
 # Compile
-compiler = Prick::Lang::Compiler.new(file, targets, exclude: exclude, variables: variables)
+compiler = Prick::Lang::Compiler.new(
+    file, targets, completed_resources_file: resource_file, exclude: exclude, variables: variables)
 begin
   compiler.compile
 rescue => ex
