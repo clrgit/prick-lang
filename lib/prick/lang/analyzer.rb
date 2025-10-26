@@ -10,7 +10,7 @@ module Prick::Lang
     def targets
       @targets ||=
         if compiler.targets.include? Compiler::DEFAULT_TARGET
-          program.schemas.reject(&:exclude)
+          [program] #.schemas.reject(&:exclude)
         else
           compiler.targets.map { compiler.resources[_1] }
         end
@@ -104,7 +104,11 @@ module Prick::Lang
       }
     end
 
-    # Link up schemas (and program) internally
+    # Link up phases internally in schemas and programs. If '->' means "depends
+    # on" the following is the description of the relations:
+    #
+    #   auth -> term -> seed -> <block> -> init
+    #
     def link_phases
       ([program] + program.schemas).each { |schema|
         schema.head.prev = idr.init.this if schema != program
@@ -116,16 +120,32 @@ module Prick::Lang
       }
     end
 
+    # Link phases in schemas to program phases
+    def link_to_program_phases
+      program.schemas.each { |schema|
+#       schema.head.prev = idr.init.this if schema != program
+        schema.init.prev = schema.head.this
+        schema.block.first.prev = schema.init.this
+        schema.seed.prev = schema.block.last.this
+        schema.term.prev = schema.seed.this
+        schema.auth.prev = schema.term.this
+      }
+
+    end
+
     # Mark excluded/included nodes
     def select_nodes
       # Exclude nodes (schemas) from the command line
-      Idr.exclude! compiler.exclude.map { compiler.resources[_1] }
+      compiler.exclude.map { compiler.resources[_1] }.each(&:exclude!)
 
-      # Exclude completed_resources
+      # Include targets
+      targets.each(&:include!)
+
+      # Exclude completed_resources TODO
 #     Idr.transitive_closure(completed_resources).each { |node| node.exclude = true }
 
       # Find reachable nodes and schemas
-      @reachable_nodes = Idr.include! targets
+      @reachable_nodes = Idr.transitive_closure(targets, kind: :include)
       @reachable_schemas = @reachable_nodes.select { _1.is_a?(Idr::Schema) && !_1.is_a?(Idr::Program) }
     end
 

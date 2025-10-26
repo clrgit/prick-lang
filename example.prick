@@ -7,7 +7,7 @@
 
 # Including prick files
 include.prick
-example.d/
+example.d/ # File defaults to make.prick
 
 # IN expressions
 if $env ^ (prod, test)
@@ -112,7 +112,7 @@ schema another_schema {
   after_require.sql
   provide has_another_schema
   seed {
-    another_schema_seed.sql
+    another_schema_seed.fox
   }
 }
 
@@ -121,3 +121,4 @@ seed {
 }
 
 require my_schema
+require example

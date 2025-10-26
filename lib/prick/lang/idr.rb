@@ -29,13 +29,14 @@ module Prick::Lang
       # require statements adds the required resources
       def deps = [dep].compact
 
-      # True if the node should be excluded from the build. Used in 'prick
-      # make' to only build dirty schemas. Initially false but the generator
-      # updates it
-      attr_accessor :exclude
+      # True if the node should be excluded from the build. Initially false but
+      # #exclude! sets it to true. Excluded nodes are assumed to have already
+      # been built
+      attr_reader :exclude
 
-      # True if the node should be included in the build. Initially false
-      attr_accessor :include
+      # True if the node should be included in the build. Initially false but
+      # #include! sets it to true
+      attr_reader :include
 
       # Used in debug. May be removed
       attr_reader :serial
@@ -66,35 +67,39 @@ module Prick::Lang
         seen.to_a
       end
 
-      def exclude!() @exclude = true end
-
-      def Idr.exclude!(nodes)
+      def Idr.transitive_closure(nodes, kind: nil)
+        constrain kind, :include, :exclude, nil
         stack = nodes.dup
         seen = Set.new
         while node = stack.pop
-          next if seen.include?(node)
+          next if seen.include? node
           seen << node
-          stack.concat node.deps if !node.exclude
-          node.exclude = true
+          stack.concat node.deps if kind.nil? || node.send(kind)
         end
         seen.to_a
       end
 
-      def include!() @include = true end
-
-      def Idr.include!(nodes)
-        stack = nodes.dup
-        seen = Set.new
-        while node = stack.pop
-          next if seen.include?(node) || node.exclude
-          seen << node
-          stack.concat node.deps
-          node.include = true
-        end
-        seen.to_a
+      # Set #exclude to true for the transitive closure of the current node
+      def exclude!()
+        @exclude = true
+        deps.each { |dep| dep.exclude! if !dep.exclude }
       end
 
+      # Set #include to true for the transitive closure of the current node but
+      # ignores nodes with #exclude == true
+      def include!()
+        @include = true
+        deps.each { |dep| dep.include! if !dep.exclude && !dep.include }
+      end
 
+#     # Set #exclude to true for all nodes in the transitive closure of :nodes.
+#     # Return nil
+#     def Idr.exclude!(nodes) = nodes.each(&:exclude!)
+#
+#     # Set #include to true for all nodes in the transitive closure of :nodes
+#     # that are not excluded. Return a list of included nodes
+#     def Idr.include!(nodes) = nodes.each(&:include!)
+#
       def inspect = "<#{self.class}>"
 
     private

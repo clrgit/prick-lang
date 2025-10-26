@@ -5,6 +5,7 @@ module Prick::Lang
 
     def compiler = Compiler.instance
     forward_to :compiler, :targets, :exclude, :completed_resources
+    forward_to :"compiler.analyzer", :reachable_nodes
 
     attr_reader :graph # {Node=>[Node]} Hash from node to list of dependencies
     attr_reader :units # [Unit]
@@ -22,9 +23,12 @@ module Prick::Lang
 #     # Exclude completed_resources
 #     transitive_closure(completed_resources).each { |node| node.exclude = true }
 
+# FIXME FIXME FIXME
       # Find reachable nodes
-#     reachable_nodes = transitive_closure(targets).reject(&:exclude)
-      reachable_nodes = transitive_closure(targets).select(&:include)
+
+#     reachable_nodes = compiler.analyzer.reachable_nodes
+
+
 
       # Build graph
       @graph = reachable_nodes.map { |unit| [unit, unit.deps] }.to_h
