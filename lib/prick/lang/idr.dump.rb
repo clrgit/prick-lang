@@ -145,7 +145,7 @@ module Prick::Lang
     end
 
     class Schema
-      PARTS = [:head, :functions, :phases, :block]
+      PARTS = [:create, :functions, :phases, :block]
     end
 
     class Program

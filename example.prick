@@ -33,6 +33,7 @@ schema my_schema {
 # }
 
   init {
+    my_schema-init.sql
   }
 
   # If statement with constant expression

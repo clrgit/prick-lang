@@ -28,7 +28,8 @@ module Prick::Lang
       assign_command_schema
       resolve_references
       link_block_nodes
-      link_phases
+      link_internally
+      link_to_program_phases
       select_nodes
       link_program
       idr
@@ -38,20 +39,23 @@ module Prick::Lang
 
     def dump
       puts "Nodes"; indent {
-        idr.trees(Idr::Command).sort_by(&:serial).each { |node|
-          if node.is_a? Idr::RequireCommand
-            printf "%3s -> %s ", node.serial, node.deps.map(&:serial).join(", ")
-          else
-            printf "%3s -> %3s ", node.serial, node.dep&.serial.inspect
-          end
+        idr.nodes.sort_by(&:serial).each { |node|
+          deps = node.deps.empty? ? 'nil' : node.deps.map(&:serial).map(&:inspect).join(", ")
+          printf "%3s -> %s ", node.serial, deps
           node.dumpdep
         }
+
+#       idr.trees(Idr::Command).sort_by(&:serial).each { |node|
+#         deps = node.deps.empty? ? 'nil' : node.deps.map(&:serial).map(&:inspect).join(", ")
+#         printf "%3s -> %s ", node.serial, deps
+#         node.dumpdep
+#       }
       }
 
       puts "Resources"; indent {
         compiler.present.each { |uid|
           r = compiler.resources[uid]
-          puts "#{uid} -> #{r.this.serial}"
+          puts "#{uid} -> #{r.tail.serial}"
         }
       }
     end
@@ -70,7 +74,8 @@ module Prick::Lang
       }
     end
 
-    # Add a Nop node to empty blocks #. Schemas gets a SchemaEnd nop
+    # Add a Mark NOP node to all blocks. This node becomes the #tail node of
+    # the containing node
     def assign_nop_nodes
       idr.nodes(Idr::Resource).each { |resource|
         resource.block << Idr::MarkCommand.new(resource)
@@ -98,7 +103,7 @@ module Prick::Lang
       idr.nodes(Idr::Resource).each { |resource|
         prev = nil
         resource.block.each { |node|
-          node.prev = prev
+          node.depend prev if prev
           prev = node
         }
       }
@@ -109,28 +114,62 @@ module Prick::Lang
     #
     #   auth -> term -> seed -> <block> -> init
     #
-    def link_phases
-      ([program] + program.schemas).each { |schema|
-        schema.head.prev = idr.init.this if schema != program
-        schema.init.prev = schema.head.this
-        schema.block.first.prev = schema.init.this
-        schema.seed.prev = schema.block.last.this
-        schema.term.prev = schema.seed.this
-        schema.auth.prev = schema.term.this
-      }
+    def link_internally
+#     ([program] + program.schemas).each { |schema|
+#       schema.create.prev = idr.init.this if schema != program
+#       schema.init.prev = schema.create.this
+#       schema.block.first.prev = schema.init.this
+#       schema.seed.prev = schema.block.last.this
+#       schema.term.prev = schema.seed.this
+#       schema.auth.prev = schema.term.this
+#     }
     end
+
+#   def link_phases
+#     program.init.deps +=
+#   end
+
+    # program
+    #   init
+    #   a.init -> init.last
+    #   b.init -> init.last
+    #   mark init
+    #   a.block -> mark init
+    #   mark a.block
+    #   b.block -> mark init
+    #   mark b.block
+    #   block a.block b.block
+    #   a.term
+    #   b.term
+    #   term
+    #
+    #
+    #
 
     # Link phases in schemas to program phases
     def link_to_program_phases
-      program.schemas.each { |schema|
-#       schema.head.prev = idr.init.this if schema != program
-        schema.init.prev = schema.head.this
-        schema.block.first.prev = schema.init.this
-        schema.seed.prev = schema.block.last.this
-        schema.term.prev = schema.seed.this
-        schema.auth.prev = schema.term.this
-      }
+      program.this.depend program.init
+      program.seed.depend program.this
+      program.term.depend program.seed
+      program.auth.depend program.term
 
+#     program.schemas.each { |schema|
+#       schema.init.depend program.init
+#       program.block.first.depend schema.block.last
+#       program.seed.depend schema.seed
+#       program.term.depend schema.term
+#       program.auth.depend schema.auth
+#
+
+#       schema.init.block.first.deps << program.init.this
+#       program.block.first.deps << schema.block.last.this
+#       program.seed.this.deps << schema.seed.this
+#       program.term.this.deps << schema.term.this
+#       program.auth.this.deps << schema.auth.this
+
+#       schema.seed.block.first.deps << program.block.last.this
+
+#     }
     end
 
     # Mark excluded/included nodes
@@ -149,16 +188,53 @@ module Prick::Lang
       @reachable_schemas = @reachable_nodes.select { _1.is_a?(Idr::Schema) && !_1.is_a?(Idr::Program) }
     end
 
-    # Link included schemas with program
+
+    # schema.init.deps << program.init
+    # schema.this.deps << schema.init
+    # program.this.deps << schema.this
+    # program.seed.deps << schema.seed
+    # program.term.deps << schema.term
+    # program.auth.deps << schema.auth
+
+    # Find fully-built reachable schemas
+    #   emit init for all schemas
+    #   emit this ...
+    #
+    # IDEA: Emit phase and let the executor sort it out
+
+    # Link reachable schemas with program
     def link_program
+      puts "MMMMMMMMMMMMMMMMMMMMMMMMMMMM"
+      p @reachable_schemas
       @reachable_schemas.each { |schema|
         next if schema == program
-        program.block.first.deps << schema.block.last.this
-        program.seed.deps << schema.seed.this
-        program.term.deps << schema.term.this
-        program.auth.deps << schema.auth.this
+        program.depend schema
+        program.seed.depend schema.seed
+        program.term.depend schema.term
+        program.auth.depend schema.auth
+
+#       program.block.first.deps << schema.block.last
+#       program.seed.deps << schema.seed.this
+#       program.term.deps << schema.term.this
+#       program.auth.deps << schema.auth.this
       }
     end
   end
 end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

@@ -13,21 +13,19 @@ module Prick::Lang
       attr_reader :ast # Ast::Node
       forward_to :ast, :token
 
-      # Previous node in block or nil
-      attr_accessor :prev
-
-      # Node to build. This is usually equal to self but resources redefine it
-      # to be the last node in its block
-      def this = self
-
-      # The node to refer to if an object depends on this node. This is usually
-      # equal to the previous node but resources have dep equal to the last
+      # First node. Default equal to self but resources sets it to the first
       # node in the block
-      def dep = prev
+      def head = self
 
-      # List of nodes that this node depends on.  Usually equal to [dep] but
-      # require statements adds the required resources
-      def deps = [dep].compact
+      # Last node. Default equal to self but resources sets it to the last node
+      # in the block
+      def tail = self
+
+      # Make self depend on node
+      def depend(node) = head.deps << node.tail
+
+      # List of nodes that this node depends on
+      attr_reader :deps
 
       # True if the node should be excluded from the build. Initially false but
       # #exclude! sets it to true. Excluded nodes are assumed to have already
@@ -47,25 +45,26 @@ module Prick::Lang
         Tree.initialize(self, parent)
         @ast = ast
         @serial = (@@SERIAL += 1)
+        @deps = []
         @exclude = false
         @include = false
       end
 
       # Return the transitive closure using #deps. Only nodes with #exclude
       # equal to false are considered
-      def transitive_deps = Idr.transitive_closure([self])
+#     def transitive_deps = Idr.transitive_closure([self])
 
       # Return the transitive closure of the given nodes using #deps. Only
       # nodes with #exclude equal to false are considered
-      def Idr.transitive_closure(nodes)
-        stack = nodes.dup
-        seen = Set.new
-        while node = stack.pop
-          seen << node
-          stack.concat node.deps if !node.exclude
-        end
-        seen.to_a
-      end
+#     def Idr.transitive_closure(nodes)
+#       stack = nodes.dup
+#       seen = Set.new
+#       while node = stack.pop
+#         seen << node
+#         stack.concat node.deps if !node.exclude
+#       end
+#       seen.to_a
+#     end
 
       def Idr.transitive_closure(nodes, kind: nil)
         constrain kind, :include, :exclude, nil
@@ -92,14 +91,6 @@ module Prick::Lang
         deps.each { |dep| dep.include! if !dep.exclude && !dep.include }
       end
 
-#     # Set #exclude to true for all nodes in the transitive closure of :nodes.
-#     # Return nil
-#     def Idr.exclude!(nodes) = nodes.each(&:exclude!)
-#
-#     # Set #include to true for all nodes in the transitive closure of :nodes
-#     # that are not excluded. Return a list of included nodes
-#     def Idr.include!(nodes) = nodes.each(&:include!)
-#
       def inspect = "<#{self.class}>"
 
     private
@@ -137,19 +128,19 @@ module Prick::Lang
       def initialize(parent, ast = nil) = super(parent, nil)
     end
 
-    # Marks the end of the phase and is automatically added to blocks of all
+    # Marks the end of a resource
+    # the phase and is automatically added to blocks of all
     # resources. It serves as an anchor when chaining and the executor uses it
     # to tell when an object is fully built and doesn't need rebuilding when
-    # using 'prick make'. It includes phases but we then need a 'self' phase to
-    # make that useful (a 'self' phase is a new phase that includes the block
-    # of the resource). It also includes functions which is doubtful
+    # using 'prick make'. Phases and functions are also marked but it is not
+    # used
     class MarkCommand < NopCommand
     end
 
     class RequireCommand < NopCommand
       attr_accessor :uid # UID of required node
-      attr_accessor :node # Required node
-      def deps = [dep, node]
+      attr_reader :node # Required node
+      def node=(node) @deps << node; @node = node end
       def initialize(parent, ast, uid = nil)
         constrain parent, Idr::Resource
         constrain ast, Ast::Reference
@@ -177,10 +168,9 @@ module Prick::Lang
       attr_reader :block # [Node]
       def uid = [parent&.uid, ident].compact.join(".")
 
-      def prev = block.first.prev
-      def prev=(node) block.first.prev = node end
-      def this = block.last
-      def dep = block.last
+      def head = block.first
+      def tail = block.last
+      def deps = block.first.deps
 
       def initialize(parent, ast)
         constrain parent, Resource, nil
@@ -208,10 +198,6 @@ module Prick::Lang
       ATTRS = KINDS.map(&:downcase)
       PHASES = KINDS.map { |kind| [kind, [kind.downcase, :"#{kind.downcase}="]] }.to_h
 
-      # Program phases depends on both its previous phase and the enclosed
-      # schemas' phases
-      def deps() @deps ||= super end
-
       def kind = ast.kind # Symbol
       def read_attr = kind.downcase # Reader method in parent object
       def write_attr = :"#{kind.downcase}=" # Writer method in parent object
@@ -226,20 +212,21 @@ module Prick::Lang
       end
     end
 
+#   class ThisPhase < Phase
+#
+#   end
+
     class Function < Resource
     end
 
-    class Schema < Resource
-      attr_reader :head # Command
+#   class Schema < Resource
+    class Schema < Phase #########################<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+      attr_reader :create # Command
       attr_reader :functions # [Function]
       Phase::ATTRS.each { |phase| attr_accessor phase }
+      def this = self # the block
 
-      def prev = head.prev
-      def prev=(node) head.prev = node end
-      def this = term.this
-      def dep = this
-
-      def exclude = head.exclude
+      def exclude = create.exclude
 
       def get_phase(ident) = self.send(ident)
       def set_phase(ident, value) = self.send(:"#{ident}=", value)
@@ -251,7 +238,7 @@ module Prick::Lang
         constrain parent, Idr::Resource, nil
         constrain ast, Ast::Schema, Ast::Program
         super(parent, ast)
-        @head = self.is_a?(Program) ? NopCommand.new(self) : SchemaCommand.new(self, ast)
+        @create = self.is_a?(Program) ? NopCommand.new(self) : SchemaCommand.new(self, ast)
         @functions = []
       end
     end
