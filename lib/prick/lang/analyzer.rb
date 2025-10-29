@@ -7,7 +7,7 @@ module Prick::Lang
     def compiler = Compiler.instance
     def idr = compiler.idr
     def program = compiler.idr
-    def targets
+    def targets # [Node]
       @targets ||=
         if compiler.targets.include? Compiler::DEFAULT_TARGET
           [program] #.schemas.reject(&:exclude)
@@ -23,13 +23,14 @@ module Prick::Lang
     end
 
     def analyze
+      assign_this_phase
       assign_default_phases
-      assign_nop_nodes
-      assign_command_schema
+      add_mark_nodes
+      assign_schema
       resolve_references
       link_block_nodes
-      link_internally
-      link_to_program_phases
+      link_phases
+      link_program_phases
       select_nodes
       link_program
       idr
@@ -61,6 +62,16 @@ module Prick::Lang
     end
 
   private
+
+    # Assign Schema#this phases by stealing the schema's block
+    def assign_this_phase
+      idr.nodes(Idr::Schema).each { |schema|
+        schema.this.retach(schema.block)
+        schema.this.block = schema.block
+        schema.block = []
+      }
+    end
+
     # Assign default phases and add them to the resource repository
     def assign_default_phases
       idr.nodes(Idr::Schema).each { |schema|
@@ -75,18 +86,18 @@ module Prick::Lang
     end
 
     # Add a Mark NOP node to all blocks. This node becomes the #tail node of
-    # the containing node
-    def assign_nop_nodes
+    # the containing node (and the #head node too if the block is empty)
+    def add_mark_nodes
       idr.nodes(Idr::Resource).each { |resource|
         resource.block << Idr::MarkCommand.new(resource)
       }
     end
 
-    # Add schema to all commands. This is used to control the postgres
-    # search_path when executing the script
-    def assign_command_schema
+    # Assign Node#schema schema
+    def assign_schema
       idr.nodes(Idr::Schema).each { |schema|
-        schema.trees(Idr::Command) { |command| command.schema = schema }
+        schema.nodes.each { |node| node.schema = schema }
+#       schema.trees(Idr::Command) { |command| command.schema = schema }
       }
     end
 
@@ -94,7 +105,7 @@ module Prick::Lang
     def resolve_references
       idr.nodes(Idr::RequireCommand).each { |require_|
         compiler.present?(require_.uid) or error require_, "Can't find resource '#{require_.uid}'"
-        require_.node = compiler.resources[require_.uid]
+        require_.node = compiler.resources[require_.uid].tail
       }
     end
 
@@ -103,72 +114,32 @@ module Prick::Lang
       idr.nodes(Idr::Resource).each { |resource|
         prev = nil
         resource.block.each { |node|
-          node.depend prev if prev
+          node.depend_on prev if prev
           prev = node
         }
       }
     end
 
-    # Link up phases internally in schemas and programs. If '->' means "depends
-    # on" the following is the description of the relations:
-    #
-    #   auth -> term -> seed -> <block> -> init
-    #
-    def link_internally
-#     ([program] + program.schemas).each { |schema|
-#       schema.create.prev = idr.init.this if schema != program
-#       schema.init.prev = schema.create.this
-#       schema.block.first.prev = schema.init.this
-#       schema.seed.prev = schema.block.last.this
-#       schema.term.prev = schema.seed.this
-#       schema.auth.prev = schema.term.this
-#     }
+    # Link up phases internally in schemas and programs
+    def link_phases
+      ([program] + program.schemas).each { |schema|
+#       schema.init.depend_on schema.create
+        schema.init.depend_on program.init if schema != program
+        schema.this.depend_on schema.init
+        schema.seed.depend_on schema.this
+        schema.term.depend_on schema.seed
+        schema.auth.depend_on schema.term
+      }
     end
 
-#   def link_phases
-#     program.init.deps +=
-#   end
-
-    # program
-    #   init
-    #   a.init -> init.last
-    #   b.init -> init.last
-    #   mark init
-    #   a.block -> mark init
-    #   mark a.block
-    #   b.block -> mark init
-    #   mark b.block
-    #   block a.block b.block
-    #   a.term
-    #   b.term
-    #   term
-    #
-    #
-    #
-
     # Link phases in schemas to program phases
-    def link_to_program_phases
-      program.this.depend program.init
-      program.seed.depend program.this
-      program.term.depend program.seed
-      program.auth.depend program.term
-
+    def link_program_phases
 #     program.schemas.each { |schema|
-#       schema.init.depend program.init
-#       program.block.first.depend schema.block.last
-#       program.seed.depend schema.seed
-#       program.term.depend schema.term
-#       program.auth.depend schema.auth
-#
-
-#       schema.init.block.first.deps << program.init.this
-#       program.block.first.deps << schema.block.last.this
-#       program.seed.this.deps << schema.seed.this
-#       program.term.this.deps << schema.term.this
-#       program.auth.this.deps << schema.auth.this
-
-#       schema.seed.block.first.deps << program.block.last.this
-
+#       schema.init.depend_on program.init
+#       program.this.depend_on schema.this
+#       program.seed.depend_on schema.seed
+#       program.term.depend_on schema.term
+#       program.auth.depend_on schema.auth
 #     }
     end
 
@@ -185,16 +156,13 @@ module Prick::Lang
 
       # Find reachable nodes and schemas
       @reachable_nodes = Idr.transitive_closure(targets, kind: :include)
-      @reachable_schemas = @reachable_nodes.select { _1.is_a?(Idr::Schema) && !_1.is_a?(Idr::Program) }
+#     @reachable_schemas = @reachable_nodes.select { |node|
+      @reachable_schemas = @reachable_nodes.map(&:schema).uniq
+
+      # FIXME
+#     @involved_schemas = @reachable_nodes.select { _1.is_a?(Idr::Schema) && !_1.is_a?(Idr::Program) }
+#     @reachable_schemas = @reachable_nodes.select { _1.is_a?(Idr::Schema) && !_1.is_a?(Idr::Program) }
     end
-
-
-    # schema.init.deps << program.init
-    # schema.this.deps << schema.init
-    # program.this.deps << schema.this
-    # program.seed.deps << schema.seed
-    # program.term.deps << schema.term
-    # program.auth.deps << schema.auth
 
     # Find fully-built reachable schemas
     #   emit init for all schemas
@@ -204,20 +172,21 @@ module Prick::Lang
 
     # Link reachable schemas with program
     def link_program
-      puts "MMMMMMMMMMMMMMMMMMMMMMMMMMMM"
-      p @reachable_schemas
-      @reachable_schemas.each { |schema|
-        next if schema == program
-        program.depend schema
-        program.seed.depend schema.seed
-        program.term.depend schema.term
-        program.auth.depend schema.auth
+#     compiler.idr.dump
+#     p compiler.idr.classname
+#     exit
+#     @reachable_schemas.each { |schema|
+#       next if schema == program
+#       program.depend_on schema
+#       program.seed.depend_on schema.seed
+#       program.term.depend_on schema.term
+#       program.auth.depend_on schema.auth
 
 #       program.block.first.deps << schema.block.last
 #       program.seed.deps << schema.seed.this
 #       program.term.deps << schema.term.this
 #       program.auth.deps << schema.auth.this
-      }
+#     }
     end
   end
 end

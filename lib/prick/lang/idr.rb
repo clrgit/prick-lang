@@ -13,19 +13,8 @@ module Prick::Lang
       attr_reader :ast # Ast::Node
       forward_to :ast, :token
 
-      # First node. Default equal to self but resources sets it to the first
-      # node in the block
-      def head = self
-
-      # Last node. Default equal to self but resources sets it to the last node
-      # in the block
-      def tail = self
-
-      # Make self depend on node
-      def depend(node) = head.deps << node.tail
-
-      # List of nodes that this node depends on
-      attr_reader :deps
+      # Schema this node belongs to. Assigned by the analyzer
+      attr_accessor :schema
 
       # True if the node should be excluded from the build. Initially false but
       # #exclude! sets it to true. Excluded nodes are assumed to have already
@@ -35,6 +24,32 @@ module Prick::Lang
       # True if the node should be included in the build. Initially false but
       # #include! sets it to true
       attr_reader :include
+
+      # Set #exclude to true for the transitive closure of the current node
+      def exclude!()
+        @exclude = true
+        deps.each { |dep| dep.exclude! if !dep.exclude }
+      end
+
+      # Set #include to true for the transitive closure of the current node but
+      # ignores nodes with #exclude == true
+      def include!()
+        @include = true
+        deps.each { |dep| dep.include! if !dep.exclude && !dep.include }
+      end
+
+      # First node. Default equal to self but resources sets it to the first
+      # node in the block
+      def head = self
+
+      # Last node. Default equal to self but resources sets it to the last node
+      # in the block. This is the node to refer to if an another object depends
+      # on this node
+      def tail = self
+
+      # List of nodes that this node depends on. The list may only be
+      # manipulated by #depend_on
+      attr_reader :deps
 
       # Used in debug. May be removed
       attr_reader :serial
@@ -49,6 +64,9 @@ module Prick::Lang
         @exclude = false
         @include = false
       end
+
+      # Make self depend on node
+      def depend_on(node) = head.deps << node.tail
 
       # Return the transitive closure using #deps. Only nodes with #exclude
       # equal to false are considered
@@ -73,22 +91,16 @@ module Prick::Lang
         while node = stack.pop
           next if seen.include? node
           seen << node
-          stack.concat node.deps if kind.nil? || node.send(kind)
+          if kind.nil? || node.send(kind)
+            if node.is_a?(Resource)
+              stack.concat [node.tail]
+            else
+              stack.concat node.deps if kind.nil? || node.send(kind)
+            end
+          end
+#         stack.concat node.deps if kind.nil? || node.send(kind)
         end
         seen.to_a
-      end
-
-      # Set #exclude to true for the transitive closure of the current node
-      def exclude!()
-        @exclude = true
-        deps.each { |dep| dep.exclude! if !dep.exclude }
-      end
-
-      # Set #include to true for the transitive closure of the current node but
-      # ignores nodes with #exclude == true
-      def include!()
-        @include = true
-        deps.each { |dep| dep.include! if !dep.exclude && !dep.include }
       end
 
       def inspect = "<#{self.class}>"
@@ -102,8 +114,6 @@ module Prick::Lang
     #
 
     class Command < Node
-      # Used to set search_path. Assigned by the #analyzer
-      attr_accessor :schema
     end
 
     # Artificial node that creates a schema
@@ -129,12 +139,14 @@ module Prick::Lang
     end
 
     # Marks the end of a resource
+    #
     # the phase and is automatically added to blocks of all
     # resources. It serves as an anchor when chaining and the executor uses it
     # to tell when an object is fully built and doesn't need rebuilding when
     # using 'prick make'. Phases and functions are also marked but it is not
     # used
     class MarkCommand < NopCommand
+      def uid = parent.uid
     end
 
     class RequireCommand < NopCommand
@@ -165,12 +177,15 @@ module Prick::Lang
     class Resource < Node
       def klass = self.class
       attr_reader :ident # String
-      attr_reader :block # [Node]
+      attr_accessor :block # [Node]
       def uid = [parent&.uid, ident].compact.join(".")
 
       def head = block.first
       def tail = block.last
       def deps = block.first.deps
+
+      def exclude!() super; tail.exclude! end
+      def include!() super; tail.include! end
 
       def initialize(parent, ast)
         constrain parent, Resource, nil
@@ -194,7 +209,7 @@ module Prick::Lang
     end
 
     class Phase < Resource
-      KINDS = Token::PHASES
+      KINDS = Token::PHASES + [:THIS]
       ATTRS = KINDS.map(&:downcase)
       PHASES = KINDS.map { |kind| [kind, [kind.downcase, :"#{kind.downcase}="]] }.to_h
 
@@ -212,22 +227,28 @@ module Prick::Lang
       end
     end
 
-#   class ThisPhase < Phase
-#
-#   end
+    class ThisPhase < Phase
+      def ident = "this"
+      def kind = :THIS
+      def read_attr = :this
+      def write_attr = :"this="
+    end
 
     class Function < Resource
     end
 
-#   class Schema < Resource
-    class Schema < Phase #########################<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+    class Schema < Resource
       attr_reader :create # Command
       attr_reader :functions # [Function]
-      Phase::ATTRS.each { |phase| attr_accessor phase }
-      def this = self # the block
+      attr_accessor *Phase::ATTRS
+
+      def head = init.head
+      def tail = auth.tail
+      def deps = init.deps
 
       def exclude = create.exclude
 
+      # Get/set phase by name
       def get_phase(ident) = self.send(ident)
       def set_phase(ident, value) = self.send(:"#{ident}=", value)
 
@@ -238,6 +259,8 @@ module Prick::Lang
         constrain parent, Idr::Resource, nil
         constrain ast, Ast::Schema, Ast::Program
         super(parent, ast)
+        @schema = self
+        @this = ThisPhase.new(self, ast)
         @create = self.is_a?(Program) ? NopCommand.new(self) : SchemaCommand.new(self, ast)
         @functions = []
       end

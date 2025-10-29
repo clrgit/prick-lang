@@ -18,6 +18,22 @@ module Tree
   def attach(child) @children << child; child.instance_variable_set(:@parent, self) end
   def detach(child) = @children.delete(child)&.instance_variable_set(:@parent, nil)
   def retach(child) child.parent&.detach(child); attach(child) end
+
+  def retach(*children)
+    children = Array(children).flatten
+    other = children.first.parent
+    other.instance_variable_set(:"@children", other.children - children)
+    children.each { |child| child.instance_variable_set(:"@parent", self) }
+    @children.concat(children)
+  end
+
+
+  def transfer(tree)
+    @children = @children.concat tree.children
+    tree.children.each { |child| child.instance_variable_set(:@parent, self) }
+    tree.instance_variable_set(:@children, [])
+  end
+
 # def detach(child = nil)
 #   child ? @children.delete(child)&.instance_variable_set(:@parent, nil) : parent.detach(self)
 # end

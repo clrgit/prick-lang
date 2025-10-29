@@ -3,18 +3,22 @@ module Prick::Lang
   module Unit
     class Node
       attr_reader :node # IdrNode
+      def phase = node.parent.kind
 
       def initialize(node, exclude = false)
         constrain node, Idr::Node
         @node = node
       end
 
-      def dumpunit = node.dumpunit
+      def dumpunit
+        print "#{phase} "
+        node.dumpunit
+      end
 
       def dumpline = node.dump
       def dumpdep = node.dump
       def dump = dumpline
-      def dump = puts "#{node.token.kind} #{node.token.text}"
+      def dump = puts "#{phase} #{node.token.kind} #{node.token.text}"
     end
 
     class SearchPath < Node
@@ -24,6 +28,7 @@ module Prick::Lang
 
     class Command < Node
       def is_schema_command? = node.is_a?(Idr::SchemaCommand)
+
       def dumpunit
         case node
           when Idr::MarkCommand; node.dumpline
@@ -37,3 +42,5 @@ module Prick::Lang
     end
   end
 end
+
+

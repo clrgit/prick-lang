@@ -3,33 +3,33 @@ module Prick::Lang
     using String::Text
     include ErrorFunctions
 
+    CATEGORY_ATTRS = Idr::Phase::KINDS.map { "#{_1}_units".to_sym }
+    CATEGORIES = Idr::Phase::PHASES.map { |kind, (rd,wr)| [kind, "#{rd}_units".to_sym] }.to_h
+
     def compiler = Compiler.instance
     forward_to :compiler, :targets, :exclude, :completed_resources
-    forward_to :"compiler.analyzer", :reachable_nodes
+    forward_to :"compiler.analyzer", :reachable_nodes, :reachable_schemas
 
     attr_reader :graph # {Node=>[Node]} Hash from node to list of dependencies
+    def schemas = reachable_schemas
     attr_reader :units # [Unit]
-    attr_reader :schemas # Involved schemas that should be (re)created
+    attr_reader :init_units
+    attr_reader :this_units
+    attr_reader :seed_units
+    attr_reader :term_units
+    attr_reader :auth_units
+    attr_reader :meta_units # YT
+
+
+#   attr_reader :schemas # Involved schemas that should be (re)created
 
     def initialize
       @units = []
-      @schemas = []
+      CATEGORIES.values.each { self.instance_variable_set(:"@#{_1}", []) }
+
     end
 
     def generate
-#     # Exclude nodes (schemas) from the command line
-#     transitive_closure(exclude).each { |node| node.exclude = true }
-#
-#     # Exclude completed_resources
-#     transitive_closure(completed_resources).each { |node| node.exclude = true }
-
-# FIXME FIXME FIXME
-      # Find reachable nodes
-
-#     reachable_nodes = compiler.analyzer.reachable_nodes
-
-
-
       # Build graph
       @graph = reachable_nodes.map { |unit| [unit, unit.deps] }.to_h
 
@@ -39,16 +39,17 @@ module Prick::Lang
       # Build units
       build_units tsorted_nodes
 
+      # Sort units into phases
+      categorize_units
+
       @units
     end
 
-    def exclude_nodes(nodes) = transitive_closure(nodes).each { _1.exclude = true }
+#   def exclude_nodes(nodes) = transitive_closure(nodes).each { _1.exclude = true }
 
     def build_units(nodes)
       nodes.each { |node|
         case node
-          when Idr::SchemaCommand
-            @schemas << Unit::Command.new(node)
           when Idr::MarkCommand
             @units << Unit::Mark.new(node)
           when Idr::NopCommand
@@ -62,6 +63,15 @@ module Prick::Lang
         end
       }
     end
+
+    def categorize_units
+      units.each { |unit|
+        next if unit.is_a? Unit::Mark
+        attr = CATEGORIES[unit.phase]
+        self.send(attr) << unit
+      }
+    end
+
 
     def transitive_closure(nodes)
       stack = nodes.map { |uid| compiler.resources[uid] }
@@ -127,6 +137,15 @@ module Prick::Lang
       end
 
       if result.size != @graph.keys.size
+        puts "result: #{result.map(&:serial)}"; indent {
+          result.each(&:dumpline)
+        }
+        puts "keys: #{@graph.keys.map(&:serial)}"; indent {
+          @graph.keys.each { |node|
+            node.dumpline
+          }
+        }
+
         raise "Graph has a cycle"
       end
 
@@ -136,11 +155,19 @@ module Prick::Lang
     def dump
       puts "Schemas"; indent {
         schemas.each &:dumpunit
+#       schemas.map(&:create).each &:dumpunit
       }
 
-      puts "Units"; indent {
-        units.each &:dumpunit
-      }
+#     puts "Units"; indent {
+#       units.each &:dumpunit
+#     }
+
+      for kind, rd in CATEGORIES
+        next if kind == :META
+        puts kind; indent {
+          self.send(rd).each &:dumpunit
+        }
+      end
     end
   end
 end

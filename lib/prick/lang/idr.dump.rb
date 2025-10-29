@@ -14,9 +14,15 @@ module Prick::Lang
 
       def dumpdep = dumpline
 
-      def dumpunit = puts "#{self.token.kind} #{self.token&.text}"
+      def dumpunit = puts "#{self.token&.kind || 'nil'} #{self.token&.text}"
 
       def dump_parts
+#       indent {
+#         puts "self: #{serial}"
+#         puts "head: #{head.serial}"
+#         puts "tail: #{tail.serial}"
+#         puts "deps: #{deps.map(&:serial)}"
+#       }
         for part in self.class::PARTS
           value = self.send(part)
           indent {
@@ -65,7 +71,14 @@ module Prick::Lang
 
     # Artificial node that creates a schema
     class SchemaCommand
-      def dumpunit = puts "SQL create schema #{schema.uid}"
+      def dumpunit
+        puts "SQL"
+        indent {
+          puts "drop schema if exists #{schema.uid};"
+          puts "create schema #{schema.uid}"
+        }
+      end
+#     def dumpunit = puts "SQL create schema #{schema.uid}"
       def dumpline = puts "SQL create schema #{schema.uid}"
     end
 
@@ -129,7 +142,9 @@ module Prick::Lang
 
     # Can be a schema, phase, provide, or function
     class Resource
-      def dump(ident = self.ident) puts ident; dump_parts end
+      def dump(ident = self.ident)
+        puts ident; dump_parts
+      end
     end
 
     class Function
@@ -145,12 +160,16 @@ module Prick::Lang
     end
 
     class Schema
-      PARTS = [:create, :functions, :phases, :block]
+#     PARTS = [:create, :functions, :phases, :block]
+      PARTS = [:create, :functions, :phases]
+      def dumpunit = puts "SCHEMA #{ident}"
     end
 
     class Program
-      PARTS = [:functions, :phases, :schemas, :block]
+#     PARTS = [:functions, :phases, :schemas, :block]
+      PARTS = [:functions, :phases, :schemas]
       def dump = super "Program"
+      def dumpunit = puts "PROGRAM"
     end
 
     class Unresolved
