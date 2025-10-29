@@ -158,16 +158,14 @@ module Prick::Lang
 #       schemas.map(&:create).each &:dumpunit
       }
 
-#     puts "Units"; indent {
-#       units.each &:dumpunit
-#     }
-
-      for kind, rd in CATEGORIES
-        next if kind == :META
-        puts kind; indent {
-          self.send(rd).each &:dumpunit
-        }
-      end
+      puts "Units"; indent {
+        for kind, rd in CATEGORIES
+          next if kind == :META
+          puts kind; indent {
+            self.send(rd).each &:dumpunit
+          }
+        end
+      }
     end
   end
 end

@@ -126,9 +126,9 @@ module Prick::Lang
 #       schema.init.depend_on schema.create
         schema.init.depend_on program.init if schema != program
         schema.this.depend_on schema.init
-        schema.seed.depend_on schema.this
-        schema.term.depend_on schema.seed
-        schema.auth.depend_on schema.term
+        schema.term.depend_on schema.this
+        schema.seed.depend_on schema.term
+        schema.auth.depend_on schema.seed
       }
     end
 

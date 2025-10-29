@@ -209,7 +209,7 @@ module Prick::Lang
     end
 
     class Phase < Resource
-      KINDS = Token::PHASES + [:THIS]
+      KINDS = [:INIT, :THIS] + Token::PHASES.reject { _1 == :INIT }
       ATTRS = KINDS.map(&:downcase)
       PHASES = KINDS.map { |kind| [kind, [kind.downcase, :"#{kind.downcase}="]] }.to_h
 

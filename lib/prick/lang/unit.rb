@@ -11,14 +11,15 @@ module Prick::Lang
       end
 
       def dumpunit
-        print "#{phase} "
+#       print "#{phase} "
         node.dumpunit
       end
 
       def dumpline = node.dump
       def dumpdep = node.dump
       def dump = dumpline
-      def dump = puts "#{phase} #{node.token.kind} #{node.token.text}"
+#     def dump = puts "#{phase} #{node.token.kind} #{node.token.text}"
+      def dump = puts "#{node.token.kind} #{node.token.text}"
     end
 
     class SearchPath < Node
