@@ -83,6 +83,7 @@ module Prick::Lang
   end
 end
 
+require_relative './lang/compiler.rb'
 require_relative './lang/reader.rb'
 require_relative './lang/tokenizer.rb'
 require_relative './lang/parser.rb'
@@ -90,6 +91,5 @@ require_relative './lang/evaluator.rb'
 require_relative './lang/converter.rb'
 require_relative './lang/analyzer.rb'
 require_relative './lang/generator.rb'
-require_relative './lang/compiler.rb'
 
 

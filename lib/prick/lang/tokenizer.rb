@@ -1,12 +1,8 @@
 
 module Prick::Lang
-  class Tokenizer
+  class Tokenizer < CompilerProcess
     using String::Text
-    include ErrorFunctions
     class TokenizerError < Prick::Lang::Error; end
-
-    # Compiler
-    def compiler = Compiler.instance
 
     # Source file as referred to in the source (eg. ./t.prick)
     attr_reader :file

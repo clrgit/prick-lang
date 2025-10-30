@@ -1,5 +1,18 @@
 
 module Prick::Lang
+  class CompilerProcess
+    include ErrorFunctions
+    def compiler() @compiler ||= Compiler.instance end
+    def parser() @parser ||= compiler.parser end
+    def converter() @converter ||= compiler.converter end
+    def analyzer() @analyzer ||= compiler.analyzer end
+    def generator() @generator ||= compiler.generator end
+
+    def ast() @ast ||= compiler.ast end
+    def idr() @idr ||= compiler.idr end
+    def units() @units ||= compiler.units end
+  end
+
   class Compiler
     include ErrorFunctions
 

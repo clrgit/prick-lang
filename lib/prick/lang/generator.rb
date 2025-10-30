@@ -1,18 +1,12 @@
 module Prick::Lang
-  class Generator
-    using String::Text
-    include ErrorFunctions
-
-    CATEGORY_ATTRS = Idr::Phase::KINDS.map { "#{_1}_units".to_sym }
+  class Generator < CompilerProcess
+    # Map from phase kind to attr_reader method
     CATEGORIES = Idr::Phase::PHASES.map { |kind, (rd,wr)| [kind, "#{rd}_units".to_sym] }.to_h
 
-    def compiler = Compiler.instance
-    forward_to :compiler, :targets, :exclude, :completed_resources
-    forward_to :"compiler.analyzer", :reachable_nodes, :reachable_schemas
-
-    attr_reader :graph # {Node=>[Node]} Hash from node to list of dependencies
-    def schemas = reachable_schemas
+    # Generated units
     attr_reader :units # [Unit]
+
+    # Units by phase
     attr_reader :init_units
     attr_reader :this_units
     attr_reader :seed_units
@@ -20,18 +14,17 @@ module Prick::Lang
     attr_reader :auth_units
     attr_reader :meta_units # YT
 
-
-#   attr_reader :schemas # Involved schemas that should be (re)created
+    def nodes = analyzer.reachable_nodes
+    def schemas = analyzer.reachable_schemas
 
     def initialize
       @units = []
-      CATEGORIES.values.each { self.instance_variable_set(:"@#{_1}", []) }
-
+      CATEGORIES.values.each { self.instance_variable_set(:"@#{_1}", []) } # assign *_units variables
     end
 
     def generate
       # Build graph
-      @graph = reachable_nodes.map { |unit| [unit, unit.deps] }.to_h
+      @graph = nodes.map { |unit| [unit, unit.deps] }.to_h
 
       # Sort nodes
       tsorted_nodes = topological_sort
@@ -45,7 +38,23 @@ module Prick::Lang
       @units
     end
 
-#   def exclude_nodes(nodes) = transitive_closure(nodes).each { _1.exclude = true }
+    def dump
+      puts "Schemas"; indent {
+        schemas.each &:dumpunit
+      }
+
+      puts "Units"; indent {
+        for kind, rd in CATEGORIES
+          next if kind == :META
+          puts kind; indent {
+            self.send(rd).each &:dumpunit
+          }
+        end
+      }
+    end
+
+  private
+    attr_reader :graph # {Node=>[Node]} Hash from node to list of dependencies
 
     def build_units(nodes)
       nodes.each { |node|
@@ -150,22 +159,6 @@ module Prick::Lang
       end
 
       result.reverse
-    end
-
-    def dump
-      puts "Schemas"; indent {
-        schemas.each &:dumpunit
-#       schemas.map(&:create).each &:dumpunit
-      }
-
-      puts "Units"; indent {
-        for kind, rd in CATEGORIES
-          next if kind == :META
-          puts kind; indent {
-            self.send(rd).each &:dumpunit
-          }
-        end
-      }
     end
   end
 end

@@ -1,9 +1,7 @@
 
 module Prick::Lang
-  class Parser
+  class Parser < CompilerProcess
     using String::Text
-    include ErrorFunctions
-#   class ParserError < Prick::Lang::Error; end # FIXME Not used
 
     CONSTANTS = [:ENV, :CMD, :USER, :VAR, :VERSION, :SCHEMA, :OBJECT, :RESOURCE]
     COMMANDS = [:EXEC, :EVAL, :RUBY, :SQL, :CALL]
@@ -38,9 +36,8 @@ module Prick::Lang
     # Operators for comparing versions
     VERSION_OPERATORS = Set[:LT, :LE, :EQ, :NE, :GE, :GT, :TIGT]
 
-    def compiler = Compiler.instance
-
-    attr_reader :tokenizer # Maintained by #push_tokenizer and #pop_tokenizer
+    # The current tokenizer. Maintained by #push_tokenizer and #pop_tokenizer
+    attr_reader :tokenizer
 
     # The starting file. Initialized by #parse
     def file = @file

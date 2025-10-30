@@ -1,12 +1,10 @@
 
 module Prick::Lang
   # Convert the Ast to an Idr
-  class Converter
+  class Converter < CompilerProcess
     using String::Text
-    include ErrorFunctions
 
-    def compiler = Compiler.instance
-    def ast = compiler.ast
+    # The generated Idr
     attr_reader :idr
 
     def runtime = { CMD: "build", ENV: "prod", USER: "me" }
@@ -178,22 +176,4 @@ module Prick::Lang
     end
   end
 end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
