@@ -79,12 +79,6 @@ module Prick::Lang
       end
     end
 
-    class MakeExpr < Expr
-      part :paths, [Path]
-      def token = start_token
-      def initialize = super(nil)
-    end
-
 #   class MakeExpr < Expr # Quack like a UnaryExpr
 #     attr_reader :
 #   end
@@ -133,6 +127,13 @@ module Prick::Lang
     class Var < Value
       def value() token.name.to_sym end
       def to_s = @token.text
+    end
+
+    # Belongs to the Expr section but moved here because it depends on Path
+    class MakeExpr < Expr
+      part :paths, [Path]
+      def token = start_token
+      def initialize = super(nil)
     end
 
     #
@@ -198,6 +199,7 @@ module Prick::Lang
 
     # exec/eval/sql
     class ExternalCommand < Command
+      attr_reader :kind
       attr_accessor :source # Array of source lines. Assigned after initialization
 
       def initialize(token, kind = nil) super(token); @kind = kind || token.kind end

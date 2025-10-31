@@ -143,7 +143,7 @@ module Prick::Lang
     end
 
     def parse_command(kind = nil)
-      command = Ast::ExternalCommand.new(read, kind)
+      command = Ast::ExternalCommand.new(read)
       if peek.kind == :PIPE
         limit = @tokenizer.line.indentation
         @tokenizer.readeol
@@ -218,26 +218,17 @@ module Prick::Lang
       if_
     end
 
-    def parse_make
+    def parse_make_command
       make = Ast::Make.new(read)
       make.expr = Ast::MakeExpr.new
       make.expr.paths = readpaths?(eol: true).map { |token| Ast::Path.new(token) }
-      case peek.kind
-        when :PIPE
-          pipe = read
-          make.then_ = Ast::Block.new(pipe)
-          make.then_.stmts << parse_command(pipe, :EXEC)
-#         Ast::MakeCommand.new(pipe.copy(:EXEC))
-#         limit = @tokenizer.line.indentation
-#         @tokenizer.readeol
-#         make.then_.stmts.first.source = readtext(limit)&.text
-        when :BRACE_BEGIN
-          token = readkind(:BRACE_BEGIN)
-          make.then_ = parse_block(token, check: false)
-          make.then_.stop_token = readkind(:BRACE_END)
-      else
-        raise InternalError
-      end
+      pipe = readkind(:PIPE)
+      make.then_ = Ast::Block.new(pipe)
+      command = Ast::ExternalCommand.new(pipe, :EXEC)
+      make.then_.stmts << command
+      limit = @tokenizer.line.indentation
+      @tokenizer.readeol
+      command.source = readtext(limit)&.text
       make
     end
 

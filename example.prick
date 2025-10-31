@@ -5,9 +5,16 @@
 # false.sql
 #end
 
+make make.sh data.sh |
+  make.sh data.sh >make.sql
+  touch make.sql
+
+make.sql
+
+
 # Including prick files
-include.prick
-example.d/ # File defaults to make.prick
+#include.prick
+#example.d/ # File defaults to make.prick
 
 # IN expressions
 if $env ^ (prod, test)
@@ -51,7 +58,7 @@ schema my_schema {
   # If statement with constant expression
   if $env = prod
     env_eq_prod.sql
-    snippet.prick
+#   snippet.prick
   else
     env_ne_prod.sql
   end
