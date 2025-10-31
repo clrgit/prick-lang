@@ -208,11 +208,6 @@ module Prick::Lang
       def multiline? = @source =~ /\n/
     end
 
-#   class MakeCommand < ExternalCommand # The exec-part when using 'make ... | ...'
-#     attr_reader :kind
-#     def initialize(token) super(token); @kind = :EXEC end
-#   end
-
     class CallCommand < Command
       part :references, [Reference]
     end

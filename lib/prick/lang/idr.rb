@@ -138,7 +138,7 @@ module Prick::Lang
     # No OPeration command. They have no function except to serve as anchors or
     # to add dependencies
     class NopCommand < Command
-      def initialize(parent, ast = nil) = super(parent, nil)
+      def initialize(parent, ast = nil) = super(parent, ast)
     end
 
     # Marks the end of a resource

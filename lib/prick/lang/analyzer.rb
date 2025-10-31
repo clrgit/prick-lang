@@ -99,7 +99,7 @@ module Prick::Lang
     # Link up require statements with the referenced resources
     def resolve_references
       idr.nodes(Idr::RequireCommand).each { |require_|
-        compiler.present?(require_.uid) or error require_, "Can't find resource '#{require_.uid}'"
+        compiler.present?(require_.uid) or error(require_, "Can't find resource '#{require_.uid}'")
         require_.node = compiler.resources[require_.uid].tail
       }
     end

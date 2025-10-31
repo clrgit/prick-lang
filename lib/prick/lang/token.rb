@@ -283,7 +283,6 @@ module Prick::Lang
 
     # Value of token. Used by simple expressions to accumulate arguments
     attr_accessor :value
-
     def initialize(file, lineno, charno, text, kind)
       @file, @lineno, @charno, @text, @kind = file, lineno, charno, text, kind
     end

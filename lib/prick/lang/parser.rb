@@ -218,20 +218,6 @@ module Prick::Lang
       if_
     end
 
-    def parse_make_command
-      make = Ast::Make.new(read)
-      make.expr = Ast::MakeExpr.new
-      make.expr.paths = readpaths?(eol: true).map { |token| Ast::Path.new(token) }
-      pipe = readkind(:PIPE)
-      make.then_ = Ast::Block.new(pipe)
-      command = Ast::ExternalCommand.new(pipe, :EXEC)
-      make.then_.stmts << command
-      limit = @tokenizer.line.indentation
-      @tokenizer.readeol
-      command.source = readtext(limit)&.text
-      make
-    end
-
     def parse_case
       case_ = Ast::Case.new(read)
       case_.expr = parse_expr
@@ -266,6 +252,184 @@ module Prick::Lang
 
     def parse_ruby
       not_implemented_error "#parse_ruby"
+    end
+
+    def parse_make_command
+      make = Ast::Make.new(read)
+      make.expr = Ast::MakeExpr.new
+      make.expr.paths = readpaths?(eol: true).map { |token| Ast::Path.new(token) }
+      pipe = readkind(:PIPE)
+      make.then_ = Ast::Block.new(pipe)
+      command = Ast::ExternalCommand.new(pipe, :EXEC)
+      make.then_.stmts << command
+      limit = @tokenizer.line.indentation
+      @tokenizer.readeol
+      command.source = readtext(limit)&.text
+      make
+    end
+
+    # Parse a value and return it. Called from the shunter
+    #
+    # If token is a (qualified) identfier and the next token is '?', a
+    # Ast::Reference token is returned
+    def parse_value # token should be equal to #peek
+      token = read(eol: true)
+      case token.kind
+        when *Token::REFS; peek(eol: true).kind == :QUEST ? Ast::Reference.new(token) : Ast::Word.new(token)
+        when :VAR; Ast::Var.new(token)
+        when :VER; Ast::Ver.new(token)
+        when :TRUE, :FALSE; Ast::Bool.new(token)
+        when :FILE, :DIR; Ast::File.new(token)
+      else
+        raise InternalError
+      end
+    end
+
+    # Parse an expression. It uses the shunter to compile the source into
+    # reverse polish notation that is then converted into an Ast::Expr
+    def parse_expr
+      stack = ExprStack.new # [Ast::Expr]
+      shunt_exprs.each { |token|
+        case token
+          when ParenToken
+            e = Ast::ParenExpr.new(token)
+            e.expr = stack.pop
+            stack.push e
+          when ListToken
+            e = Ast::ListExpr.new(token)
+            e.elems = stack.pop(token.size)
+            stack.push e
+          when Ast::Value
+            stack.push token
+          else
+            if operator = OPERATORS[token.kind]
+              case operator[:arity]
+                when 1
+                  e = Ast::UnaryExpr.new(token)
+                  e.expr = stack.pop
+                  stack.push e
+                when 2
+                  e = Ast::BinaryExpr.new(token)
+                  if operator[:list]
+                    if stack.top.is_a? Ast::ParenExpr
+                      e.rexpr = Ast::ListExpr.new(token)
+                      e.rexpr.elems = [stack.pop]
+                    elsif stack.top.is_a? Ast::ListExpr
+                      e.rexpr = stack.pop
+                    elsif operator[:value] # Handle value argument to list operator
+                      list = Ast::ListExpr.new(token)
+                      list.elems = [stack.pop]
+                      e.rexpr = list
+                    else
+                      unexpected_token_error peek, "list expression"
+                    end
+                  else
+                    e.rexpr = stack.pop
+                  end
+                  e.lexpr = stack.pop
+                  stack.push e
+                when nil
+              end
+            else
+              stack.size == 1 or unexpected_token_error peek, "expression"
+            end
+        end
+      }
+      r = stack.pop
+      stack.empty? or unexpected_token_error peek, "expression"
+      r
+    end
+
+    #
+    # S H U N T I N G
+    #
+
+    class ExprStack < Array
+      alias :_pop :pop
+
+      def pop(*args)
+        while self.top.is_a? Ast::ParenExpr
+          self.push self._pop.expr
+        end
+        super(*args)
+      end
+    end
+
+    # Returns a reversed Polish notation list of tokens
+    def shunt_exprs
+      stack = [] # [Token]. Operator stack
+      output = [] # [Token]
+      paren_level = 0
+      accept_eol = true # Signals that the expression continues on the next line
+      while token = tokenizer.peek(eol: true)
+        case token.kind
+          when :EOL
+            break if paren_level == 0 && !accept_eol
+            read(eol: true)
+
+          when :PAREN_BEGIN
+            read(eol: true)
+            if peek(eol: false)&.kind == :PAREN_END
+              read(eol: true)
+              output << ListToken.new(token, 0)
+              accept_eol = false
+            else
+              paren_level += 1
+              stack.push(token)
+            end
+
+          when :PAREN_END
+            paren_level -= 1
+            read(eol: true)
+            last_was_list = false # Don't output both PAREN and LIST
+            while op = stack.pop
+              if op.is_a?(Token) && op.kind == :PAREN_BEGIN
+                output << ParenToken.new(op) if !last_was_list
+                break
+              elsif op.is_a? ListToken
+                last_was_list = true
+                op.size += 1
+              end
+              output << op
+            end
+
+          # A comma rewinds the stack like paren-end but leaves the paren-begin
+          # token and push an element counter that is increment for each new
+          # comma
+          when :COMMA
+            paren_level > 0 or error token, "Unexpected ','"
+            read(eol: true)
+            while op = stack.top
+              if op.is_a?(Token) && op.kind == :PAREN_BEGIN # Only true on first comma
+                stack.push ListToken.new(op)
+                break
+              elsif op.is_a? ListToken
+                op.size += 1
+                break
+              end
+              output << stack.pop
+            end
+
+          when *Token::VALUES
+            accept_eol = false
+            output << parse_value
+
+          when *Token::OPERS
+            accept_eol = !token.is_suffix_oper?
+            oper = OPERATORS[token.kind] or raise ArgumentError, "Not a known operator '#{token.text}'"
+            read eol: true
+            while stack.top.is_a?(Token) && top = OPERATORS[stack.top&.kind]
+              break if oper[:prior] > top[:prior]
+              break if oper[:prior] == top[:prior] && oper[:assoc] == :right
+              output << stack.pop
+            end
+            stack.push token
+
+          else
+            break
+        end
+      end
+      output + stack.reverse
     end
 
     #
@@ -358,175 +522,6 @@ module Prick::Lang
         r = yield
       end
       a
-    end
-
-    #
-    # S H U N T I N G
-    #
-
-    # if a ||
-    #   b
-    # if schema
-    #   a
-
-    # Parse a value and return it. Called from the shunter
-    #
-    # If token is a (qualified) identfier and the next token is '?', a
-    # Ast::Reference token is returned
-    def parse_value # token should be equal to #peek
-      token = read(eol: true)
-      case token.kind
-        when *Token::REFS; peek(eol: true).kind == :QUEST ? Ast::Reference.new(token) : Ast::Word.new(token)
-        when :VAR; Ast::Var.new(token)
-        when :VER; Ast::Ver.new(token)
-        when :TRUE, :FALSE; Ast::Bool.new(token)
-        when :FILE, :DIR; Ast::File.new(token)
-      else
-        raise InternalError
-      end
-    end
-
-    class ExprStack < Array
-      alias :_pop :pop
-
-      def pop(*args)
-        while self.top.is_a? Ast::ParenExpr
-          self.push self._pop.expr
-        end
-        super(*args)
-      end
-    end
-
-    # Parse an expression. It uses the shunter to compile the source into
-    # reverse polish notation that is then converted into an Ast::Expr
-    def parse_expr
-      stack = ExprStack.new # [Ast::Expr]
-      shunt_exprs.each { |token|
-        case token
-          when ParenToken
-            e = Ast::ParenExpr.new(token)
-            e.expr = stack.pop
-            stack.push e
-          when ListToken
-            e = Ast::ListExpr.new(token)
-            e.elems = stack.pop(token.size)
-            stack.push e
-          when Ast::Value
-            stack.push token
-          else
-            if operator = OPERATORS[token.kind]
-              case operator[:arity]
-                when 1
-                  e = Ast::UnaryExpr.new(token)
-                  e.expr = stack.pop
-                  stack.push e
-                when 2
-                  e = Ast::BinaryExpr.new(token)
-                  if operator[:list]
-                    if stack.top.is_a? Ast::ParenExpr
-                      e.rexpr = Ast::ListExpr.new(token)
-                      e.rexpr.elems = [stack.pop]
-                    elsif stack.top.is_a? Ast::ListExpr
-                      e.rexpr = stack.pop
-                    elsif operator[:value] # Handle value argument to list operator
-                      list = Ast::ListExpr.new(token)
-                      list.elems = [stack.pop]
-                      e.rexpr = list
-                    else
-                      unexpected_token_error peek, "list expression"
-                    end
-                  else
-                    e.rexpr = stack.pop
-                  end
-                  e.lexpr = stack.pop
-                  stack.push e
-                when nil
-              end
-            else
-              stack.size == 1 or unexpected_token_error peek, "expression"
-            end
-        end
-      }
-      r = stack.pop
-      stack.empty? or unexpected_token_error peek, "expression"
-      r
-    end
-
-    # Returns a reversed Polish notation list of tokens
-    def shunt_exprs
-      stack = [] # [Token]. Operator stack
-      output = [] # [Token]
-      paren_level = 0
-      accept_eol = true # Signals that the expression continues on the next line
-      while token = tokenizer.peek(eol: true)
-        case token.kind
-          when :EOL
-            break if paren_level == 0 && !accept_eol
-            read(eol: true)
-
-          when :PAREN_BEGIN
-            read(eol: true)
-            if peek(eol: false)&.kind == :PAREN_END
-              read(eol: true)
-              output << ListToken.new(token, 0)
-              accept_eol = false
-            else
-              paren_level += 1
-              stack.push(token)
-            end
-
-          when :PAREN_END
-            paren_level -= 1
-            read(eol: true)
-            last_was_list = false # Don't output both PAREN and LIST
-            while op = stack.pop
-              if op.is_a?(Token) && op.kind == :PAREN_BEGIN
-                output << ParenToken.new(op) if !last_was_list
-                break
-              elsif op.is_a? ListToken
-                last_was_list = true
-                op.size += 1
-              end
-              output << op
-            end
-
-          # A comma rewinds the stack like paren-end but leaves the paren-begin
-          # token and push an element counter that is increment for each new
-          # comma
-          when :COMMA
-            paren_level > 0 or error token, "Unexpected ','"
-            read(eol: true)
-            while op = stack.top
-              if op.is_a?(Token) && op.kind == :PAREN_BEGIN # Only true on first comma
-                stack.push ListToken.new(op)
-                break
-              elsif op.is_a? ListToken
-                op.size += 1
-                break
-              end
-              output << stack.pop
-            end
-
-          when *Token::VALUES
-            accept_eol = false
-            output << parse_value
-
-          when *Token::OPERS
-            accept_eol = !token.is_suffix_oper?
-            oper = OPERATORS[token.kind] or raise ArgumentError, "Not a known operator '#{token.text}'"
-            read eol: true
-            while stack.top.is_a?(Token) && top = OPERATORS[stack.top&.kind]
-              break if oper[:prior] > top[:prior]
-              break if oper[:prior] == top[:prior] && oper[:assoc] == :right
-              output << stack.pop
-            end
-            stack.push token
-
-          else
-            break
-        end
-      end
-      output + stack.reverse
     end
 
     #

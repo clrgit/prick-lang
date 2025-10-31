@@ -36,6 +36,9 @@ module Prick::Lang
     # if :eol is false
     #
     # Note that #peek has eof default true but #read has eof default false
+    #
+    # Note that the interplay between reader & peeker causes most tokens to be
+    # constructed twice. This is something that should be looked into FIXME
     def peek(eol: false, eof: true)
       # Return peek'ed token if present and with the same set of flags
       return @peeker.token if @peeker.read? && @peek_eol == eol && @peek_eof == eof

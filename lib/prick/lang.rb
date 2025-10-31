@@ -39,7 +39,7 @@ module Prick::Lang
   class EofError < Error; end # Not an error but used as a signal
 
   # Supported dump kinds
-  DUMP_KINDS = %w(tokens ast idr deps state units)
+  DUMP_KINDS = %w(tokens ast raw idr deps state units)
 
   # Used to dump tokens as they are processed. The problem is that the kind of
   # a token depends on the context so we need to run the parser to get the
@@ -51,33 +51,41 @@ module Prick::Lang
 
   def self.dump(kind, file, lines = nil, targets, exclude, variables)
     compiler = Compiler.new(file, targets, exclude: exclude, variables: variables)
-    case kind
-      when "tokens"
-        tokens = []
-        install_token_listener(tokens)
-        compiler.parse(file, lines)
-        puts "Processed #{tokens.size} tokens"
-        indent { puts tokens } # FIXME DUPLICATES in OUTPUT
-#       indent { tokens.each &:dump }
-
-      when "ast", nil
-        compiler.parser.parse(file, lines)
-        compiler.ast.dump
-
-      when "idr", "deps", "state", "units"
-        compiler.parse(file, lines)
-        compiler.convert
-        compiler.analyze
-        case kind
-          when "idr"; compiler.idr.dump
-          when "deps"; compiler.analyzer.dump
-          when "state"; compiler.dump
-          when "units"
-            compiler.generate
-            compiler.generator.dump
-        end
-
+    if kind == "tokens"
+      tokens = []
+      install_token_listener(tokens)
+      compiler.parse(file, lines)
+      puts "Processed #{tokens.size} tokens"
+      indent { puts tokens } # FIXME DUPLICATES in OUTPUT
     else
+      compiler.parser.parse(file, lines)
+      if kind == "ast"
+        compiler.ast.dump; return
+      end
+
+      compiler.convert
+      if kind == "raw"
+        compiler.ast.dump; return
+      end
+
+      compiler.analyze
+      if kind == "idr"
+        compiler.idr.dump; return
+      end
+
+      if kind == "deps"
+        compiler.analyzer.dump; return
+      end
+
+      if kind == "state"
+        compiler.dump; return
+      end
+
+      compiler.generate
+      if kind == "units"
+        compiler.generator.dump; return
+      end
+
       raise ArgumentError
     end
   end
