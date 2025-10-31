@@ -81,7 +81,6 @@ module Prick::Lang
       }
     end
 
-
     def transitive_closure(nodes)
       stack = nodes.map { |uid| compiler.resources[uid] }
       seen = Set.new

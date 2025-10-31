@@ -102,8 +102,8 @@ module Prick::Lang
       @converter.convert
     end
 
-    def analyze
-      @analyzer.analyze
+    def analyze(no_link: false)
+      @analyzer.analyze(no_link: no_link)
     end
 
     def generate

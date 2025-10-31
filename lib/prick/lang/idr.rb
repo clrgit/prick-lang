@@ -129,9 +129,6 @@ module Prick::Lang
       forward_to :ast, :source, :kind
     end
 
-#   class MakeCommand < Command
-#   end
-
     class CallCommand < Command
     end
 
@@ -143,11 +140,10 @@ module Prick::Lang
 
     # Marks the end of a resource
     #
-    # the phase and is automatically added to blocks of all
-    # resources. It serves as an anchor when chaining and the executor uses it
-    # to tell when an object is fully built and doesn't need rebuilding when
-    # using 'prick make'. Phases and functions are also marked but it is not
-    # used
+    # the phase and is automatically added to blocks of all resources. It
+    # serves as an anchor when chaining and the executor uses it to tell when
+    # an object is fully built and doesn't need rebuilding when using 'prick
+    # make'. Phases and functions are also marked but this is not used
     class MarkCommand < NopCommand
       def uid = parent.uid
     end

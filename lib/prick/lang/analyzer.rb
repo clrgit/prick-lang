@@ -19,12 +19,13 @@ module Prick::Lang
     attr_reader :reachable_nodes
     attr_reader :reachable_schemas
 
-    def analyze
+    def analyze(no_link: false)
       assign_this_phase
       assign_default_phases
       add_mark_nodes
       assign_schema
       resolve_references
+      return if no_link
       link_block_nodes
       link_phases
       link_program_phases
