@@ -79,6 +79,16 @@ module Prick::Lang
       end
     end
 
+    class MakeExpr < Expr
+      part :paths, [Path]
+      def token = start_token
+      def initialize = super(nil)
+    end
+
+#   class MakeExpr < Expr # Quack like a UnaryExpr
+#     attr_reader :
+#   end
+
     #
     # V A L U E S
     #
@@ -89,8 +99,15 @@ module Prick::Lang
       def to_s = value.to_s
     end
 
+    # Note that File does not include prick files. Prick files are represented
+    # as Source objects
     class File < Value
       forward_to :@token, :path, :dirname, :filename, :extname
+      def value = @token.path
+    end
+
+    class Path < Value
+      forward_to :@token, :path
       def value = @token.path
     end
 
@@ -130,7 +147,7 @@ module Prick::Lang
       part :stmts, [Stmt]
     end
 
-    # A prick source file. Eg. 'build.prick'
+    # A prick source file. Eg. 'make.prick'
     class Source < Stmt
       part :file, [File]
       part :block, Block
@@ -183,11 +200,17 @@ module Prick::Lang
     class ExternalCommand < Command
       attr_accessor :source # Array of source lines. Assigned after initialization
 
+      def initialize(token, kind = nil) super(token); @kind = kind || token.kind end
+
       # True iff source consists of multiple lines
       def multiline? = @source =~ /\n/
     end
 
-    # call function
+#   class MakeCommand < ExternalCommand # The exec-part when using 'make ... | ...'
+#     attr_reader :kind
+#     def initialize(token) super(token); @kind = :EXEC end
+#   end
+
     class CallCommand < Command
       part :references, [Reference]
     end
@@ -218,6 +241,11 @@ module Prick::Lang
       part :expr, Expr
       part :whens, [When]
       part :else_, Block
+    end
+
+    class Make < Control
+      part :expr, MakeExpr
+      part :then_, Block
     end
   end
 end

@@ -129,6 +129,9 @@ module Prick::Lang
       forward_to :ast, :source, :kind
     end
 
+#   class MakeCommand < Command
+#   end
+
     class CallCommand < Command
     end
 

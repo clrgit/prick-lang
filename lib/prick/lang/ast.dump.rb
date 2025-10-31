@@ -31,6 +31,11 @@ module Prick::Lang
       end
     end
 
+    class MakeCommand
+      def title = paths.map(&:path).join(" ")
+      def dump_children = indent { puts source }
+    end
+
     class Expr
       def title = token.text
     end

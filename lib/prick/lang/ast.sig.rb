@@ -74,6 +74,11 @@ module Prick::Lang
       def signame = source ? source.split("\n").join("; ") : ""
     end
 
+    class MakeCommand
+      def sigtitle = "#{sigclass} #{paths.map(&:path).join(' ')}"
+      def sig = puts "#{sigtitle} | #{signame}"
+    end
+
     class CallCommand
       def sigclass = kind.to_s.capitalize
       def sig = puts "#{sigtitle} #{references.map(&:sigtitle).join(", ")}"

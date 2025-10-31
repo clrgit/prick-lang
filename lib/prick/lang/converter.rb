@@ -73,6 +73,8 @@ module Prick::Lang
       compiler.block.concat \
           case ast
             when Ast::FileCommand; [Idr::FileCommand.new(compiler.context, ast.file)]
+            when Ast::MakeCommand;
+              raise "TODO"
             when Ast::ExternalCommand; [Idr::ExternalCommand.new(compiler.context, ast)]
             when Ast::CallCommand; [Idr::CallCommand.new(compiler.context, ast)]
           end
@@ -113,6 +115,8 @@ module Prick::Lang
       end
       convert_stmts(ast.else_) if ast.else_
     end
+
+#   def convert
 
     def convert_case
       raise

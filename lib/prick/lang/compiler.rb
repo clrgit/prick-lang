@@ -18,6 +18,12 @@ module Prick::Lang
 
     DEFAULT_TARGET = "<main>"
 
+    # Default source file name (excl. extension)
+    DEFAULT_SOURCE_NAME = "make"
+
+    # Default source file. Also used when including directories (eg. './dir')
+    DEFAULT_SOURCE_FILE = "#{DEFAULT_SOURCE_NAME}.#{Token::PRICK_EXT}"
+
     # File or completed resources. Used by 'prick make'
     COMPLETED_RESOURCES_FILE = ".prick-resources"
 

@@ -61,6 +61,11 @@ module Prick::Lang
       @reader.token
     end
 
+    def readpath(eol: false, eof: false)
+      @peeker.reset
+      @reader.readpath(eol: eol, eof: eof)
+    end
+
     def readline(eol: false, eof: false)
       @peeker.reset
       @reader.readline(eol: eol, eof: eof)

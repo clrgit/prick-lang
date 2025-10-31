@@ -104,7 +104,6 @@ describe "Prick::Lang" do
         it "operators" do expect(kind("!=")).to eq :NE end
         it "filenames" do expect(kind("file.sql")).to eq :FILE end
         it "directories" do expect(kind("dir/")).to eq :DIR end
-        it "paths" do expect(kind("/dir/file.unknown")).to eq :PATH end
         it "identifiers" do expect(kind("word")).to eq :IDENT end
         it "references" do expect(kind("ref.ref")).to eq :REF end
         it "boolean values" do expect(kind("true")).to eq :TRUE end

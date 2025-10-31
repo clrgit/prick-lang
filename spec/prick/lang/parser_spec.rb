@@ -23,8 +23,11 @@ describe "Prick::Lang" do
 #   end
 
     def make
-      Prick::Lang::Compiler.new
-      Prick::Lang::Parser.new
+#     Prick::Lang::Compiler.new
+      compiler = make_compiler
+      compiler.parser
+
+#     Prick::Lang::Parser.new
     end
 
     def call(lines)
@@ -128,6 +131,18 @@ describe "Prick::Lang" do
             )
             expect(sig l).to eq %(
               Require Reference(a), Reference(b)
+            ).align
+          end
+        end
+
+        context "make statements" do
+          it "with one or more arguments" do
+            l = %(
+              make script.rb script.data |
+                script.rb
+            )
+            expect(sig l).to eq %(
+              Make script.rb script.data | script.rb
             ).align
           end
         end

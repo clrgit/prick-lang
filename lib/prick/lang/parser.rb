@@ -5,7 +5,6 @@ module Prick::Lang
 
     CONSTANTS = [:ENV, :CMD, :USER, :VAR, :VERSION, :SCHEMA, :OBJECT, :RESOURCE]
     COMMANDS = [:EXEC, :EVAL, :RUBY, :SQL, :CALL]
-    BUILD_FILENAME = "build.#{Token::PRICK_EXT}"
 
     # Map from operator token kind to hash of
     #
@@ -88,8 +87,9 @@ module Prick::Lang
         when :CASE; parse_case
         when *Token::PHASES; parse_decl(Ast::Phase, peek)
         when :EXEC, :EVAL, :SQL; parse_command
-        when :CALL; parse_call_command
         when :RUBY; not_implemented_error "'ruby' command"
+        when :CALL; parse_call_command
+        when :MAKE; parse_make_command
         when :FILE; parse_file
         when :DIR; parse_dir
       else
@@ -142,8 +142,8 @@ module Prick::Lang
       require_
     end
 
-    def parse_command
-      command = Ast::ExternalCommand.new(read)
+    def parse_command(kind = nil)
+      command = Ast::ExternalCommand.new(read, kind)
       if peek.kind == :PIPE
         limit = @tokenizer.line.indentation
         @tokenizer.readeol
@@ -165,7 +165,7 @@ module Prick::Lang
     end
 
     def parse_dir
-      parse_prick_file File.join(peek_token.path, BUILD_FILENAME)
+      parse_prick_file File.join(peek_token.path, Compiler::DEFAULT_SOURCE_FILE)
     end
 
     def parse_prick_file(path = nil)
@@ -191,6 +191,16 @@ module Prick::Lang
       call
     end
 
+#   def parse_make_command
+#     make = Ast::MakeCommand.new(read)
+#     make.paths = readpaths?(eol: true).map { |token| Ast::Path.new(token) }
+#     readkind(:PIPE)
+#     limit = @tokenizer.line.indentation
+#     @tokenizer.readeol
+#     make.source = readtext(limit)&.text
+#     make
+#   end
+#
     def parse_if
       if_ = Ast::If.new(peek)
       loop do
@@ -206,6 +216,29 @@ module Prick::Lang
       end
       readkind(:END)
       if_
+    end
+
+    def parse_make
+      make = Ast::Make.new(read)
+      make.expr = Ast::MakeExpr.new
+      make.expr.paths = readpaths?(eol: true).map { |token| Ast::Path.new(token) }
+      case peek.kind
+        when :PIPE
+          pipe = read
+          make.then_ = Ast::Block.new(pipe)
+          make.then_.stmts << parse_command(pipe, :EXEC)
+#         Ast::MakeCommand.new(pipe.copy(:EXEC))
+#         limit = @tokenizer.line.indentation
+#         @tokenizer.readeol
+#         make.then_.stmts.first.source = readtext(limit)&.text
+        when :BRACE_BEGIN
+          token = readkind(:BRACE_BEGIN)
+          make.then_ = parse_block(token, check: false)
+          make.then_.stop_token = readkind(:BRACE_END)
+      else
+        raise InternalError
+      end
+      make
     end
 
     def parse_case
@@ -292,14 +325,19 @@ module Prick::Lang
     #
     # T O K E N I Z E R  I N T E R F A C E
     #
+    # Functions from tokenizer with error handling. They return tokens and not
+    # Ast objects like the simple element functions above
 
-    # Functions from tokenizer with error handling
-    #
     def peek(**opts) = @tokenizer.peek(**opts) or error(@tokenizer.error_token)
     def peek?(**opts) = @tokenizer.peek(**opts)
 
     def read(**opts) = @tokenizer.read(**opts) or error(@tokenizer.error_token)
     def read?(**opts) = @tokenizer.read(**opts)
+
+    def readpath(**opts) = @tokenizer.readpath(**opts) or error(@tokenizer.error_token)
+    def readpath?(**opts) = @tokenizer.readpath(**opts)
+    def readpaths(**opts) = readwhile { readpath(**opts) }
+    def readpaths?(**opts) = readwhile? { readpath?(**opts) }
 
     def readline(**opts) = @tokenizer.readline(**opts) or error(@tokenizer.error_token)
     def readline?(**opts) = @tokenizer.readline(**opts)
@@ -310,7 +348,7 @@ module Prick::Lang
     def readkind(*kinds, **opts) = readkind?(*kinds, **opts) or unexpected_token_error kinds
     def readkind?(*kinds, **opts) = kinds.include?(peek(**opts)&.kind) ? read(**opts) : nil
     def readkinds(*kinds, **opts) = [readkind(*kinds, **opts)] + readkinds?(kinds, **opts)
-    def readkinds?(*kinds, **opts) = readwhile { readkind?(pred, **opts) } # Returns [] if not found
+    def readkinds?(*kinds, **opts) = readwhile { readkind?(*kinds, **opts) } # Returns [] if not found
 
     def readpred(pred, **opts) = readpred?(pred, **opts) or unexpected_token_error kinds
     def readpred?(pred, **opts) = peek(**opts).kind.send(pred) ? read(**opts) : nil
@@ -320,7 +358,7 @@ module Prick::Lang
     # Return nil if empty
     def readwhile(&block) = (r = readwhile?(&block)).empty? ? nil : r
 
-    # Note: Returns an empty list if no token was found
+    # Return [] if empty
     def readwhile?(&block)
       a = []
       r = yield
@@ -351,7 +389,7 @@ module Prick::Lang
         when :VAR; Ast::Var.new(token)
         when :VER; Ast::Ver.new(token)
         when :TRUE, :FALSE; Ast::Bool.new(token)
-        when *Token::PATHS; Ast::File.new(token)
+        when :FILE, :DIR; Ast::File.new(token)
       else
         raise InternalError
       end

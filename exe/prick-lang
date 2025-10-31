@@ -12,17 +12,17 @@ SPEC = %(
   Compile a prick project
 
   -f,file=FILE|DIR
-    Prick source file. The default is the 'make.prick' file in the project main
-    directory
+    Prick source file. The default is the '#{Prick::Lang::Compiler::DEFAULT_SOURCE_FILE}'
+    file in the project main directory
 
   +x,exclude=SCHEMA,
     Comma-separated list of excluded schemas
 
   --resource-file=FILE
     Mark state file. The mark file contains a list of completed targets and is
-    used by 'prick make'. Default is #{Prick::Lang::Compiler::COMPLETED_RESOURCES_FILE}
+    used by 'prick make'. Default is '#{Prick::Lang::Compiler::COMPLETED_RESOURCES_FILE}'
 
-  -D,dump=token|tokens|ast|idr|dep|state?
+  -D,dump=tokens|ast|idr|deps|units|state
     Dump debug. Default is 'ast'
 
   -X,exception
@@ -72,9 +72,8 @@ SPEC = %(
       require REF+
 
     MAKE-STMT ::=
-      make FILE+ from PATH+
+      make PATH+
         BLOCK
-      end
 
     IF-STMT ::=
         if EXPR BLOCK end
@@ -169,7 +168,7 @@ SPEC = %(
 
 opts, args = ShellOpts.process(SPEC, ARGV)
 
-file = opts.file || 'make.prick'
+file = opts.file || Compiler::DEFAULT_SOURCE_FILE
 USE_EXCEPTION = opts.exception?
 Trace.enable if opts.trace?
 ShellOpts.exception = USE_EXCEPTION

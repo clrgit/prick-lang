@@ -14,7 +14,6 @@ module Prick::Lang
     # couldn't be resolved and set #unresolved to the unevaluated resource
     # reference
     def eval(expr)
-      trace
       begin
         eval_expr(expr)
       rescue StopEvaluation => ex
@@ -25,7 +24,6 @@ module Prick::Lang
 
   private
     def eval_expr(expr)
-      trace
       case expr
         when Ast::Reference
           uid = expr.uid = compiler.uid(expr.literal)
@@ -82,6 +80,9 @@ module Prick::Lang
 
         when Ast::ListExpr
           expr.elems.map { |e| eval_expr(e) }
+
+#       when Ast::MakeExpr
+
 
         when Ast::Var # Must go before Ast::Value below
           # FIXME COMPILER BRACE -> compiler.variables[...]

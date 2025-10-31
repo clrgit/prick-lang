@@ -35,6 +35,7 @@ module Prick::Lang
     # Reset read status of reader. Used when the reader is a peeker
     def reset() @token = @error = nil end
 
+    # Copy state of other reader
     def copy(other)
       @index = other.index
       @pos = other.pos
@@ -43,11 +44,11 @@ module Prick::Lang
       self
     end
 
+    # Copy position of other reader. Reset error state
     def sync(other)
       @index, @pos = other.index, other.pos
       @token = @error = nil
     end
-
 
     # Return true if at end of path. Note that #eof? only reports on the current
     # position in the input before empty lines are scanned so it is possible to
@@ -64,7 +65,9 @@ module Prick::Lang
     # path (FIXME)
     def bol? = eof? || @pos == 0
 
-    # Return next token
+    # Return match object for the token when using the given regular
+    # expression. Moves the position forward if the block returns a token and
+    # not nil. The regular expression should include a 'error' capture
     #
     # EOL and EOF are handled according to the :eol/:eof flags:
     #
@@ -73,50 +76,55 @@ module Prick::Lang
     #   eof: true  - Return EOF token
     #        false - Return nil and set #error to EOF token
     #
-    def read(eol: false, eof: false)
+    def readtoken(re, eol: false, eof: false, &block)
 #     @eol, @eof = eol, eof
 
       # Scan blank and comments
       scan(eol: eol) if !self.eof?
       return handle_eox(:EOF, eof) if self.eof?
 
-      # Only happens if eol is true, otherwise the 'self.eof?' above would have triggered
+      # Only happens if eol is true, otherwise the 'self.eof?' above would have
+      # triggered
       return handle_eox(:EOL, eol) if self.eol?
 
       # Reset error
       @error = nil
 
-      # Match token. This will always match because of scan
-      m = Token::TOKEN_RE.match(@lines[@index], @pos) or raise InternalError
+      # Match token. This should always match because of scan. The 'error'
+      # capture is supposed to match illegal text
+      m = re.match(@lines[@index], @pos) or raise InternalError
       args = [path, @index + 1, m.begin(0) + 1, m.match(0)]
-      @pos += m.match_length(0)
+      @pos += m.match_length(0) if @token = yield(m, args)
+      @token
+    end
 
-      # Detect matched token type and extract value
-      @token =
-          if m[:keyword] || m[:punct] || m[:oper]
-            Token.new *args, Token::TOKEN_KINDS[m.match(0)]
-          elsif m[:file]
-            FileToken.new(*args, m[:filepath], m[:file], m[:ext])
-          elsif m[:dir]
-            DirToken.new *args
-          elsif m[:path]
-            PathToken.new *args
-          elsif m[:ident]
-            Token.new *args, :IDENT
-          elsif m[:ref]
-            Token.new *args, :REF
-          elsif m[:bool]
-            Token.new *args, (m[:bool] == "true" ? :TRUE : :FALSE)
-          elsif m[:ver]
-            Token.new *args, :VER
-          elsif m[:var]
-            VarToken.new *args
-          elsif m[:error]
-            @error = ErrorToken.new *args
-            nil
-          else
-            raise InternalError
-          end
+    def read(eol: false, eof: false)
+      readtoken(Token::TOKEN_RE, eol: eol, eof: eof) { |m, args|
+        case
+          when m[:keyword] || m[:punct] || m[:oper]; Token.new *args, Token::TOKEN_KINDS[m.match(0)]
+          when m[:file]; FileToken.new(*args, m[:filepath], m[:file], m[:ext])
+          when m[:dir]; DirToken.new *args
+          when m[:ident]; Token.new *args, :IDENT
+          when m[:ref]; Token.new *args, :REF
+          when m[:bool]; Token.new *args, (m[:bool] == "true" ? :TRUE : :FALSE)
+          when m[:ver]; Token.new *args, :VER
+          when m[:var]; VarToken.new *args
+          when m[:error]; @error = ErrorToken.new *args; nil
+        else
+          raise InternalError
+        end
+      }
+    end
+
+    def readpath(eol: false, eof: false)
+      readtoken(Token::PATH_TOKEN_RE, eol: eol, eof: eof) { |m, args|
+        case
+          when m[:path]; PathToken.new *args
+          when m[:error]; @error = ErrorToken.new *args; nil
+        else
+          raise InternalError
+        end
+      }
     end
 
     # Return the rest of the line as a LINE token
@@ -207,8 +215,7 @@ module Prick::Lang
       @pos = re.match(@lines[@index], @pos)&.begin("text") || @lines[@index].size
 
       # Match against following lines
-      if eol? && !eol
-
+      if !eol && eol?
         @index += 1
         if offset = @lines[@index..-1].find_index { |l| @pos = re.match(l)&.begin("text") }
           @index += offset

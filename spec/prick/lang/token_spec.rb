@@ -146,6 +146,28 @@ describe "Prick::Lang" do
       end
     end
 
+    describe "::PATH_RE" do
+      it "matches a filename w/o extension" do
+        e :PATH_RE, "name"
+      end
+      it "matches a filename" do
+        e :PATH_RE, "name.ext"
+      end
+      it "matches a relative path" do
+        e :PATH_RE, "./name.ext"
+        e :PATH_RE, "../name.ext"
+      end
+      it "matches an absolute path" do
+        e :PATH_RE, "/dir/name.ext"
+      end
+      it "sets the 'path' capture" do
+        c :PATH_RE, "a/b/c", :path
+      end
+      it "doesn't match an illegal filename" do
+        not_e :PATH_RE, "/dir name.ext"
+      end
+
+    end
     describe "::TOKEN_RE" do
       it "sets the 'keyword' capture" do
         c :TOKEN_RE, "schema", :keyword
@@ -168,9 +190,6 @@ describe "Prick::Lang" do
       it "sets the 'ext' capture" do
         c :TOKEN_RE, "dir/name/file.sql", :ext, "sql"
       end
-      it "sets the 'path' capture" do
-        c :TOKEN_RE, "dir/name/file.unknown", :path, "dir/name/file.unknown"
-      end
       it "sets the 'ref' capture" do
         c :TOKEN_RE, "root.branch", :ref
       end
@@ -183,9 +202,12 @@ describe "Prick::Lang" do
       it "sets the 'var' capture" do
         c :TOKEN_RE, "$var", :var
       end
-#     it "parses 'true.sql' as a filename" do
-#       c :TOKEN_RE, "true.sql", :file
-#     end
+    end
+
+    describe "::PATH_TOKEN_RE" do
+      it "sets the 'path' capture" do
+        c :PATH_TOKEN_RE, "a/b/c", :path
+      end
     end
 
     describe "::ERROR_RE" do
