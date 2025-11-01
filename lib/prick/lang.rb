@@ -21,9 +21,10 @@ using String::Text
 require_relative './lang/ext/semver.rb'
 require_relative './lang/ext/tree.rb'
 require_relative './lang/ext/x_array.rb'
-require_relative './lang/ext/time.rb'
+require_relative './lang/ext/timer.rb'
 require_relative './lang/ext/debug.rb'
 require_relative './lang/ext/trace.rb' # Debug
+
 require_relative './lang/common.rb'
 require_relative './lang/error.rb'
 
@@ -52,8 +53,7 @@ module Prick::Lang
     Token.define_method(:initialize) { |*args| orig_initialize(*args); tokens << self; }
   end
 
-  def self.dump(kinds, file, targets, exclude, variables)
-    compiler = Compiler.new(file, targets, exclude: exclude, variables: variables)
+  def self.dump(compiler, kinds)
     compiler.load_state
     state = kinds.delete "state"
     dump_phases(compiler, kinds)
@@ -63,27 +63,30 @@ module Prick::Lang
 private
   def self.dump_phases(compiler, kinds)
     tokens = []
-    if kinds.include? "tokens"
-      install_token_listener(tokens)
-    end
+    install_token_listener(tokens) if kinds.include? "tokens"
 
-    compiler.parser.parse(compiler.file)
-    indent { puts tokens } if kinds.delete("tokens")
-    compiler.ast.dump if kinds.delete("ast")
+    compiler.parse compiler.file
+    dump_tokens if kinds.delete "tokens"
+    compiler.ast.dump if kinds.delete "ast"
     return if kinds.empty?
 
-    compiler.converter.convert
-    compiler.analyze(link: false)
-    compiler.idr.dump if kinds.delete("idr")
+    compiler.convert
+    compiler.analyzer.analyze link: false
+    compiler.idr.dump if kinds.delete "idr"
     return if kinds.empty?
 
-    compiler.analyze(link: true)
-    compiler.idr.dump if kinds.delete("links")
-    compiler.analyzer.dump if kinds.delete("deps")
+    compiler.analyze link: true
+    compiler.idr.dump if kinds.delete "links"
+    compiler.analyzer.dump if kinds.delete "deps"
     return if kinds.empty?
 
     compiler.generate
-    compiler.generator.dump if kind == "units"
+    compiler.generator.dump if kinds.delete "units"
+  end
+
+  def self.dump_tokens(tokens)
+    puts "Tokens"
+    indent { puts tokens }
   end
 end
 

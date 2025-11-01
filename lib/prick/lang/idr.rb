@@ -132,8 +132,8 @@ module Prick::Lang
     class CallCommand < Command
     end
 
-    # No OPeration command. They have no function except to serve as anchors or
-    # to add dependencies
+    # No OPeration command. Have no function except to serve as anchor or a
+    # place to add dependencies
     class NopCommand < Command
       def initialize(parent, ast = nil) = super(parent, ast)
     end

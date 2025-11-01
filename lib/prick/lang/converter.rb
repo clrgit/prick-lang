@@ -122,12 +122,9 @@ module Prick::Lang
 
     def convert_make(ast)
       constrain ast, Ast::Make
-      d ast.expr
-      d evaluator.eval(ast.expr)
       if evaluator.eval(ast.expr)
-        d ast.expr
-        d evaluator.eval(ast.expr)
         convert_stmts(ast.then_)
+        # Invalidate enclosing schema when running 'prick make'
       end
     end
 

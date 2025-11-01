@@ -90,6 +90,8 @@ module Prick::Lang
             end
           }
 
+          # TODO: Add side-effect: Invalidate enclosing schema
+
         when Ast::Var # Must go before Ast::Value below
           # FIXME COMPILER BRACE -> compiler.variables[...]
           compiler[expr.value] or raise InternalError, "Unknown variable #{expr.value.inspect}"

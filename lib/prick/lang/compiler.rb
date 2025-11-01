@@ -15,6 +15,7 @@ module Prick::Lang
 
   class Compiler
     include ErrorFunctions
+    include Prick::Lang::Timer
 
     DEFAULT_TARGET = "<main>"
 
@@ -24,10 +25,8 @@ module Prick::Lang
     # Default source file. Also used when including directories (eg. './dir')
     DEFAULT_SOURCE_FILE = "#{DEFAULT_SOURCE_NAME}.#{Token::PRICK_EXT}"
 
-    # File or completed resources. Used by 'prick make'
-    COMPLETED_RESOURCES_FILE = ".prick-resources"
-
-    STATE_FILE = ".prick.state"
+    # Default state file
+    DEFAULT_STATE_FILE = ".prick.state"
 
     # Source and environment
     attr_reader :dir # Current user directory when the compiler was invoked
@@ -47,16 +46,25 @@ module Prick::Lang
     def idr = @converter.idr # Idr::Program. Initialized by #convert and updated by #analyze
     def units = @generator.units # [Unit::Node]. Initialized by #generate
 
-    # Meta data
+    # State data
+    attr_reader :state_file # String - State file
     attr_reader :timestamp # Time - time of last successful run
     attr_reader :completed_resources # [uid] - Completed resource
-    attr_reader :completed_resources_file # String - Completed resource file
 
-    def initialize(file, targets = [DEFAULT_TARGET], resource_file: nil, exclude: [], variables: {})
+    def initialize(
+        file, targets = [DEFAULT_TARGET],
+        state_file: DEFAULT_STATE_FILE,
+        timestamp: nil,
+        exclude: [],
+        variables: {})
+
       constrain file, String
       constrain targets, [String]
+      constrain state_file, String
+      constrain timestamp, Time, nil
       constrain exclude, [String]
       constrain variables, { Symbol => [String, Semver] }
+
 #     @@INSTANCE.nil? or raise ArgumentError, "Compiler is a singleton" # Interferes with testing
       @@INSTANCE = self
       @dir = Dir.getwd
@@ -65,9 +73,8 @@ module Prick::Lang
       @targets = targets
       @exclude = exclude
       @variables = variables
-      @completed_resources_file = completed_resources_file || COMPLETED_RESOURCES_FILE
-#     @completed_resources = load_completed_resources
-      @completed_resources = []
+      @state_file = state_file
+      @timestamp = timestamp
       @parser = Parser.new
       @converter = Converter.new
       @analyzer = Analyzer.new
@@ -79,25 +86,17 @@ module Prick::Lang
     end
 
     def load_state
-      data = File.exist?(STATE_FILE) ? YAML.load_file(STATE_FILE, symbolize_names: true) : {}
-      @timestamp = Time.parse(data[:timestamp] || "1970-01-01 00:00:00 UTC")
+      data = File.exist?(state_file) ? YAML.load_file(state_file, symbolize_names: true) : {}
+      @timestamp ||= Time.parse(data[:timestamp] || "1970-01-01 00:00:00 UTC")
       @completed_resources = data[:completed_resources] || []
     end
 
     def save_state
-      data = {
+      File.write state_file, {
         timestamp: Time.now.strftime("%Y-%m-%d %H:%M:%S %Z"),
         completed_resources: @completed_resources
-      }
-      File.write(STATE_FILE, data.to_yaml)
+      }.to_yaml
     end
-
-    # Load and store completed resources
-#   def load_completed_resources
-#     File.exist?(completed_resources_file) ? IO.readlines(completed_resources_file).map(&:chomp) : []
-#   end
-#
-#   def save_completed_resources(resources) = File.open(completed_resources_file, "w") { _1.puts resources }
 
     # Singleton instance
     def self.instance = @@INSTANCE
@@ -113,7 +112,7 @@ module Prick::Lang
 
     def parse(file = nil, lines = nil)
       @file ||= file
-      @parser.parse(file, lines)
+      @parser.parse(self.file, lines)
     end
 
     def convert
@@ -121,7 +120,7 @@ module Prick::Lang
     end
 
     def analyze(link: nil)
-      @analyzer.analyze(link: nil)
+      @analyzer.analyze(link: link)
     end
 
     def generate
@@ -132,7 +131,7 @@ module Prick::Lang
       load_state
 
       time "Parsing #{file}" do
-        parse(file, lines)
+        parse
       end
 
       time "Converting" do
@@ -149,7 +148,6 @@ module Prick::Lang
 
       save_state
     end
-
     #
     # Utilities
     #

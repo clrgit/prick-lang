@@ -15,12 +15,14 @@ SPEC = %(
     Prick source file. The default is the '#{Prick::Lang::Compiler::DEFAULT_SOURCE_FILE}'
     file in the project main directory
 
+  --state-file=FILE
+    Prick compiler state file. Default is '#{Prick::Lang::Compiler::DEFAULT_STATE_FILE}'
+
+  --timestamp=TIMESTAMP
+    Override timestamp from the state file
+
   +x,exclude=SCHEMA,
     Comma-separated list of excluded schemas
-
-  --resource-file=FILE
-    Mark state file. The mark file contains a list of completed targets and is
-    used by 'prick make'. Default is '#{Prick::Lang::Compiler::COMPLETED_RESOURCES_FILE}'
 
   -D,dump=tokens|ast|idr|links|deps|units|state,
     Dump debug. Default is 'ast'
@@ -168,12 +170,13 @@ SPEC = %(
 
 opts, args = ShellOpts.process(SPEC, ARGV)
 
-file = opts.file || Compiler::DEFAULT_SOURCE_FILE
+file = opts.file || Prick::Lang::Compiler::DEFAULT_SOURCE_FILE
 USE_EXCEPTION = opts.exception?
 Trace.enable if opts.trace?
 ShellOpts.exception = USE_EXCEPTION
+state_file = opts.state_file || Prick::Lang::Compiler::DEFAULT_STATE_FILE
+timestamp = opts.timestamp && Time.parse(opts.timestamp)
 exclude = opts.exclude
-resource_file = opts.resource_file
 
 # Extract command
 cmd = args.extract(1)
@@ -202,58 +205,26 @@ if arg = args.shift
   end
 end
 
+# Create compiler object
+compiler = Prick::Lang::Compiler.new(
+    file, targets,
+    state_file: state_file,
+    timestamp: timestamp,
+    exclude: exclude,
+    variables: variables)
+
 # Handle dump option. 'units' is the default
 if opts.dump?
   kinds = opts.dump || "units"
   (unknowns = kinds - Prick::Lang::DUMP_KINDS) or ShellOpts::error "Illegal value for --dump '#{unknowns.first}'"
-# Prick::Lang::DUMP_KINDS.include?(kind) or ShellOpts::error "Illegal value for --dump '#{kind}'"
-  Prick::Lang.dump(kinds, file, targets, exclude, variables)
+  Prick::Lang.dump(compiler, kinds)
   exit
 end
 
 # Compile
-compiler = Prick::Lang::Compiler.new(
-    file, targets, completed_resources_file: resource_file, exclude: exclude, variables: variables)
 begin
   compiler.compile
 rescue => ex
   raise Prick::Lang::ErrorFunctions.pretty_backtrace!(ex)
 end
-
-__END__
-    EXPR ::=
-        CONSTANT-EXPR
-      | RESOURCE-EXPR
-      | ! EXPR
-      | EXPR && EXPR
-      | EXPR || EXPR
-      | '(' EXPR ')'
-
-    # 'env', 'cmd', and 'user' or's their arguments together, 'version' and's
-    # them
-    CONSTANT-EXPR ::=
-        env IDENT+
-      | cmd IDENT+
-      | user IDENT+
-      | version VER_EXPR+
-      | var IDENT IDENT+
-
-    RESOURCE-EXPR ::=
-        schema IDENT
-      | object REF
-      | resource REF
-
-    IDENT-EXPR ::=
-      IDENT IDENT-OP
-      IDENT ==|!= IDENT-OR-STRING
-
-    VAR-EXPR ::= env | cmd | user | version | schema | object | resource
-
-    VER-EXPR ::= VER-OP VER
-
-    VAL-EXPR ::=
-        IDENT
-      | VER
-      | VER-EXPR
-
 
