@@ -1,12 +1,10 @@
 
 module Prick::Lang
-  class Evaluator
+  class Evaluator < CompilerProcess
     class StopEvaluation < StopIteration
       attr_reader :reference # Ast::Reference
       def initialize(reference) @reference = reference end
     end
-
-    def compiler = Compiler.instance
 
     attr_reader :unresolved # Ast::Reference. First unresolved reference
 
@@ -81,8 +79,16 @@ module Prick::Lang
         when Ast::ListExpr
           expr.elems.map { |e| eval_expr(e) }
 
-#       when Ast::MakeExpr
-
+        # Returns true if any file was updated later than Compiler#timestamp
+        when Ast::MakeExpr
+          expr.paths.any? { |path|
+            if File.exist?(path.path)
+              File.mtime(path.path) > compiler.timestamp
+            else
+              warning(path, "Can't find '#{path.path}'")
+              true
+            end
+          }
 
         when Ast::Var # Must go before Ast::Value below
           # FIXME COMPILER BRACE -> compiler.variables[...]

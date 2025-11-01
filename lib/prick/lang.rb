@@ -4,6 +4,8 @@ require_relative "lang/version"
 
 require 'set'
 require 'pathname'
+require 'yaml'
+require 'time'
 
 require 'constrain'
 require 'forward_to'
@@ -20,6 +22,7 @@ require_relative './lang/ext/semver.rb'
 require_relative './lang/ext/tree.rb'
 require_relative './lang/ext/x_array.rb'
 require_relative './lang/ext/time.rb'
+require_relative './lang/ext/debug.rb'
 require_relative './lang/ext/trace.rb' # Debug
 require_relative './lang/common.rb'
 require_relative './lang/error.rb'
@@ -49,46 +52,38 @@ module Prick::Lang
     Token.define_method(:initialize) { |*args| orig_initialize(*args); tokens << self; }
   end
 
-  def self.dump(kind, file, lines = nil, targets, exclude, variables)
+  def self.dump(kinds, file, targets, exclude, variables)
     compiler = Compiler.new(file, targets, exclude: exclude, variables: variables)
-    if kind == "tokens"
-      tokens = []
+    compiler.load_state
+    state = kinds.delete "state"
+    dump_phases(compiler, kinds)
+    compiler.dump if state
+  end
+
+private
+  def self.dump_phases(compiler, kinds)
+    tokens = []
+    if kinds.include? "tokens"
       install_token_listener(tokens)
-      compiler.parse(file, lines)
-      puts "Processed #{tokens.size} tokens"
-      indent { puts tokens } # FIXME DUPLICATES in OUTPUT
-    else
-      compiler.parser.parse(file, lines)
-      if kind == "ast"
-        compiler.ast.dump; return
-      end
-
-      compiler.convert
-      if kind == "idr"
-        compiler.analyze(no_link: true)
-        compiler.idr.dump; return
-      end
-
-      compiler.analyze
-      if kind == "links"
-        compiler.idr.dump; return
-      end
-
-      if kind == "deps"
-        compiler.analyzer.dump; return
-      end
-
-      if kind == "state"
-        compiler.dump; return
-      end
-
-      compiler.generate
-      if kind == "units"
-        compiler.generator.dump; return
-      end
-
-      raise ArgumentError
     end
+
+    compiler.parser.parse(compiler.file)
+    indent { puts tokens } if kinds.delete("tokens")
+    compiler.ast.dump if kinds.delete("ast")
+    return if kinds.empty?
+
+    compiler.converter.convert
+    compiler.analyze(link: false)
+    compiler.idr.dump if kinds.delete("idr")
+    return if kinds.empty?
+
+    compiler.analyze(link: true)
+    compiler.idr.dump if kinds.delete("links")
+    compiler.analyzer.dump if kinds.delete("deps")
+    return if kinds.empty?
+
+    compiler.generate
+    compiler.generator.dump if kind == "units"
   end
 end
 

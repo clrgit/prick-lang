@@ -22,7 +22,7 @@ SPEC = %(
     Mark state file. The mark file contains a list of completed targets and is
     used by 'prick make'. Default is '#{Prick::Lang::Compiler::COMPLETED_RESOURCES_FILE}'
 
-  -D,dump=tokens|ast|idr|deps|units|state
+  -D,dump=tokens|ast|idr|links|deps|units|state,
     Dump debug. Default is 'ast'
 
   -X,exception
@@ -202,11 +202,12 @@ if arg = args.shift
   end
 end
 
-# Handle dump option. 'ast' is the default
+# Handle dump option. 'units' is the default
 if opts.dump?
-  kind = opts.dump || "ast"
-  Prick::Lang::DUMP_KINDS.include?(kind) or ShellOpts::error "Illegal value for --dump '#{kind}'"
-  Prick::Lang.dump(kind, file, nil, targets, exclude, variables)
+  kinds = opts.dump || "units"
+  (unknowns = kinds - Prick::Lang::DUMP_KINDS) or ShellOpts::error "Illegal value for --dump '#{unknowns.first}'"
+# Prick::Lang::DUMP_KINDS.include?(kind) or ShellOpts::error "Illegal value for --dump '#{kind}'"
+  Prick::Lang.dump(kinds, file, targets, exclude, variables)
   exit
 end
 

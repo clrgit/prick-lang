@@ -34,6 +34,7 @@ module Prick::Lang
 
     # Reset read status of reader. Used when the reader is a peeker
     def reset() @token = @error = nil end
+    alias :invalidate! :reset
 
     # Copy state of other reader
     def copy(other)
@@ -50,19 +51,19 @@ module Prick::Lang
       @token = @error = nil
     end
 
-    # Return true if at end of path. Note that #eof? only reports on the current
+    # Return true if at end of file. Note that #eof? only reports on the current
     # position in the input before empty lines are scanned so it is possible to
     # have #eof? == false but get a EOF token from #read
     def eof? = @index >= @lines.size
 
-    # Return true if at end of line. #eol? is also true when at end of path.
+    # Return true if at end of line. #eol? is also true when at end of file.
     # Note that #eol? only reports on the current position in the input before
     # blanks are scanned so it is possible to have #eol? == true but get a EOL
     # token from #read
     def eol? = @pos >= (@lines[@index]&.size || 0)
 
     # Return true if at beginning of line. #bol? is also true when at end of
-    # path (FIXME)
+    # file (FIXME)
     def bol? = eof? || @pos == 0
 
     # Return match object for the token when using the given regular
@@ -93,7 +94,7 @@ module Prick::Lang
       # Match token. This should always match because of scan. The 'error'
       # capture is supposed to match illegal text
       m = re.match(@lines[@index], @pos) or raise InternalError
-      args = [path, @index + 1, m.begin(0) + 1, m.match(0)]
+      args = [@path, @index + 1, m.begin(0) + 1, m.match(0)]
       @pos += m.match_length(0) if @token = yield(m, args)
       @token
     end
@@ -195,8 +196,8 @@ module Prick::Lang
       return @token
     end
 
-    def dump
-      puts "Reader"; indent {
+    def dump(title = "Reader")
+      puts title; indent {
         puts "index: #{index}"
         puts "pos: #{pos}"
 #       puts "lines: #{lines.inspect}"

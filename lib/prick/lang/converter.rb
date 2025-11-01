@@ -1,4 +1,5 @@
 
+# FIXME: Rename Evaluator
 module Prick::Lang
   # Convert the Ast to an Idr
   class Converter < CompilerProcess
@@ -93,6 +94,9 @@ module Prick::Lang
       case ast
         when Ast::If; convert_if(ast)
         when Ast::Case; convert_case(ast)
+        when Ast::Make; convert_make(ast)
+      else
+        raise InternalError
       end
     end
 
@@ -114,6 +118,17 @@ module Prick::Lang
         end
       end
       convert_stmts(ast.else_) if ast.else_
+    end
+
+    def convert_make(ast)
+      constrain ast, Ast::Make
+      d ast.expr
+      d evaluator.eval(ast.expr)
+      if evaluator.eval(ast.expr)
+        d ast.expr
+        d evaluator.eval(ast.expr)
+        convert_stmts(ast.then_)
+      end
     end
 
 #   def convert

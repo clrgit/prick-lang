@@ -27,6 +27,8 @@ module Prick::Lang
     # File or completed resources. Used by 'prick make'
     COMPLETED_RESOURCES_FILE = ".prick-resources"
 
+    STATE_FILE = ".prick.state"
+
     # Source and environment
     attr_reader :dir # Current user directory when the compiler was invoked
     attr_reader :file # Start file. Only used in error messages. May be nil, initialized by #parse if so
@@ -46,6 +48,7 @@ module Prick::Lang
     def units = @generator.units # [Unit::Node]. Initialized by #generate
 
     # Meta data
+    attr_reader :timestamp # Time - time of last successful run
     attr_reader :completed_resources # [uid] - Completed resource
     attr_reader :completed_resources_file # String - Completed resource file
 
@@ -75,11 +78,26 @@ module Prick::Lang
       @contexts = []
     end
 
-    # Load and store completed resources
-    def load_completed_resources
-      File.exist?(completed_resources_file) ? IO.readlines(completed_resources_file).map(&:chomp) : []
+    def load_state
+      data = File.exist?(STATE_FILE) ? YAML.load_file(STATE_FILE, symbolize_names: true) : {}
+      @timestamp = Time.parse(data[:timestamp] || "1970-01-01 00:00:00 UTC")
+      @completed_resources = data[:completed_resources] || []
     end
-    def save_compleated_resources(resources) = File.open(completed_resources_file, "w") { _1.puts resources }
+
+    def save_state
+      data = {
+        timestamp: Time.now.strftime("%Y-%m-%d %H:%M:%S %Z"),
+        completed_resources: @completed_resources
+      }
+      File.write(STATE_FILE, data.to_yaml)
+    end
+
+    # Load and store completed resources
+#   def load_completed_resources
+#     File.exist?(completed_resources_file) ? IO.readlines(completed_resources_file).map(&:chomp) : []
+#   end
+#
+#   def save_completed_resources(resources) = File.open(completed_resources_file, "w") { _1.puts resources }
 
     # Singleton instance
     def self.instance = @@INSTANCE
@@ -102,8 +120,8 @@ module Prick::Lang
       @converter.convert
     end
 
-    def analyze(no_link: false)
-      @analyzer.analyze(no_link: no_link)
+    def analyze(link: nil)
+      @analyzer.analyze(link: nil)
     end
 
     def generate
@@ -111,6 +129,8 @@ module Prick::Lang
     end
 
     def compile
+      load_state
+
       time "Parsing #{file}" do
         parse(file, lines)
       end
@@ -127,8 +147,7 @@ module Prick::Lang
         generate
       end
 
-#     puts "Dumping"
-#     program.dump
+      save_state
     end
 
     #
@@ -245,10 +264,11 @@ module Prick::Lang
     def dump
       puts "Compiler"
       indent {
+        puts "timestamp: #{@timestamp&.strftime("%F %T %Z") || 'nil'}"
         puts "variables"; indent { puts variables.map { |k,v| "#{k}: #{v}" } }
         puts "resource:"
         indent {
-          puts "present:"; indent { puts present.map { "#{_1} (#{resource(_1).classname})" } }
+          puts "present:"; indent { puts present.map { "#{_1} (#{@resources[_1].classname})" } }
           puts "absent:"; indent { puts absent }
           puts "unknown:"; indent { puts unknown }
         }

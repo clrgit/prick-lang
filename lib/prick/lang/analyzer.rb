@@ -19,17 +19,27 @@ module Prick::Lang
     attr_reader :reachable_nodes
     attr_reader :reachable_schemas
 
-    def analyze(no_link: false)
-      assign_this_phase
-      assign_default_phases
-      add_mark_nodes
-      assign_schema
-      resolve_references
-      return if no_link
-      link_block_nodes
-      link_phases
-      link_program_phases
-      select_nodes
+    # Analyze IDR. The link flag controls which part of the process are
+    # executed. It is used to dump the Idr at different stages
+    #
+    #   link=true -> run link only
+    #   link=false -> run assign only
+    #   link=nil -> run assign+link
+    #
+    def analyze(link: nil)
+      if link.nil? || !link
+        assign_this_phase
+        assign_default_phases
+        add_mark_nodes
+        assign_schema
+        resolve_references
+      end
+      if link.nil? || link
+        link_block_nodes
+        link_phases
+        link_program_phases
+        select_nodes
+      end
       idr
     end
 

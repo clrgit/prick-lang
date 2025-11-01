@@ -4,7 +4,11 @@ module Prick::Lang
   # Usage
   #   class SomeCompilerClass
   #     include ErrorFunctions
+  #     def f
+  #       error "Message"
+  #     end
   #   end
+  #
   #
   module ErrorFunctions
     # :call-seq:
@@ -13,17 +17,20 @@ module Prick::Lang
     #   error(object-w-token-method, message...)
     #   error(file, lineno, charno, message...) # file may be nil
     #
-    def error(*args)
+    def error(*args, warning: false)
       file, lineno, charno = parse_args!(args)
       location = (lineno ? [file, "#{lineno}:#{charno}"].compact.join(" ") : file)
-      msg = [location, args.join].compact.join(" ")
-      if defined?(::RSpec) || USE_EXCEPTION
+      warn = warning ? "WARNING" : nil
+      msg = [location, warn, args.join].compact.join(" ")
+      if !warning && (defined?(::RSpec) || USE_EXCEPTION)
         pretty_error Error, msg
       else
         $stderr.puts msg
-        exit 1
+        exit 1 if !warning
       end
     end
+
+    def warning(*args) = error(*args, warning: true)
 
     def internal_error(*args)
       pretty_error InternalError, "INTERNAL ERROR: #{args.join}"

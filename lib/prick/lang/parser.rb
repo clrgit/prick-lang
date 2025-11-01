@@ -52,7 +52,7 @@ module Prick::Lang
       @ast = nil
     end
 
-    def parse(file, lines)
+    def parse(file, lines = nil)
       @file = file
       push_tokenizer Tokenizer.new(file, lines)
       @ast = parse_program
@@ -105,6 +105,10 @@ module Prick::Lang
       stmts
     end
 
+    #
+    # S E C T I O N S
+    #
+
     # Parse a statement block (a list of statements). Checks for non-empty when
     # :check is true (the default)
     #
@@ -129,6 +133,10 @@ module Prick::Lang
       decl.block.stop_token = readkind(:BRACE_END)
       decl
     end
+
+    #
+    # D E P E N D E N C I E S
+    #
 
     def parse_provide
       provide = Ast::Provide.new(read)
@@ -184,6 +192,10 @@ module Prick::Lang
       source
     end
 
+    #
+    # C O M M A N D S
+    #
+
     def parse_call_command
       call = Ast::CallCommand.new(read)
       call.references = parse_references
@@ -191,16 +203,10 @@ module Prick::Lang
       call
     end
 
-#   def parse_make_command
-#     make = Ast::MakeCommand.new(read)
-#     make.paths = readpaths?(eol: true).map { |token| Ast::Path.new(token) }
-#     readkind(:PIPE)
-#     limit = @tokenizer.line.indentation
-#     @tokenizer.readeol
-#     make.source = readtext(limit)&.text
-#     make
-#   end
-#
+    #
+    # C O N T R O L   S T A T E M E N T S
+    #
+
     def parse_if
       if_ = Ast::If.new(peek)
       loop do
@@ -257,16 +263,30 @@ module Prick::Lang
     def parse_make_command
       make = Ast::Make.new(read)
       make.expr = Ast::MakeExpr.new
-      make.expr.paths = readpaths?(eol: true).map { |token| Ast::Path.new(token) }
-      pipe = readkind(:PIPE)
-      make.then_ = Ast::Block.new(pipe)
-      command = Ast::ExternalCommand.new(pipe, :EXEC)
-      make.then_.stmts << command
-      limit = @tokenizer.line.indentation
-      @tokenizer.readeol
-      command.source = readtext(limit)&.text
+      make.expr.paths = readrest { readpath(eol: true) }.map { |token| Ast::Path.new(token) }
+#     make.expr.paths.each { |path| File.exist?(path.path) or warning(path, "Can't find '#{path.path}'") }
+      case peek(eol: true).kind
+        when :PIPE
+          pipe = read(eol: true)
+          make.then_ = Ast::Block.new(pipe)
+          command = Ast::ExternalCommand.new(pipe, :EXEC)
+          make.then_.stmts << command
+          limit = @tokenizer.line.indentation
+          @tokenizer.readeol
+          command.source = readtext(limit)&.text
+        when :EOL
+          read(eol: true)
+          make.then_ = parse_block
+          readkind(:END)
+        else
+          unexpected_token_error peek(eol: true), "block or exec expression"
+      end
       make
     end
+
+    #
+    # E X P R E S S I O N S
+    #
 
     # Parse a value and return it. Called from the shunter
     #
@@ -520,6 +540,19 @@ module Prick::Lang
       while r
         a << r
         r = yield
+      end
+      a
+    end
+
+    # Read rest of tokens in the current line. Does not consume the EOF token.
+    # The block should call one of the #read* methods with eol: true
+    def readrest(&block) = (r = readrest?(&block)).empty? ? nil : r
+
+    def readrest?(&block)
+      a = []
+      while !tokenizer.eol?
+        token = block.call or return a
+        a << token
       end
       a
     end
