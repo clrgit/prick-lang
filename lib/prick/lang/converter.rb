@@ -8,8 +8,6 @@ module Prick::Lang
     # The generated Idr
     attr_reader :idr
 
-    def runtime = { CMD: "build", ENV: "prod", USER: "me" }
-
     def initialize
       @evaluator = Evaluator.new
     end
@@ -123,12 +121,10 @@ module Prick::Lang
     def convert_make(ast)
       constrain ast, Ast::Make
       if evaluator.eval(ast.expr)
+        compiler.block << Idr::MakeCommand.new(compiler.context, ast)
         convert_stmts(ast.then_)
-        # Invalidate enclosing schema when running 'prick make'
       end
     end
-
-#   def convert
 
     def convert_case
       raise
