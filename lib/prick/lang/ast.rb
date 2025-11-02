@@ -204,9 +204,14 @@ module Prick::Lang
     # exec/eval/sql
     class ExternalCommand < Command
       attr_reader :kind
+      attr_reader :dir
       attr_accessor :source # Array of source lines. Assigned after initialization
 
-      def initialize(token, kind = nil) super(token); @kind = kind || token.kind end
+      def initialize(token, kind = nil, dir)
+        super(token)
+        @kind = kind || token.kind
+        @dir = dir
+      end
 
       # True iff source consists of multiple lines
       def multiline? = @source =~ /\n/

@@ -90,10 +90,11 @@ module Prick::Lang
     class ExternalCommand
       def dumpunit
         command = ast.kind
+        lead = command.to_s + (path == "." ? "" : " #{path}/")
         if ast.multiline?
-          puts command; indent { puts source }
+          puts "#{lead}"; indent { puts source }
         else
-          puts "#{command} #{source}"
+          puts "#{lead} #{source}"
         end
       end
 

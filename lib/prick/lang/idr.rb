@@ -135,6 +135,7 @@ module Prick::Lang
 
     class ExternalCommand < Command
       forward_to :ast, :source, :kind
+      def path = ast.dir
     end
 
     class CallCommand < Command

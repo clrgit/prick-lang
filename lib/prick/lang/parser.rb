@@ -155,7 +155,7 @@ module Prick::Lang
     #
 
     def parse_command(kind = nil)
-      command = Ast::ExternalCommand.new(read)
+      command = Ast::ExternalCommand.new(read, tokenizer.dir)
       if peek(eol: true).kind == :PIPE
         read
         limit = @tokenizer.line.indentation
@@ -275,7 +275,7 @@ module Prick::Lang
         when :PIPE
           pipe = read(eol: true)
           make.then_ = Ast::Block.new(pipe)
-          command = Ast::ExternalCommand.new(pipe, :EXEC)
+          command = Ast::ExternalCommand.new(pipe, :EXEC, @tokenizer.dir)
           make.then_.stmts << command
           limit = @tokenizer.line.indentation
           @tokenizer.readeol
