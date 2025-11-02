@@ -128,6 +128,8 @@ module Prick::Lang
     end
 
     def compile
+      t0 = Time.now
+
       load_state
 
       time "Parsing #{file}" do
@@ -147,7 +149,11 @@ module Prick::Lang
       end
 
       save_state
+
+      t1 = Time.now
+      puts "Success (#{ftime t1 - t0})"
     end
+
     #
     # Utilities
     #
@@ -258,6 +264,10 @@ module Prick::Lang
       @contexts.pop
       r
     end
+
+    #
+    # D U M P
+    #
 
     def dump
       puts "Compiler"

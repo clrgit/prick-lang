@@ -51,10 +51,9 @@ module Prick::Lang
       @token = @error = nil
     end
 
-    # Return true if at end of file. Note that #eof? only reports on the current
-    # position in the input before empty lines are scanned so it is possible to
-    # have #eof? == false but get a EOF token from #read
-    def eof? = @index >= @lines.size
+    # Return true if at beginning of line. #bol? is also true when at end of
+    # file (FIXME)
+    def bol? = eof? || @pos == 0
 
     # Return true if at end of line. #eol? is also true when at end of file.
     # Note that #eol? only reports on the current position in the input before
@@ -62,9 +61,10 @@ module Prick::Lang
     # token from #read
     def eol? = @pos >= (@lines[@index]&.size || 0)
 
-    # Return true if at beginning of line. #bol? is also true when at end of
-    # file (FIXME)
-    def bol? = eof? || @pos == 0
+    # Return true if at end of file. Note that #eof? only reports on the current
+    # position in the input before empty lines are scanned so it is possible to
+    # have #eof? == false but get a EOF token from #read
+    def eof? = @index >= @lines.size
 
     # Return match object for the token when using the given regular
     # expression. Moves the position forward if the block returns a token and
@@ -88,15 +88,18 @@ module Prick::Lang
       # triggered
       return handle_eox(:EOL, eol) if self.eol?
 
-      # Reset error
-      @error = nil
-
       # Match token. This should always match because of scan. The 'error'
       # capture is supposed to match illegal text
       m = re.match(@lines[@index], @pos) or raise InternalError
       args = [@path, @index + 1, m.begin(0) + 1, m.match(0)]
-      @pos += m.match_length(0) if @token = yield(m, args)
-      @token
+      if m[:error]
+        @error = ErrorToken.new *args
+        @token = nil
+      else
+        @pos += m.match_length(0) if @token = yield(m, args)
+        @error = nil
+        @token
+      end
     end
 
     def read(eol: false, eof: false)
@@ -110,7 +113,6 @@ module Prick::Lang
           when m[:bool]; Token.new *args, (m[:bool] == "true" ? :TRUE : :FALSE)
           when m[:ver]; Token.new *args, :VER
           when m[:var]; VarToken.new *args
-          when m[:error]; @error = ErrorToken.new *args; nil
         else
           raise InternalError
         end
@@ -118,14 +120,7 @@ module Prick::Lang
     end
 
     def readpath(eol: false, eof: false)
-      readtoken(Token::PATH_TOKEN_RE, eol: eol, eof: eof) { |m, args|
-        case
-          when m[:path]; PathToken.new *args
-          when m[:error]; @error = ErrorToken.new *args; nil
-        else
-          raise InternalError
-        end
-      }
+      readtoken(Token::PATH_TOKEN_RE, eol: eol, eof: eof) { |m, args| PathToken.new *args }
     end
 
     # Return the rest of the line as a LINE token

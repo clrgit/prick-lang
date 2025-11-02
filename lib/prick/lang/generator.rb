@@ -38,12 +38,28 @@ module Prick::Lang
       @units
     end
 
+    # if running-make
+    #   completed_nodes = completed_resources.transitive_closure(deps)
+    #   dirty_nodes = (make_nodes + updated_files).transitive_closure(uses)
+    #   generated_nodes = all_nodes - (completed_nodes - dirty_nodes)
+    # end
+    #
+    # Also mark schemas: Some schemas doesn't have to be rebuilt even if
+    # they're not completed
+
+    # Generate
+    #   mark dirty using #uses hierarchy if requested
+    #   process reachable nodes
+
+    def make
+      inverted_graph = nodes.map { |unit| [unit, unit.deps] }.to_h
+    end
+
     def dump
       puts "Schemas"; indent {
         schemas.each &:dumpunit
       }
-
-      puts "Units"; indent {
+      puts "Phases"; indent {
         for kind, rd in CATEGORIES
           next if kind == :META
           puts kind; indent {
@@ -70,14 +86,6 @@ module Prick::Lang
         else
           raise
         end
-      }
-    end
-
-    def categorize_units
-      units.each { |unit|
-        next if unit.is_a? Unit::Mark
-        attr = CATEGORIES[unit.phase]
-        self.send(attr) << unit
       }
     end
 
@@ -158,6 +166,14 @@ module Prick::Lang
       end
 
       result.reverse
+    end
+
+    def categorize_units
+      units.each { |unit|
+        next if unit.is_a? Unit::Mark
+        attr = CATEGORIES[unit.phase]
+        self.send(attr) << unit
+      }
     end
   end
 end

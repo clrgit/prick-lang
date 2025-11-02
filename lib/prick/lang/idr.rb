@@ -51,6 +51,10 @@ module Prick::Lang
       # manipulated by #depend_on
       attr_reader :deps
 
+      # List of nodes that depends on this node. The list may only be
+      # manipulated by #depend_on
+      attr_reader :uses
+
       # Used in debug. May be removed
       attr_reader :serial
 
@@ -61,12 +65,16 @@ module Prick::Lang
         @ast = ast
         @serial = (@@SERIAL += 1)
         @deps = []
+        @uses = []
         @exclude = false
         @include = false
       end
 
       # Make self depend on node
-      def depend_on(node) = head.deps << node.tail
+      def depend_on(node)
+        head.deps << node.tail
+        node.tail.uses << self
+      end
 
       # Return the transitive closure using #deps. Only nodes with #exclude
       # equal to false are considered
@@ -166,6 +174,11 @@ module Prick::Lang
         super(parent, ast)
         @uid = uid
       end
+    end
+
+    # A MakeCommand is only emitted when a make command was triggere. It
+    # invalidates all following nodes within the resource
+    class MakeCommand < NopCommand
     end
 
     #

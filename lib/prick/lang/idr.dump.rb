@@ -140,6 +140,10 @@ module Prick::Lang
       def dump_parts = nil # nop
     end
 
+    class MakeCommand
+      def dumpline = puts "MAKE"
+    end
+
     # Can be a schema, phase, provide, or function
     class Resource
       def dump(ident = self.ident)

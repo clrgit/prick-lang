@@ -66,7 +66,7 @@ private
     install_token_listener(tokens) if kinds.include? "tokens"
 
     compiler.parse compiler.file
-    dump_tokens if kinds.delete "tokens"
+    dump_tokens(tokens) if kinds.delete "tokens"
     compiler.ast.dump if kinds.delete "ast"
     return if kinds.empty?
 
@@ -86,7 +86,7 @@ private
 
   def self.dump_tokens(tokens)
     puts "Tokens"
-    indent { puts tokens }
+    indent { puts tokens.map(&:to_s) }
   end
 end
 
@@ -98,5 +98,4 @@ require_relative './lang/evaluator.rb'
 require_relative './lang/converter.rb'
 require_relative './lang/analyzer.rb'
 require_relative './lang/generator.rb'
-
 

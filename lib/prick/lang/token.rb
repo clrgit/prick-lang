@@ -283,6 +283,7 @@ module Prick::Lang
 
     # Value of token. Used by simple expressions to accumulate arguments
     attr_accessor :value
+
     def initialize(file, lineno, charno, text, kind)
       @file, @lineno, @charno, @text, @kind = file, lineno, charno, text, kind
     end
@@ -292,7 +293,7 @@ module Prick::Lang
       self.new(other.file, other.lineno, other.charno, other.text, kind)
     end
 
-    # Categories
+    # Categories. TODO Cleanup, many methods are unused
     def is_keyword? = KEYWORDS.include? kind
     def is_value? = VALUES.include? kind
     def is_ref? = REFS.include? kind
@@ -319,7 +320,7 @@ module Prick::Lang
     # #text
     def format = FORMATS[kind]
 
-    def to_s = @text
+    def to_s = @text || kind
     def inspect = "#<Token:#{kind} #{lineno}:#{charno} #{text.inspect}>"
     def dump = puts "#{kind} #{lineno}:#{charno} #{text.inspect}"
   end

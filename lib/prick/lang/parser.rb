@@ -265,7 +265,8 @@ module Prick::Lang
       make.expr = Ast::MakeExpr.new
       make.expr.paths = readrest { readpath(eol: true) }.map { |token| Ast::Path.new(token) }
 #     make.expr.paths.each { |path| File.exist?(path.path) or warning(path, "Can't find '#{path.path}'") }
-      case peek(eol: true).kind
+
+      case t = peek(eol: true).kind
         when :PIPE
           pipe = read(eol: true)
           make.then_ = Ast::Block.new(pipe)
@@ -300,6 +301,7 @@ module Prick::Lang
         when :VER; Ast::Ver.new(token)
         when :TRUE, :FALSE; Ast::Bool.new(token)
         when :FILE, :DIR; Ast::File.new(token)
+        when :EOL; raise "FIXME what when?"
       else
         raise InternalError
       end
@@ -459,7 +461,7 @@ module Prick::Lang
     def parse_ident?
       return nil if @tokenizer.eol?
       token = peek(eol: true)
-      Token::IDENTS.include?(token.kind) ? Ast::Ident.new(read(eol: true)) : nil
+      Token::IDENTS.include?(token&.kind) ? Ast::Ident.new(read(eol: true)) : nil
     end
     def parse_ident = Ast::Ident.new(readpred(:is_ident?, eol: true))
 
@@ -468,10 +470,10 @@ module Prick::Lang
 
     # Single-component reference used in declarations. It parsed as a Reference object
     # because we later want to compute the uid
-    def parse_name = Token::IDENTS.include?(peek.kind) ? Ast::Reference.new(read) : nil
+    def parse_name = Token::IDENTS.include?(peek&.kind) ? Ast::Reference.new(read) : nil
     def parse_name? = Ast::Reference.new(readpred :is_ident? )
 
-    def parse_reference?() = Token::REFS.include?(peek.kind) ? Ast::Reference.new(read) : nil
+    def parse_reference?() = Token::REFS.include?(peek&.kind) ? Ast::Reference.new(read) : nil
     def parse_reference() Ast::Reference.new(readpred :is_ref?) end
 
     def parse_references? = readwhile? { parse_reference? }
