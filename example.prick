@@ -13,8 +13,9 @@ make.sql
 
 
 # Including prick files
-#include.prick
-#example.d/ # File defaults to make.prick
+include.prick
+example.d/ # File defaults to make.prick
+example.d/file-in-example-d.sql
 
 # IN expressions
 if $env ^ (prod, test)
@@ -58,7 +59,7 @@ schema my_schema {
   # If statement with constant expression
   if $env = prod
     env_eq_prod.sql
-#   snippet.prick
+    snippet.prick
   else
     env_ne_prod.sql
   end
@@ -146,4 +147,4 @@ seed {
 }
 
 require my_schema
-#require example
+require example

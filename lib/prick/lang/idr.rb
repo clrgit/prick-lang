@@ -130,7 +130,7 @@ module Prick::Lang
 
     class FileCommand < Command
       alias_method :file, :ast # Ast::File
-      def path = file.path
+      def path = ast.value
     end
 
     class ExternalCommand < Command

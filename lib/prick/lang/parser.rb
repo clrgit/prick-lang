@@ -172,7 +172,7 @@ module Prick::Lang
         parse_prick_file
       else
         command = Ast::FileCommand.new peek
-        command.file = Ast::File.new(read)
+        command.file = Ast::File.new(read, tokenizer.dir)
         command
       end
     end
@@ -202,6 +202,10 @@ module Prick::Lang
       call.references = parse_references
 #     readkinds(:REF, :IDENT).each { call.references << Ast::Reference.new(_1) }
       call
+    end
+
+    def realpath(path)
+      path[0] == "/" ? path : File.join(@tokenizer.dir, path)
     end
 
     #
@@ -301,7 +305,7 @@ module Prick::Lang
         when :VAR; Ast::Var.new(token)
         when :VER; Ast::Ver.new(token)
         when :TRUE, :FALSE; Ast::Bool.new(token)
-        when :FILE, :DIR; Ast::File.new(token)
+        when :FILE, :DIR; Ast::File.new(token, tokenizer.dir)
         when :EOL; raise "FIXME what when?"
       else
         raise InternalError

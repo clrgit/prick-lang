@@ -4,6 +4,7 @@ module Prick::Lang
     using String::Text
 
     attr_reader :path # Path relative to the user's current directory
+
     attr_reader :lines
     attr_reader :index
     attr_reader :pos

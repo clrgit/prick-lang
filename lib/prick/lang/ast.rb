@@ -97,7 +97,11 @@ module Prick::Lang
     # as Source objects
     class File < Value
       forward_to :@token, :path, :dirname, :filename, :extname
-      def value = @token.path
+      attr_reader :value
+      def initialize(token, dir)
+        super(token)
+        @value = (token.path[0] == "/" || dir == "." ? token.path : ::File.join(dir, token.path))
+      end
     end
 
     class Path < Value

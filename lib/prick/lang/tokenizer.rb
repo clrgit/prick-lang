@@ -7,6 +7,10 @@ module Prick::Lang
     # Source file as referred to in the source (eg. ./t.prick)
     attr_reader :file
 
+    # Relative path to source file. Used from parser to add paths to file
+    # objects
+    attr_reader :dir
+
     # Path to file relative to the current directory of the user running the
     # program
     attr_reader :path
@@ -22,6 +26,7 @@ module Prick::Lang
       constrain lines, [String], nil
       @file = file
       @path = compiler.userpath(file)
+      @dir = File.dirname(@path)
       @lines = (lines || IO.readlines(file)).map(&:rstrip).take_while { _1 !~ /^__END__$/ }
       @reader = Reader.new(@path, @lines)
       @peeker = Reader.new(@path, @lines)

@@ -83,8 +83,8 @@ module Prick::Lang
     end
 
     class FileCommand
-#     def dumpline = puts "file #{path} (#{self.schema.uid})"
       def dumpline = puts "FILE #{path}"
+      def dumpunit = puts "#{token&.kind || 'nil'} #{path}"
     end
 
     class ExternalCommand
