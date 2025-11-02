@@ -183,7 +183,7 @@ module Prick::Lang
       @token = Token.new(path, token_lineno, token_charno, source, :TEXT)
     end
 
-    # Read a EOL token. Returns false
+    # Read a EOL token
     def readeol(eof: false)
       !eof? or return handle_eox(:EOF, eof)
       token = read(eol: true)

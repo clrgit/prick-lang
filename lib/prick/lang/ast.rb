@@ -208,6 +208,10 @@ module Prick::Lang
       def multiline? = @source =~ /\n/
     end
 
+    class EchoCommand < ExternalCommand
+      attr_accessor :text # String
+    end
+
     class CallCommand < Command
       part :references, [Reference]
     end

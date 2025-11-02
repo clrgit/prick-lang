@@ -44,6 +44,7 @@ module Prick::Lang
       CASE: "case",
       WHEN: "when",
       FROM: "from",
+      MAKE: "make",
 
       # Commands
       EXEC: "exec",
@@ -51,7 +52,7 @@ module Prick::Lang
       RUBY: "ruby",
       SQL: "sql",
       CALL: "call",
-      MAKE: "make",
+      ECHO: "echo",
 
       # Punctuation
       BRACE_BEGIN: "{",
@@ -286,6 +287,7 @@ module Prick::Lang
 
     def initialize(file, lineno, charno, text, kind)
       @file, @lineno, @charno, @text, @kind = file, lineno, charno, text, kind
+#     puts "CREATE #{text&.inspect || kind}"
     end
 
     # Create a new token as a copy of this but with the given kind

@@ -4,7 +4,7 @@ module Prick::Lang
     using String::Text
 
     CONSTANTS = [:ENV, :CMD, :USER, :VAR, :VERSION, :SCHEMA, :OBJECT, :RESOURCE]
-    COMMANDS = [:EXEC, :EVAL, :RUBY, :SQL, :CALL]
+    COMMANDS = [:EXEC, :EVAL, :RUBY, :SQL, :CALL, :ECHO]
 
     # Map from operator token kind to hash of
     #
@@ -86,7 +86,7 @@ module Prick::Lang
         when :IF; parse_if
         when :CASE; parse_case
         when *Token::PHASES; parse_decl(Ast::Phase, peek)
-        when :EXEC, :EVAL, :SQL; parse_command
+        when :EXEC, :EVAL, :ECHO, :SQL; parse_command
         when :RUBY; not_implemented_error "'ruby' command"
         when :CALL; parse_call_command
         when :MAKE; parse_make_command
@@ -150,9 +150,14 @@ module Prick::Lang
       require_
     end
 
+    #
+    # C O M M A N D S
+    #
+
     def parse_command(kind = nil)
       command = Ast::ExternalCommand.new(read)
-      if peek.kind == :PIPE
+      if peek(eol: true).kind == :PIPE
+        read
         limit = @tokenizer.line.indentation
         @tokenizer.readeol
         command.source = readtext(limit)&.text
@@ -191,10 +196,6 @@ module Prick::Lang
       end
       source
     end
-
-    #
-    # C O M M A N D S
-    #
 
     def parse_call_command
       call = Ast::CallCommand.new(read)
