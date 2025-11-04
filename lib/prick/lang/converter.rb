@@ -118,7 +118,8 @@ module Prick::Lang
 
     def convert_check(ast)
       constrain ast, Ast::Check
-      if evaluator.eval(ast.expr)
+
+      if ast.exprs.any? { |expr| evaluator.eval(expr) }
         compiler.block << Idr::CheckCommand.new(compiler.context, ast)
         convert_stmts(ast.then_)
       end

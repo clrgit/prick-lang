@@ -78,6 +78,7 @@ module Prick::Lang
       PCT: "%",
       NOT: "!",
       QUEST: "?",
+      TI: "~",
 
       # Simple values
       TRUE: "true",
@@ -176,9 +177,9 @@ module Prick::Lang
     BOOLS = [:TRUE, :FALSE]
     IDENTS = [:IDENT] + PHASES
     REFS = [:REF] + IDENTS
-    VALUES = REFS + [:TRUE, :FALSE, :VER, :VAR] + PATHS
+    VALUES = REFS + [:TRUE, :FALSE, :VER, :VAR, :PATH] + PATHS
     KEYWORDS = TOKENS.select { _2 =~ /^\w+$/ }.keys
-    PREFIX_OPERS = [:NOT]
+    PREFIX_OPERS = [:NOT, :TI]
     SUFFIX_OPERS = [:QUEST]
     INFIX_OPERS = [:ANDAND, :OROR, :LE, :LT, :EQ, :EQ, :NE, :GE, :GT, :TIGT, :IN, :PCT]
     OPERS = INFIX_OPERS + PREFIX_OPERS + SUFFIX_OPERS + [:PAREN_BEGIN, :PAREN_END] # Longest opers has to go first

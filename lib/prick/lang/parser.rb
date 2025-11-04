@@ -29,7 +29,8 @@ module Prick::Lang
       IN: [3, :left, 2, false, true],
       PCT: [3, :left, 2, true, true], # TODO Special case - takes both an array and a value
       NOT: [3, :right, 1, true, false],
-      QUEST: [4, :left, 1, true, false],
+      TI: [4, :right, 1, true, false],
+      QUEST: [5, :left, 1, true, false],
     }.map { |k,v| [k, { prior: v[0], assoc: v[1], arity: v[2], value: v[3], list: v[4] } ] }.to_h
 
     # Operators for comparing versions
@@ -267,8 +268,15 @@ module Prick::Lang
 
     def parse_check_command
       check = Ast::Check.new(read)
-      check.expr = Ast::CheckExpr.new
-      check.expr.paths = readrest { readpath(eol: true) }.map { |token| Ast::Path.new(token) }
+
+      readrest { readpath(eol: true) }.each { |token|
+        oper = Ast::UnaryExpr.new(check.token)
+        oper.expr = Ast::Path.new(token)
+        check.exprs << oper
+      }
+
+#     check.expr = Ast::CheckExpr.new
+#     check.expr.paths = readrest { readpath(eol: true) }.map { |token| Ast::Path.new(token) }
 #     check.expr.paths.each { |path| File.exist?(path.path) or warning(path, "Can't find '#{path.path}'") }
 
       case t = peek(eol: true).kind
@@ -298,14 +306,15 @@ module Prick::Lang
     #
     # If token is a (qualified) identfier and the next token is '?', a
     # Ast::Reference token is returned
-    def parse_value # token should be equal to #peek
-      token = read(eol: true)
+    def parse_value(token = nil) # token should be equal to #peek if !nil
+      token ||= read(eol: true)
       case token.kind
         when *Token::REFS; peek(eol: true).kind == :QUEST ? Ast::Reference.new(token) : Ast::Word.new(token)
         when :VAR; Ast::Var.new(token)
         when :VER; Ast::Ver.new(token)
         when :TRUE, :FALSE; Ast::Bool.new(token)
         when :FILE, :DIR; Ast::File.new(token, @tokenizer.dir)
+        when :PATH; Ast::Path.new(token)
         when :EOL; raise "FIXME what when?"
       else
         raise InternalError
@@ -388,7 +397,12 @@ module Prick::Lang
       output = [] # [Token]
       paren_level = 0
       accept_eol = true # Signals that the expression continues on the next line
-      while token = @tokenizer.peek(eol: true)
+
+      last_was_bin_oper = false # Signals that the last token was a binary operator
+      next_token = nil # Use this token instead of peeking tokenizer when not nil
+      while token = next_token || @tokenizer.peek(eol: true)
+        this_is_bin_oper = false
+        next_token = nil
         case token.kind
           when :EOL
             break if paren_level == 0 && !accept_eol
@@ -439,12 +453,25 @@ module Prick::Lang
 
           when *Token::VALUES
             accept_eol = false
-            output << parse_value
+            output << parse_value(token)
 
           when *Token::OPERS
             accept_eol = !token.is_suffix_oper?
             oper = OPERATORS[token.kind] or raise ArgumentError, "Not a known operator '#{token.text}'"
+
+            # Prevent double binary operators. Eg '3 = = 4'
+            if oper[:arity] == 2
+              !last_was_bin_oper or unexpected_token_error peek, "expression"
+              this_is_bin_oper = true
+            end
+
             read eol: true
+
+            # Parse next token as a path if check operator
+            if token.kind == :TI
+              next_token = @tokenizer.readpath(eol: true) or unexpected_token_error token, "path"
+            end
+
             while stack.top.is_a?(Token) && top = OPERATORS[stack.top&.kind]
               break if oper[:prior] > top[:prior]
               break if oper[:prior] == top[:prior] && oper[:assoc] == :right
@@ -455,6 +482,7 @@ module Prick::Lang
           else
             break
         end
+        last_was_bin_oper = this_is_bin_oper
       end
       output + stack.reverse
     end

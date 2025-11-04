@@ -79,10 +79,6 @@ module Prick::Lang
       end
     end
 
-#   class CheckExpr < Expr # Quack like a UnaryExpr
-#     attr_reader :
-#   end
-
     #
     # V A L U E S
     #
@@ -134,11 +130,23 @@ module Prick::Lang
     end
 
     # Belongs to the Expr section but moved here because it depends on Path
-    class CheckExpr < Expr
-      part :paths, [Path]
-      def token = start_token
-      def initialize = super(nil)
-    end
+    #
+    # ###The associated token is either the check operator '~' or the 'check'
+    # keyword
+
+#   class CheckExpr < Expr
+#     def oper = :TI
+#     part :path, Path
+#     def value = path.value
+#   end
+
+
+#   class CheckExpr < Expr
+#     part :paths, [Path]
+#     def token = start_token # the first path
+#     # attr_reader :oper
+#     #def token = paths.first.token
+#   end
 
     #
     # S T A T E M E N T S
@@ -254,7 +262,7 @@ module Prick::Lang
     end
 
     class Check < Control
-      part :expr, CheckExpr
+      part :exprs, [Expr]
       part :then_, Block
     end
   end

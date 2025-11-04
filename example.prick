@@ -5,12 +5,24 @@
 # false.sql
 #end
 
+initial.sql
+
+if ~check.sh
+  echo check-operator
+  check-operator.sql
+end
+
+__END__
+
+if ! ($env = prod)
+  not.sql
+end
+
 check check.sh data.sh |
   check.sh data.sh >check.sql
   touch check.sql
 
 check.sql
-
 
 # Including prick files
 include.prick

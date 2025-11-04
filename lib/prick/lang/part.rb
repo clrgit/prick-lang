@@ -23,7 +23,6 @@ module Prick::Lang
       parts.each { attach _1 }
     end
 
-    # TODO Remove?
     def <<(node)
       !node.nil? or raise ArgumentError
       node.is_a? element_klass or unexpected_error element_klass, node

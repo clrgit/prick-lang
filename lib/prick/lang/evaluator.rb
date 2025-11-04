@@ -21,6 +21,15 @@ module Prick::Lang
     end
 
   private
+    def dirty_file?(path)
+      if File.exist?(path)
+        File.mtime(path) > compiler.timestamp
+      else
+        warning("Can't find '#{path}'")
+        true
+      end
+    end
+
     def eval_expr(expr)
       case expr
         when Ast::Reference
@@ -36,6 +45,7 @@ module Prick::Lang
           case expr.oper
             when :NOT; !value
             when :QUEST; value
+            when :TI, :CHECK; dirty_file?(value)
           else
             raise InternalError, "Unhandled unary operator: #{expr.oper.inspect}"
           end
@@ -80,17 +90,10 @@ module Prick::Lang
           expr.elems.map { |e| eval_expr(e) }
 
         # Returns true if any file was updated later than Compiler#timestamp
-        when Ast::CheckExpr
-          expr.paths.any? { |path|
-            if File.exist?(path.path)
-              File.mtime(path.path) > compiler.timestamp
-            else
-              warning(path, "Can't find '#{path.path}'")
-              true
-            end
-          }
+#       when Ast::CheckExpr
+#         expr.exprs.paths.any? { |path| dirty_file?(path) }
 
-          # TODO: Add side-effect: Invalidate enclosing schema
+          # TODO: Add side-effect: Invalidate enclosing schema. Also as an unary expression
 
         when Ast::Var # Must go before Ast::Value below
           # FIXME COMPILER BRACE -> compiler.variables[...]
