@@ -170,7 +170,6 @@ module Prick::Lang
 
     def categorize_units
       units.each { |unit|
-        next if unit.is_a? Unit::Mark
         attr = CATEGORIES[unit.phase]
         self.send(attr) << unit
       }
