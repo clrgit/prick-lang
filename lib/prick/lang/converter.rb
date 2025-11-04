@@ -72,8 +72,6 @@ module Prick::Lang
       compiler.block.concat \
           case ast
             when Ast::FileCommand; [Idr::FileCommand.new(compiler.context, ast.file)]
-            when Ast::MakeCommand;
-              raise "TODO"
             when Ast::ExternalCommand; [Idr::ExternalCommand.new(compiler.context, ast)]
             when Ast::CallCommand; [Idr::CallCommand.new(compiler.context, ast)]
           end
@@ -92,7 +90,7 @@ module Prick::Lang
       case ast
         when Ast::If; convert_if(ast)
         when Ast::Case; convert_case(ast)
-        when Ast::Make; convert_make(ast)
+        when Ast::Check; convert_check(ast)
       else
         raise InternalError
       end
@@ -118,10 +116,10 @@ module Prick::Lang
       convert_stmts(ast.else_) if ast.else_
     end
 
-    def convert_make(ast)
-      constrain ast, Ast::Make
+    def convert_check(ast)
+      constrain ast, Ast::Check
       if evaluator.eval(ast.expr)
-        compiler.block << Idr::MakeCommand.new(compiler.context, ast)
+        compiler.block << Idr::CheckCommand.new(compiler.context, ast)
         convert_stmts(ast.then_)
       end
     end

@@ -5,11 +5,11 @@
 # false.sql
 #end
 
-make make.sh data.sh |
-  make.sh data.sh >make.sql
-  touch make.sql
+check check.sh data.sh |
+  check.sh data.sh >check.sql
+  touch check.sql
 
-make.sql
+check.sql
 
 
 # Including prick files
@@ -148,3 +148,6 @@ seed {
 
 require my_schema
 require example
+
+after-everything.sql
+

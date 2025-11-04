@@ -89,7 +89,7 @@ module Prick::Lang
         when :EXEC, :EVAL, :ECHO, :SQL; parse_command
         when :RUBY; not_implemented_error "'ruby' command"
         when :CALL; parse_call_command
-        when :MAKE; parse_make_command
+        when :CHECK; parse_check_command
         when :FILE; parse_file
         when :DIR; parse_dir
       else
@@ -155,7 +155,7 @@ module Prick::Lang
     #
 
     def parse_command(kind = nil)
-      command = Ast::ExternalCommand.new(read, tokenizer.dir)
+      command = Ast::ExternalCommand.new(read, @tokenizer.dir)
       if peek(eol: true).kind == :PIPE
         read
         limit = @tokenizer.line.indentation
@@ -172,7 +172,7 @@ module Prick::Lang
         parse_prick_file
       else
         command = Ast::FileCommand.new peek
-        command.file = Ast::File.new(read, tokenizer.dir)
+        command.file = Ast::File.new(read, @tokenizer.dir)
         command
       end
     end
@@ -265,29 +265,29 @@ module Prick::Lang
       not_implemented_error "#parse_ruby"
     end
 
-    def parse_make_command
-      make = Ast::Make.new(read)
-      make.expr = Ast::MakeExpr.new
-      make.expr.paths = readrest { readpath(eol: true) }.map { |token| Ast::Path.new(token) }
-#     make.expr.paths.each { |path| File.exist?(path.path) or warning(path, "Can't find '#{path.path}'") }
+    def parse_check_command
+      check = Ast::Check.new(read)
+      check.expr = Ast::CheckExpr.new
+      check.expr.paths = readrest { readpath(eol: true) }.map { |token| Ast::Path.new(token) }
+#     check.expr.paths.each { |path| File.exist?(path.path) or warning(path, "Can't find '#{path.path}'") }
 
       case t = peek(eol: true).kind
         when :PIPE
           pipe = read(eol: true)
-          make.then_ = Ast::Block.new(pipe)
+          check.then_ = Ast::Block.new(pipe)
           command = Ast::ExternalCommand.new(pipe, :EXEC, @tokenizer.dir)
-          make.then_.stmts << command
+          check.then_.stmts << command
           limit = @tokenizer.line.indentation
           @tokenizer.readeol
           command.source = readtext(limit)&.text
         when :EOL
           read(eol: true)
-          make.then_ = parse_block
+          check.then_ = parse_block
           readkind(:END)
         else
           unexpected_token_error peek(eol: true), "block or exec expression"
       end
-      make
+      check
     end
 
     #
@@ -305,7 +305,7 @@ module Prick::Lang
         when :VAR; Ast::Var.new(token)
         when :VER; Ast::Ver.new(token)
         when :TRUE, :FALSE; Ast::Bool.new(token)
-        when :FILE, :DIR; Ast::File.new(token, tokenizer.dir)
+        when :FILE, :DIR; Ast::File.new(token, @tokenizer.dir)
         when :EOL; raise "FIXME what when?"
       else
         raise InternalError
@@ -388,7 +388,7 @@ module Prick::Lang
       output = [] # [Token]
       paren_level = 0
       accept_eol = true # Signals that the expression continues on the next line
-      while token = tokenizer.peek(eol: true)
+      while token = @tokenizer.peek(eol: true)
         case token.kind
           when :EOL
             break if paren_level == 0 && !accept_eol
@@ -557,7 +557,7 @@ module Prick::Lang
 
     def readrest?(&block)
       a = []
-      while !tokenizer.eol?
+      while !@tokenizer.eol?
         token = block.call or return a
         a << token
       end

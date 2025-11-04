@@ -44,7 +44,7 @@ module Prick::Lang
       CASE: "case",
       WHEN: "when",
       FROM: "from",
-      MAKE: "make",
+      CHECK: "check",
 
       # Commands
       EXEC: "exec",

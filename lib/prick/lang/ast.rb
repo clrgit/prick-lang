@@ -79,7 +79,7 @@ module Prick::Lang
       end
     end
 
-#   class MakeExpr < Expr # Quack like a UnaryExpr
+#   class CheckExpr < Expr # Quack like a UnaryExpr
 #     attr_reader :
 #   end
 
@@ -134,7 +134,7 @@ module Prick::Lang
     end
 
     # Belongs to the Expr section but moved here because it depends on Path
-    class MakeExpr < Expr
+    class CheckExpr < Expr
       part :paths, [Path]
       def token = start_token
       def initialize = super(nil)
@@ -253,8 +253,8 @@ module Prick::Lang
       part :else_, Block
     end
 
-    class Make < Control
-      part :expr, MakeExpr
+    class Check < Control
+      part :expr, CheckExpr
       part :then_, Block
     end
   end

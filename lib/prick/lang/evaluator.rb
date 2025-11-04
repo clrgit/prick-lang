@@ -80,7 +80,7 @@ module Prick::Lang
           expr.elems.map { |e| eval_expr(e) }
 
         # Returns true if any file was updated later than Compiler#timestamp
-        when Ast::MakeExpr
+        when Ast::CheckExpr
           expr.paths.any? { |path|
             if File.exist?(path.path)
               File.mtime(path.path) > compiler.timestamp

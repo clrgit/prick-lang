@@ -177,9 +177,10 @@ module Prick::Lang
       end
     end
 
-    # A MakeCommand is only emitted when a make command was triggere. It
-    # invalidates all following nodes within the resource
-    class MakeCommand < NopCommand
+    # A CheckCommand is only emitted when a check command was triggered. It
+    # invalidates all following nodes within the resource when running 'prick
+    # make'
+    class CheckCommand < NopCommand
     end
 
     #
