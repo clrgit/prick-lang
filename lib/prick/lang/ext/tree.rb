@@ -21,6 +21,7 @@ module Tree
 
   def retach(*children)
     children = Array(children).flatten
+    return if children.empty?
     other = children.first.parent
     other.instance_variable_set(:"@children", other.children - children)
     children.each { |child| child.instance_variable_set(:"@parent", self) }
