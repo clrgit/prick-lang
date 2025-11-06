@@ -1,22 +1,21 @@
 
-#if ( $env = prod && ( $env = prod ) )
-# true.sql
-#else
-# false.sql
-#end
-
 initial.sql
 
-if ~check.sh
-  echo check-operator
-  check-operator.sql
+if ( $env = prod && ( $env = prod ) )
+  true.sql
+else
+  false.sql
 end
-
-__END__
 
 if ! ($env = prod)
   not.sql
 end
+
+if ~check.sh
+  check-operator.sql
+end
+
+# echo check-operator
 
 check check.sh data.sh |
   check.sh data.sh >check.sql

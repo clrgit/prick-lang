@@ -306,8 +306,8 @@ module Prick::Lang
     #
     # If token is a (qualified) identfier and the next token is '?', a
     # Ast::Reference token is returned
-    def parse_value(token = nil) # token should be equal to #peek if !nil
-      token ||= read(eol: true)
+    def parse_value
+      token = read(eol: true)
       case token.kind
         when *Token::REFS; peek(eol: true).kind == :QUEST ? Ast::Reference.new(token) : Ast::Word.new(token)
         when :VAR; Ast::Var.new(token)
@@ -335,8 +335,6 @@ module Prick::Lang
             e = Ast::ListExpr.new(token)
             e.elems = stack.pop(token.size)
             stack.push e
-          when Ast::Value
-            stack.push token
           else
             if operator = OPERATORS[token.kind]
               case operator[:arity]
@@ -367,7 +365,8 @@ module Prick::Lang
                 when nil
               end
             else
-              stack.size == 1 or unexpected_token_error peek, "expression"
+              stack.push token
+#             stack.size == 1 or unexpected_token_error peek, "expression"
             end
         end
       }
@@ -391,18 +390,17 @@ module Prick::Lang
       end
     end
 
-    # Returns a reversed Polish notation list of tokens
+    # Returns a reversed Polish notation list of tokens or Ast::Value objects
     def shunt_exprs
       stack = [] # [Token]. Operator stack
       output = [] # [Token]
-      paren_level = 0
-      accept_eol = true # Signals that the expression continues on the next line
 
+      paren_level = 0 # Tracks parenthesis levels
+      accept_eol = true # Signals that the expression continues on the next line
       last_was_bin_oper = false # Signals that the last token was a binary operator
-      next_token = nil # Use this token instead of peeking tokenizer when not nil
-      while token = next_token || @tokenizer.peek(eol: true)
+
+      while token = @tokenizer.peek(eol: true)
         this_is_bin_oper = false
-        next_token = nil
         case token.kind
           when :EOL
             break if paren_level == 0 && !accept_eol
@@ -453,7 +451,7 @@ module Prick::Lang
 
           when *Token::VALUES
             accept_eol = false
-            output << parse_value(token)
+            output << parse_value
 
           when *Token::OPERS
             accept_eol = !token.is_suffix_oper?
@@ -469,14 +467,18 @@ module Prick::Lang
 
             # Parse next token as a path if check operator
             if token.kind == :TI
-              next_token = @tokenizer.readpath(eol: true) or unexpected_token_error token, "path"
+              path = @tokenizer.readpath(eol: true) or unexpected_token_error token, "path"
+              output << Ast::Path.new(path)
+              accept_eol = false
             end
 
+            # we use .is_a?(Token) because the stack also can contain Ast::Node objects
             while stack.top.is_a?(Token) && top = OPERATORS[stack.top&.kind]
               break if oper[:prior] > top[:prior]
               break if oper[:prior] == top[:prior] && oper[:assoc] == :right
               output << stack.pop
             end
+
             stack.push token
 
           else

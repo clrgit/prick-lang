@@ -288,7 +288,7 @@ module Prick::Lang
 
     def initialize(file, lineno, charno, text, kind)
       @file, @lineno, @charno, @text, @kind = file, lineno, charno, text, kind
-#     puts "CREATE #{text&.inspect || kind}"
+#     d "Token.new #{kind} #{text&.inspect}"
     end
 
     # Create a new token as a copy of this but with the given kind
