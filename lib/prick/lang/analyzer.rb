@@ -196,43 +196,10 @@ module Prick::Lang
       mark_included_nodes
     end
 
-
-
     # Mark excluded/included nodes
     def select_nodes
-
-      mark_nodes
-
-      method = "#{compiler.mode}?".to_sym
-
-#     # Include targets
-#     targets.each(&:include!)
-
-      # Exclude completed_resources TODO
-#     Idr.transitive_closure(completed_resources).each { |node| node.exclude = true }
-
-      # Only consider included nodes
-#     target_nodes = program.nodes(&:included?)
-#     targets.each(&:include!)
-
-
-#     target_nodes = program.nodes.select { |node| node.send(method) }
-
-#     program.nodes.each { |node|
-#       p node.make?
-#       indent {
-#         node.dumpline
-#       }
-#     }
-#
-#     exit
-#     p method
-#     p target_nodes
-
-
       # Find reachable nodes and schemas
       @reachable_nodes = program.nodes(&:included?)
-#     @reachable_nodes = Idr.transitive_closure(target_nodes, method: method)
       @reachable_schemas = @reachable_nodes.map(&:schema).uniq # Expensive
     end
   end
