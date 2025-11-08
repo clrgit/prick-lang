@@ -87,10 +87,11 @@ module Prick::Lang
       def dumpunit = puts "#{token&.kind || 'nil'} #{path}"
     end
 
-    class ExternalCommand
+    class MultilineCommand
+      def lead = ast.kind.to_s
+
       def dumpunit
         command = ast.kind
-        lead = command.to_s + (path == "." ? "" : " #{path}/")
         if ast.multiline?
           puts "#{lead}"; indent { puts source }
         else
@@ -108,6 +109,54 @@ module Prick::Lang
           puts "#{command} #{source}"
         end
       end
+    end
+
+    class SqlCommand # FIXME A lot of code shared with external command. TODO: Make a module
+
+#     def dumpunit
+#       command = ast.kind
+#       lead = command.to_s + (path == "." ? " ./" : " #{path}/") + " #{self.class}"
+#       if ast.multiline?
+#         puts "#{lead}"; indent { puts source }
+#       else
+#         puts "#{lead} #{source}"
+#       end
+#     end
+#
+#     def dumpline = puts "#{ast.kind} #{source.sub(/\..*/m, "")}"
+#
+#     def dump
+#       command = ast.kind.downcase
+#       if ast.multiline?
+#         puts command; indent { puts source }
+#       else
+#         puts "#{command} #{source}"
+#       end
+#     end
+    end
+
+    class ExternalCommand
+      def lead = super + (path == "." ? " ./" : " #{path}/")
+#     def dumpunit
+#       command = ast.kind
+#       lead = command.to_s + (path == "." ? " ./" : " #{path}/") + " #{self.class}"
+#       if ast.multiline?
+#         puts "#{lead}"; indent { puts source }
+#       else
+#         puts "#{lead} #{source}"
+#       end
+#     end
+#
+#     def dumpline = puts "#{ast.kind} #{source.sub(/\..*/m, "")}"
+#
+#     def dump
+#       command = ast.kind.downcase
+#       if ast.multiline?
+#         puts command; indent { puts source }
+#       else
+#         puts "#{command} #{source}"
+#       end
+#     end
     end
 
     class CallCommand

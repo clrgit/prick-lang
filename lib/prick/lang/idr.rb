@@ -133,8 +133,15 @@ module Prick::Lang
       def path = ast.value
     end
 
-    class ExternalCommand < Command
+    class MultilineCommand < Command
       forward_to :ast, :source, :kind
+    end
+
+    class SqlCommand < MultilineCommand
+    end
+
+    class ExternalCommand < MultilineCommand
+#     forward_to :ast, :source, :kind
       def path = ast.dir
     end
 

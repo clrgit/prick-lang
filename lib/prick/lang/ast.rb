@@ -209,20 +209,26 @@ module Prick::Lang
       part :file, File
     end
 
+    class MultilineCommand < Command
+      attr_accessor :source # Array of source lines. Assigned after initialization
+
+      # True iff source consists of multiple lines
+      def multiline? = @source =~ /\n/
+    end
+
+    class SqlCommand < MultilineCommand
+    end
+
     # exec/eval/sql
-    class ExternalCommand < Command
+    class ExternalCommand < MultilineCommand
       attr_reader :kind
       attr_reader :dir
-      attr_accessor :source # Array of source lines. Assigned after initialization
 
       def initialize(token, kind = nil, dir)
         super(token)
         @kind = kind || token.kind
         @dir = dir
       end
-
-      # True iff source consists of multiple lines
-      def multiline? = @source =~ /\n/
     end
 
     class EchoCommand < ExternalCommand

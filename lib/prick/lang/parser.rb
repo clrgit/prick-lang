@@ -155,8 +155,13 @@ module Prick::Lang
     # C O M M A N D S
     #
 
-    def parse_command(kind = nil)
-      command = Ast::ExternalCommand.new(read, @tokenizer.dir)
+    def parse_command
+      token = read
+      if token.kind == :SQL
+        command = Ast::SqlCommand.new(token)
+      else
+        command = Ast::ExternalCommand.new(token, @tokenizer.dir)
+      end
       if peek(eol: true).kind == :PIPE
         read
         limit = @tokenizer.line.indentation

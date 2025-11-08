@@ -24,7 +24,7 @@ module Prick::Lang
       def title = @token.kind.to_s.downcase
     end
 
-    class ExternalCommand # Wrong name because 'sql commands gets inlined - back to SourceCommand
+    class MultilineCommand
       def title = kind.to_s.downcase + (multiline? ? "" : " #{source}")
       def dump_children
         indent { puts source } if multiline?
