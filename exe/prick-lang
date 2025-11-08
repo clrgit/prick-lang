@@ -24,7 +24,7 @@ SPEC = %(
   +x,exclude=SCHEMA,
     Comma-separated list of excluded schemas
 
-  -D,dump=tokens|ast|idr|links|deps|units|state,
+  -D,dump=tokens|ast|idr|links|deps|marks|units|state,
     Dump debug. Default is 'ast'
 
   -X,exception
@@ -185,7 +185,6 @@ exclude = opts.exclude
 # Extract command
 cmd = args.extract(1)
 %w(build make run).include?(cmd) or ShellOpts::error "Illegal command: #{cmd}"
-# TODO: Use cmd
 
 # Extract targets
 targets = []
@@ -196,7 +195,8 @@ end
 targets = [Prick::Lang::Compiler::DEFAULT_TARGET] if targets.empty?
 
 # FIXME
-BUILTIN_VARIABLES = { cmd: "build", env: "prod", ver: Semver.new("1.2.3"), user: "me" }
+#BUILTIN_VARIABLES = { cmd: "build", env: "prod", ver: Semver.new("1.2.3"), user: "me" }
+BUILTIN_VARIABLES = { env: "prod", ver: Semver.new("1.2.3"), user: "me" }
 
 # Extract variable assignments
 variables = BUILTIN_VARIABLES.dup
@@ -212,6 +212,7 @@ end
 # Create compiler object
 compiler = Prick::Lang::Compiler.new(
     file, targets,
+    mode: cmd.to_sym,
     state_file: state_file,
     timestamp: timestamp,
     exclude: exclude,

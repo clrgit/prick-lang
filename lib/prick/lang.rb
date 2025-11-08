@@ -43,7 +43,7 @@ module Prick::Lang
   class EofError < Error; end # Not an error but used as a signal
 
   # Supported dump kinds
-  DUMP_KINDS = %w(tokens ast idr links deps state units)
+  DUMP_KINDS = %w(tokens ast idr links deps marks units state)
 
   # Used to dump tokens as they are processed. The problem is that the kind of
   # a token depends on the context so we need to run the parser to get the
@@ -78,6 +78,7 @@ private
     compiler.analyze link: true
     compiler.idr.dump if kinds.delete "links"
     compiler.analyzer.dump if kinds.delete "deps"
+    compiler.analyzer.dump(marks: true) if kinds.delete "marks"
     return if kinds.empty?
 
     compiler.generate

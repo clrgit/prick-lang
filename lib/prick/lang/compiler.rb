@@ -3,6 +3,10 @@ module Prick::Lang
   class CompilerProcess
     include ErrorFunctions
     def compiler() @compiler ||= Compiler.instance end
+
+    def mode = compiler.mode
+    def mode_method() @mode_method ||= "#{mode}?".to_sym end
+
     def parser() @parser ||= compiler.parser end
     def converter() @converter ||= compiler.converter end
     def analyzer() @analyzer ||= compiler.analyzer end
@@ -22,15 +26,18 @@ module Prick::Lang
     # Default source file name (excl. extension)
     DEFAULT_SOURCE_NAME = "make"
 
-    # Default source file. Also used when including directories (eg. './dir')
+    # Default source file ('make.prick'). Also used when including directories
+    # (eg. './dir' becomes './dir/make.prick')
     DEFAULT_SOURCE_FILE = "#{DEFAULT_SOURCE_NAME}.#{Token::PRICK_EXT}"
 
-    # Default state file
+    # Default state file. TODO Move into database for compatibility between
+    # executing different scripts
     DEFAULT_STATE_FILE = ".prick.state"
 
     # Source and environment
     attr_reader :dir # Current user directory when the compiler was invoked
     attr_reader :file # Start file. Only used in error messages. May be nil, initialized by #parse if so
+    attr_reader :mode # Symbol - Either :build or :make. Default is :build
     attr_reader :targets # [String] - Target UIDs
     attr_reader :exclude # [String] - Excluded UIDs
     attr_reader :variables # {Var=>Val} - Command-line and built-in variables
@@ -48,11 +55,12 @@ module Prick::Lang
 
     # State data
     attr_reader :state_file # String - State file
-    attr_reader :timestamp # Time - time of last successful run
+    attr_reader :timestamp # Time - time of last successful run. Default epoch
     attr_reader :completed_resources # [uid] - Completed resource
 
     def initialize(
         file, targets = [DEFAULT_TARGET],
+        mode: :build,
         state_file: DEFAULT_STATE_FILE,
         timestamp: nil,
         exclude: [],
@@ -60,6 +68,7 @@ module Prick::Lang
 
       constrain file, String
       constrain targets, [String]
+      constrain mode, :build, :make
       constrain state_file, String
       constrain timestamp, Time, nil
       constrain exclude, [String]
@@ -70,6 +79,7 @@ module Prick::Lang
       @dir = Dir.getwd
       @dir_pathname = Pathname.new(@dir) # pre-computed, used in #userpath
       @file = file
+      @mode = mode
       @targets = targets
       @exclude = exclude
       @variables = variables
@@ -186,8 +196,8 @@ module Prick::Lang
     # A resource is a phase, function, schema, or program Idr object or a
     # provide statement
 
-    # Map from uid to Idr resource object, false if marked absent,
-    # and nil if unknown
+    # Map from uid to Idr resource object, false if marked absent and nil if
+    # unknown
     attr_reader :resources # UID String => Idr::Node/false/nil
 
     # Add an unknown resource if not present. Return the uid

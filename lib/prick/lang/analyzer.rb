@@ -38,6 +38,7 @@ module Prick::Lang
         link_block_nodes
         link_phases
         link_program_phases
+        mark_nodes
         select_nodes
       end
       idr
@@ -45,25 +46,42 @@ module Prick::Lang
 
     def inspect() = "<#{self.class}>"
 
-    def dump
+    def dump(marks: false)
       puts "Nodes"; indent {
         idr.nodes.sort_by(&:serial).each { |node|
           deps = node.deps.empty? ? 'nil' : node.deps.map(&:serial).map(&:inspect).join(", ")
-          printf "%3s -> %s ", node.serial, deps
+          reqs = node.reqs.empty? ? '' : node.reqs.map(&:serial).map(&:inspect).join(", ")
+          if marks
+            flags =
+              (node.dirty? ? "D" : " ") +
+              (node.built? ? "B" : " ") +
+              (node.excluded? ? "X" : " ") +
+              (node.included? ? "I" : " ") +
+              (compiler.mode == :build && node.build? || compiler.mode == :make && node.make? ? "*" : " ") +
+              " "
+          else
+            flags = ""
+          end
+          printf "#{flags}%3s -> %s [%s] ", node.serial, deps, reqs
           node.dumpdep
         }
-
-#       idr.trees(Idr::Command).sort_by(&:serial).each { |node|
-#         deps = node.deps.empty? ? 'nil' : node.deps.map(&:serial).map(&:inspect).join(", ")
-#         printf "%3s -> %s ", node.serial, deps
-#         node.dumpdep
-#       }
       }
 
       puts "Resources"; indent {
         compiler.present.each { |uid|
-          r = compiler.resources[uid]
-          puts "#{uid} -> #{r.tail.serial}"
+          node = compiler.resources[uid]
+
+          if marks
+            flags =
+              (node.dirty? ? "D" : " ") +
+              (node.built? ? "B" : " ") +
+              (node.excluded? ? "X" : " ") +
+              (node.included? ? "I" : " ") + " "
+          else
+            flags = ""
+          end
+          printf flags
+          puts "#{uid} -> #{node.tail.serial}"
         }
       }
     end
@@ -129,7 +147,6 @@ module Prick::Lang
     # Link up phases internally in schemas and programs
     def link_phases
       ([program] + program.schemas).each { |schema|
-#       schema.init.depend_on program.init if schema != program
         schema.this.depend_on schema.init
         schema.term.depend_on schema.this
         schema.seed.depend_on schema.term
@@ -149,19 +166,73 @@ module Prick::Lang
       }
     end
 
+    # Mark dirty (changed) files. Note that absent files are not dirty because
+    # they may be generated later, if not it will cause an error when executed
+    def mark_dirty_nodes
+      program.trees(Idr::FileCommand).each { |cmd|
+        cmd.dirty! if File.exist?(cmd.path) && File.mtime(cmd.path) > compiler.timestamp
+      }
+    end
+
+    def mark_built_nodes
+      compiler.completed_resources.each { |uid|
+        compiler.resources[uid]&.built!
+      }
+    end
+
+    # Exclude nodes (schemas) from the command line
+    def mark_excluded_nodes
+      compiler.exclude.map { compiler.resources[_1] }.each(&:exclude!)
+    end
+
+    def mark_included_nodes
+      compiler.targets.map { compiler.resources[_1] }.each(&:include!)
+    end
+
+    def mark_nodes
+      mark_built_nodes
+      mark_dirty_nodes
+      mark_excluded_nodes
+      mark_included_nodes
+    end
+
+
+
     # Mark excluded/included nodes
     def select_nodes
-      # Exclude nodes (schemas) from the command line
-      compiler.exclude.map { compiler.resources[_1] }.each(&:exclude!)
 
-      # Include targets
-      targets.each(&:include!)
+      mark_nodes
+
+      method = "#{compiler.mode}?".to_sym
+
+#     # Include targets
+#     targets.each(&:include!)
 
       # Exclude completed_resources TODO
 #     Idr.transitive_closure(completed_resources).each { |node| node.exclude = true }
 
+      # Only consider included nodes
+#     target_nodes = program.nodes(&:included?)
+#     targets.each(&:include!)
+
+
+#     target_nodes = program.nodes.select { |node| node.send(method) }
+
+#     program.nodes.each { |node|
+#       p node.make?
+#       indent {
+#         node.dumpline
+#       }
+#     }
+#
+#     exit
+#     p method
+#     p target_nodes
+
+
       # Find reachable nodes and schemas
-      @reachable_nodes = Idr.transitive_closure(targets, kind: :include)
+      @reachable_nodes = program.nodes(&:included?)
+#     @reachable_nodes = Idr.transitive_closure(target_nodes, method: method)
       @reachable_schemas = @reachable_nodes.map(&:schema).uniq # Expensive
     end
   end

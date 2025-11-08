@@ -129,25 +129,6 @@ module Prick::Lang
       def to_s = @token.text
     end
 
-    # Belongs to the Expr section but moved here because it depends on Path
-    #
-    # ###The associated token is either the check operator '~' or the 'check'
-    # keyword
-
-#   class CheckExpr < Expr
-#     def oper = :TI
-#     part :path, Path
-#     def value = path.value
-#   end
-
-
-#   class CheckExpr < Expr
-#     part :paths, [Path]
-#     def token = start_token # the first path
-#     # attr_reader :oper
-#     #def token = paths.first.token
-#   end
-
     #
     # S T A T E M E N T S
     #

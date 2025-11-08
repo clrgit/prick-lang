@@ -2,10 +2,8 @@
 
 module Prick::Lang
   module Idr
-
     # Idr nodes are either Command objects, Resource objects, or transient
     # Unresolved objects
-    #
     class Node
       include Tree
       include ClassFunctions
@@ -16,26 +14,60 @@ module Prick::Lang
       # Schema this node belongs to. Assigned by the analyzer
       attr_accessor :schema
 
+      # True if the node has changed since last run. Initially false but
+      # #dirty! sets it to true
+      def dirty? = @dirty
+
+      # True the node is already built. Data are read from the state file and
+      # may overlap with #exclude?. Initially false but #built! sets it to true
+      def built? = @built
+
       # True if the node should be excluded from the build. Initially false but
       # #exclude! sets it to true. Excluded nodes are assumed to have already
-      # been built
-      attr_reader :exclude
+      # been built - not nodes that should not be built at all
+      def excluded? = @excluded
 
-      # True if the node should be included in the build. Initially false but
-      # #include! sets it to true
-      attr_reader :include
+      # True if the node is included in target. Initially false but #include!
+      # sets it to true
+      def included? = @included
 
-      # Set #exclude to true for the transitive closure of the current node
-      def exclude!()
-        @exclude = true
-        deps.each { |dep| dep.exclude! if !dep.exclude }
+      # Return true if the node should be included when using 'prick build'
+      def build?
+        included? && !excluded?
       end
 
-      # Set #include to true for the transitive closure of the current node but
-      # ignores nodes with #exclude == true
+      # Return true if the node should be included when using 'prick build'
+      def make?
+        included? && !excluded? && (dirty? || !built?)
+      end
+
+      # Set #built? to true transitively
+      def built!
+        return if built?
+        @built = true
+        deps.each &:built!
+      end
+
+      # Set #dirty? to true transitively
+      def dirty!
+        return if dirty?
+        @dirty = true
+        reqs.each &:dirty!
+      end
+
+      # Set #exclude? to true transitively
+      def exclude!()
+        return if excluded?
+        @excluded = true
+        deps.each &:exclude!
+      end
+
+      # Set #exclude? to true transitively but ignore nodes with #exclude? ==
+      # true
       def include!()
-        @include = true
-        deps.each { |dep| dep.include! if !dep.exclude && !dep.include }
+        return if included? || excluded?
+        @included = true
+        deps.each &:include!
       end
 
       # First node. Default equal to self but resources sets it to the first
@@ -48,12 +80,12 @@ module Prick::Lang
       def tail = self
 
       # List of nodes that this node depends on. The list may only be
-      # manipulated by #depend_on
+      # manipulated using #depend_on
       attr_reader :deps
 
-      # List of nodes that depends on this node. The list may only be
-      # manipulated by #depend_on
-      attr_reader :uses
+      # List of nodes that requires this node. The list may only be
+      # manipulated using #depend_on
+      attr_reader :reqs
 
       # Used in debug. May be removed
       attr_reader :serial
@@ -65,7 +97,9 @@ module Prick::Lang
         @ast = ast
         @serial = (@@SERIAL += 1)
         @deps = []
-        @uses = []
+        @reqs = []
+        @dirty = false
+        @built = false
         @exclude = false
         @include = false
       end
@@ -73,7 +107,7 @@ module Prick::Lang
       # Make self depend on node
       def depend_on(node)
         head.deps << node.tail
-        node.tail.uses << self
+        node.tail.reqs << self
       end
 
       # Return the transitive closure using #deps. Only nodes with #exclude
@@ -92,21 +126,22 @@ module Prick::Lang
 #       seen.to_a
 #     end
 
-      def Idr.transitive_closure(nodes, kind: nil)
-        constrain kind, :include, :exclude, nil
+      def Idr.transitive_closure(nodes, method: nil)
+        constrain nodes, [Idr::Node]
+        constrain method, Symbol, nil
         stack = nodes.dup
         seen = Set.new
         while node = stack.pop
           next if seen.include? node
           seen << node
-          if kind.nil? || node.send(kind)
+          if method.nil? || node.send(method)
             if node.is_a?(Resource)
               stack.concat [node.tail]
             else
-              stack.concat node.deps if kind.nil? || node.send(kind)
+              stack.concat node.deps #if method.nil? || node.send(method)
             end
           end
-#         stack.concat node.deps if kind.nil? || node.send(kind)
+#         stack.concat node.deps if method.nil? || node.send(method)
         end
         seen.to_a
       end
@@ -141,7 +176,6 @@ module Prick::Lang
     end
 
     class ExternalCommand < MultilineCommand
-#     forward_to :ast, :source, :kind
       def path = ast.dir
     end
 
@@ -167,7 +201,12 @@ module Prick::Lang
     class RequireCommand < NopCommand
       attr_accessor :uid # UID of required node
       attr_reader :node # Required node
-      def node=(node) @deps << node; @node = node end
+      def node=(node)
+        depend_on(node)
+        @node = node
+      end
+
+#       @deps << node; @node = node end
       def initialize(parent, ast, uid = nil)
         constrain parent, Idr::Resource
         constrain ast, Ast::Reference
@@ -203,10 +242,15 @@ module Prick::Lang
 
       def head = block.first
       def tail = block.last
-      def deps = block.first.deps
+      def deps = head.deps
+      def reqs = tail.reqs
 
+      # These specializations also hits the tail node itself
+      def built!() super; tail.built! end
+      def dirty!() super; tail.dirty! end
       def exclude!() super; tail.exclude! end
       def include!() super; tail.include! end
+
 
       def initialize(parent, ast)
         constrain parent, Resource, nil

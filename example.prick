@@ -67,6 +67,8 @@ schema my_schema {
     my_schema-auth.sql
   }
 
+  touch_file.sql
+
   # If statement with constant expression
   if $env = prod
     env_eq_prod.sql

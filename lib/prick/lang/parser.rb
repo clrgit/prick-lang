@@ -280,10 +280,6 @@ module Prick::Lang
         check.exprs << oper
       }
 
-#     check.expr = Ast::CheckExpr.new
-#     check.expr.paths = readrest { readpath(eol: true) }.map { |token| Ast::Path.new(token) }
-#     check.expr.paths.each { |path| File.exist?(path.path) or warning(path, "Can't find '#{path.path}'") }
-
       case t = peek(eol: true).kind
         when :PIPE
           pipe = read(eol: true)

@@ -4,7 +4,7 @@ module Prick::Lang
     CATEGORIES = Idr::Phase::PHASES.map { |kind, (rd,wr)| [kind, "#{rd}_units".to_sym] }.to_h
 
     # Generated units
-    attr_reader :units # [Unit]
+    attr_reader :units # [Unit]. Initialized by #generate
 
     # Units by phase
     attr_reader :init_units
@@ -51,9 +51,9 @@ module Prick::Lang
     #   mark dirty using #uses hierarchy if requested
     #   process reachable nodes
 
-    def make
-      inverted_graph = nodes.map { |unit| [unit, unit.deps] }.to_h
-    end
+#   def make
+#     inverted_graph = nodes.map { |unit| [unit, unit.deps] }.to_h
+#   end
 
     def dump
       puts "Schemas"; indent {
@@ -74,6 +74,7 @@ module Prick::Lang
 
     def build_units(nodes)
       nodes.each { |node|
+        next if !node.send(mode_method)
         case node
           when Idr::MarkCommand
             @units << Unit::Mark.new(node)
@@ -116,7 +117,8 @@ module Prick::Lang
     # graph is a hash from node to list of its dependencies {Node: [Node]}
     def grouped_topological_sort(group_by: ->(n) { true })
       in_degree = Hash.new(0)
-      @graph.each_value { |deps| deps.reject(&:exclude).each { |v| in_degree[v] += 1 } }
+#     @graph.each_value { |deps| deps.reject(&:exclude).each { |v| in_degree[v] += 1 } }
+      @graph.each_value { |deps| deps.each { |v| in_degree[v] += 1 } }
       in_degree.default = 0
 
       # Start with nodes that have no incoming edges
