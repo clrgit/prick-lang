@@ -359,15 +359,27 @@ module Prick::Lang
     end
   end
 
+  # file_args is (file, lineno, charno, text)
+
   class FileToken < Token
     alias_method :path, :text
     attr_reader :dirname
     attr_reader :filename
     attr_reader :extname
 
-    def initialize(*file_args, path, dirname, filename, extname)
-      super(*file_args, path, :FILE)
+    def initialize(*file_args, path, dirname, filename, extname, kind: :FILE)
+      super(*file_args, path, kind)
       @dirname, @filename, @extname = dirname, filename, extname
+    end
+  end
+
+  class ProgramToken < FileToken
+    def initialize(path, lineno, charno)
+      m = FILE_RE.match(path) or raise InternalError
+      dirname = m[:filepath]
+      filename = m[:file]
+      extname = m[:ext]
+      super(path, lineno, charno, path, dirname, filename, extname, kind: :PROGRAM)
     end
   end
 

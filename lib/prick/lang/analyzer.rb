@@ -174,6 +174,11 @@ module Prick::Lang
       }
     end
 
+    # Mark nodes defined in dirty build files
+    def mark_dirty_build
+    end
+
+    # Mark nodes that are already built
     def mark_built_nodes
       compiler.completed_resources.each { |uid|
         compiler.resources[uid]&.built!
@@ -185,6 +190,7 @@ module Prick::Lang
       compiler.exclude.map { compiler.resources[_1] }.each(&:exclude!)
     end
 
+    # Include targets
     def mark_included_nodes
       compiler.targets.map { compiler.resources[_1] }.each(&:include!)
     end

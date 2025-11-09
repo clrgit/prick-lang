@@ -55,6 +55,7 @@ module Prick::Lang
 
     # State data
     attr_reader :state_file # String - State file
+    attr_reader :sources # [Ast::Source]. List of included prick files
     attr_reader :timestamp # Time - time of last successful run. Default epoch
     attr_reader :completed_resources # [uid] - Completed resource
 
@@ -84,6 +85,7 @@ module Prick::Lang
       @exclude = exclude
       @variables = variables
       @state_file = state_file
+      @sources = []
       @timestamp = timestamp
       @parser = Parser.new
       @converter = Converter.new
@@ -112,7 +114,7 @@ module Prick::Lang
     def self.instance = @@INSTANCE
 
     #
-    # General methods
+    # Processes
     #
 
     # Sidenote: Here's an argument for initializing a processor object with
@@ -223,6 +225,10 @@ module Prick::Lang
       @resources[uid] = resource
     end
 
+    #
+    # Presense
+    #
+
     # Unresolved nodes
     attr_accessor :unresolved # [Unresolved]
 
@@ -284,6 +290,8 @@ module Prick::Lang
       indent {
         puts "timestamp: #{@timestamp&.strftime("%F %T %Z") || 'nil'}"
         puts "variables"; indent { puts variables.map { |k,v| "#{k}: #{v}" } }
+        puts "sources"; indent { puts sources.map(&:file) }
+#       puts "files"; indent { puts sources }
         puts "resource:"
         indent {
           puts "present:"; indent { puts present.map { "#{_1} (#{@resources[_1].classname})" } }

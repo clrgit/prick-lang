@@ -11,6 +11,9 @@ module Prick::Lang
       attr_reader :ast # Ast::Node
       forward_to :ast, :token
 
+      # Prick file where this node is defined
+      def deffile = token.file
+
       # Schema this node belongs to. Assigned by the analyzer
       attr_accessor :schema
 

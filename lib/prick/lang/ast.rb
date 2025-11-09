@@ -90,13 +90,15 @@ module Prick::Lang
     end
 
     # Note that File does not include prick files. Prick files are represented
-    # as Source objects
+    # as Source objects (that has a File part object)
     class File < Value
       forward_to :@token, :path, :dirname, :filename, :extname
       attr_reader :value
-      def initialize(token, dir)
+      def initialize(token, path = nil, dir)
+        constrain token, FileToken, DirToken, ProgramToken
         super(token)
-        @value = (token.path[0] == "/" || dir == "." ? token.path : ::File.join(dir, token.path))
+        path ||= token.path
+        @value = (path == "/" || dir == "." ? path : ::File.join(dir, path))
       end
     end
 
@@ -136,6 +138,10 @@ module Prick::Lang
     class Stmt < Node
     end
 
+    # A no-operation statement. Used when a file is included twice
+    class Nop < Stmt
+    end
+
     # A block is an Nodes object with elements restricted to statements
     class Block < Stmt
       part :stmts, [Stmt]
@@ -143,7 +149,7 @@ module Prick::Lang
 
     # A prick source file. Eg. 'make.prick'
     class Source < Stmt
-      part :file, [File]
+      part :file, File
       part :block, Block
     end
 
@@ -174,8 +180,11 @@ module Prick::Lang
     end
 
     class Program < Decl
+      part :file, File
       def initialize(file)
-        super Token.new(file, 1, 1, "public", :PROGRAM)
+        constrain file, File
+        super file.token
+        self.file = file
       end
     end
 
