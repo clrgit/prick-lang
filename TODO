@@ -1,0 +1,25 @@
+
+o Dependencies between phases, particulary 'init' & 'term'. Requires three-level identifiers
+o Rename Ast::Reference -> QualifiedName and fix ident/reference/tablename/other problem
+o Kill Reader
+o Make-file changes are not detected if included in completed resources
+o Only execute files once
+
+o Database storage of state:
+    resources
+      uid
+      build-file
+
+
++ Only include files once
++ Solve problem with relative file names in error messages and tokens
++ Implement 'prick make'
++ Fix missing exec dir in check
++ Fix double construct of Tokens
++ Echo statement
++ Full paths to files in subdirectories
++ Fix directories in eval/exec commands
++ Exec/eval should know their subdirectories
++ Existance operator for files
++ Implement make-dependencies
++ Changed build files invalidates its content
