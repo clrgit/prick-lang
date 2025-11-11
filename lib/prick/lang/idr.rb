@@ -203,6 +203,18 @@ module Prick::Lang
       end
     end
 
+    class MetaCommand < NopCommand
+      attr_accessor :schema_name
+      attr_accessor :table_name
+      def table() = "#{schema_name}.#{table_name}"
+
+      def initialize(parent, ast, schema_name, table_name)
+        constrain parent, Idr::Resource
+        super(parent, ast)
+        @schema_name, @table_name = schema_name, table_name
+      end
+    end
+
     class ProvideCommand < NopCommand
       attr_accessor :uid
       def initialize(parent, ast, uid)
@@ -271,6 +283,7 @@ module Prick::Lang
       def write_attr = :"#{kind.downcase}=" # Writer method in parent object
     end
 
+    # Default empty phase. Added to the Idr by the analyzer for undefined phases
     class DefaultPhase < Phase
       attr_reader :kind
       def initialize(parent, kind)
@@ -280,6 +293,7 @@ module Prick::Lang
       end
     end
 
+    # The implicit 'this' phase
     class ThisPhase < Phase
       def ident = "this"
       def kind = :THIS
@@ -291,7 +305,7 @@ module Prick::Lang
     end
 
     class Schema < Resource
-      attr_reader :create # Command
+      attr_reader :schema_command # Command
       attr_reader :functions # [Function]
       attr_accessor *Phase::ATTRS
 
@@ -299,7 +313,7 @@ module Prick::Lang
       def tail = auth.tail
       def deps = init.deps
 
-      def exclude = create.exclude
+      def exclude = schema_command.exclude
 
       # Get/set phase by name
       def get_phase(ident) = self.send(ident)
@@ -314,7 +328,7 @@ module Prick::Lang
         super(parent, ast)
         @schema = self
         @this = ThisPhase.new(self, ast)
-        @create = self.is_a?(Program) ? NopCommand.new(self) : SchemaCommand.new(self, ast)
+        @schema_command = self.is_a?(Program) ? NopCommand.new(self) : SchemaCommand.new(self, ast)
         @functions = []
       end
     end

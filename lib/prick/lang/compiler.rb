@@ -94,7 +94,8 @@ module Prick::Lang
       @resources = {}
       @unresolved = []
       @requires = []
-      @contexts = []
+      @contexts = [] # Stack of [Idr::Resource, Idr::Block] tuples
+      @schemas = [] # Stack of Idr::Schema objects
     end
 
     def load_state
@@ -259,11 +260,14 @@ module Prick::Lang
 
     # Stack of contexts and associated block. Block is usually equal to
     # resource.block but unresolved nodes sets the resource to the parent
-    # resource but the block to its own block
+    # resource and the block to its own block
     attr_accessor :contexts # [[Resource, Block]]
 
-    # Current Resource object
+    # Current Idr::Resource object
     def context = @contexts.last.first
+
+    # Current Schema object
+    def schema = @schemas.last
 
     # Current block of statements. This is usually the same as context.block
     # but unresolved nodes goes into the Unresolved object and are only later
@@ -276,9 +280,11 @@ module Prick::Lang
       constrain context, Idr::Resource
       constrain block, Array
       @contexts.push [context, block]
-      r = yield
+      @schemas.push context if context.is_a? Idr::Schema
+      yield
+    ensure
       @contexts.pop
-      r
+      @schemas.pop if context.is_a? Idr::Schema
     end
 
     #

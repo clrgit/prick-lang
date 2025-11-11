@@ -92,6 +92,7 @@ module Prick::Lang
         when :OPTIONS; parse_options
         when :PROVIDE; parse_provide
         when :REQUIRE; parse_require
+        when :META; parse_meta
         when :IF; parse_if
         when :CASE; parse_case
         when *Token::PHASES; parse_decl(Ast::Phase, peek)
@@ -157,6 +158,12 @@ module Prick::Lang
       require_ = Ast::Require.new(read)
       require_.references = parse_references
       require_
+    end
+
+    def parse_meta
+      make = Ast::Meta.new(read)
+      make.tables = parse_references
+      make
     end
 
     #
@@ -515,7 +522,6 @@ module Prick::Lang
       Token::IDENTS.include?(token&.kind) ? Ast::Ident.new(read(eol: true)) : nil
     end
     def parse_ident = Ast::Ident.new(readpred(:is_ident?, eol: true))
-
     def parse_idents? = readwhile? { parse_ident? }
     def parse_idents = check_expected("identifier", eol: true) { readwhile { parse_ident? } }
 
@@ -526,7 +532,6 @@ module Prick::Lang
 
     def parse_reference?() = Token::REFS.include?(peek&.kind) ? Ast::Reference.new(read) : nil
     def parse_reference() Ast::Reference.new(readpred :is_ref?) end
-
     def parse_references? = readwhile? { parse_reference? }
     def parse_references = check_expected("reference") { readwhile { parse_reference? } }
 

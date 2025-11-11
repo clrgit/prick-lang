@@ -10,6 +10,7 @@ module Prick::Lang
 
     def initialize
       @evaluator = Evaluator.new
+      @schemas = [] # Stack of Ast::Schemas
     end
 
     def convert(compiler: true)
@@ -64,6 +65,17 @@ module Prick::Lang
       compiler.block.concat \
           ast.references.map { |ref|
             Idr::RequireCommand.new(compiler.context, ref, ref.value)
+          }
+    end
+
+    def convert_meta(ast)
+      constrain ast, Ast::Meta
+      check_context ast, Idr::Program, Idr::Schema, Idr::Phase
+      compiler.block.concat \
+          ast.tables.map { |ref|
+            table_name, schema_name = ref.value.split('.').reverse
+            schema_name ||= compiler.schema.ident
+            Idr::MetaCommand.new(compiler.context, ref, schema_name, table_name)
           }
     end
 
@@ -139,6 +151,7 @@ module Prick::Lang
           when Ast::Schema; convert_schema(stmt)
           when Ast::Provide; convert_provide(stmt)
           when Ast::Require; convert_require(stmt)
+          when Ast::Meta; convert_meta(stmt)
           when Ast::Phase; convert_phase(stmt)
           when Ast::Command; convert_command(stmt)
           when Ast::Source; convert_stmts(stmt.block)

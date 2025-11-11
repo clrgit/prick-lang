@@ -77,6 +77,8 @@ module Prick::Lang
         case node
           when Idr::MarkCommand
             @units << Unit::Mark.new(node)
+          when Idr::MetaCommand
+            @units << Unit::Meta.new(node)
           when Idr::NopCommand
             ;
           when Idr::Command

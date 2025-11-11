@@ -21,11 +21,12 @@ module Prick::Lang
       # Top level keywords. Keywords are reserved, they can't be used as object
       # names or even as values (we don't have quoted string)
       PROGRAM: nil,
-      SCHEMA: "schema",
       OPTION: "option",
+      SCHEMA: "schema",
+      FUNCTION: "function",
       REQUIRE: "require",
       PROVIDE: "provide",
-      FUNCTION: "function",
+      META: "meta",
       RETURN: "return",
 
       # Phases. Phases are not keywords but builtin identifirs and can be
@@ -187,6 +188,8 @@ module Prick::Lang
     RESERVED_WORDS = KEYWORDS + EXTS
 
     # *_PATTERN regular expressions do not generate captures
+    #
+    # TODO: Merge IDENT_PATTERN and REF_PATTERN (OID_PATTERN?)
     KEYWORD_PATTERN = /\b#{Regexp.union KEYWORDS.map { TOKENS[_1] }}\b/
     PUNCT_PATTERN = /#{Regexp.union PUNCTS.map { TOKENS[_1] }}/
     OPER_PATTERN = /#{Regexp.union OPERS.map { TOKENS[_1] }}/
@@ -207,18 +210,19 @@ module Prick::Lang
     PUNCT_RE = /(?<punct>#{PUNCT_PATTERN})/
     OPER_RE = /(?<oper>#{OPER_PATTERN})/
 
-#   FILE_RE = /(?<path>#{DIR_PATTERN})?(?<file>#{FILE_PATTERN}\.(?<ext>#{EXT_PATTERN}))/
+    # Directories and supported files
     FILE_RE = /(?<filepath>#{DIR_PATTERN})?(?<file>#{FILE_PATTERN}\.(?<ext>#{EXT_PATTERN}))/
     DIR_RE = /(?<dir>#{DIR_PATTERN})/
 
+    # Any file, not just supported types
+    PATH_RE = /(?<path>#{PATH_PATTERN})/
+
+    # Simple expressions
     BOOL_RE = /(?<bool>#{BOOL_PATTERN})/
     REF_RE = /(?<ref>#{REF_PATTERN})/
     VAR_RE = /(?<var>#{VAR_PATTERN})/
     IDENT_RE = /(?<ident>#{IDENT_PATTERN})/
     VER_RE = /(?<ver>#{VER_PATTERN})/
-
-    # Matches any file and not just supported types
-    PATH_RE = /(?<path>#{PATH_PATTERN})/
 
     # Matches anything. It is placed last in full token REs to capture that
     # non-matching text

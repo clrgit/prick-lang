@@ -112,9 +112,12 @@ module Prick::Lang
       end
     end
 
-    class Path < Value
-      forward_to :@token, :path
-      def value = @token.path
+    class Bool < Value
+      def value = (@token.text == "true")
+    end
+
+    class Ver < Value # a version value. See Version
+      def value() @value ||= Semver.new(literal) end
     end
 
     class Ident < Value
@@ -125,12 +128,9 @@ module Prick::Lang
       attr_accessor :uid
     end
 
-    class Bool < Value
-      def value = (@token.text == "true")
-    end
-
-    class Ver < Value # a version value. See Version
-      def value() @value ||= Semver.new(literal) end
+    class Path < Value
+      forward_to :@token, :path
+      def value = @token.path
     end
 
     class Word < Value
@@ -169,6 +169,11 @@ module Prick::Lang
 
     class Require < Stmt
       part :references, [Reference]
+    end
+
+    class Meta < Stmt
+      # TODO 'Reference' should be something else. 'DottedIdentifier'? 'QualifiedName'?
+      part :tables, [Reference]
     end
 
     #

@@ -133,6 +133,11 @@ module Prick::Lang
       def dumpdep = dumpline
     end
 
+    class MetaCommand
+      def dumpline = puts "META #{table}"
+      def dumpdep = dumpline
+    end
+
     class ProvideCommand
       def dumpline = puts "provide #{uid}"
       def dump = dumpline

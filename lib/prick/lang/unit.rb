@@ -41,6 +41,10 @@ module Prick::Lang
     class Mark < Node
       def dumpunit = node.dumpline
     end
+
+    class Meta < Node
+      def dumpunit = node.dumpline
+    end
   end
 end
 
