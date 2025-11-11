@@ -151,7 +151,6 @@ module Prick::Lang
         schema.term.depend_on schema.this
         schema.seed.depend_on schema.term
         schema.auth.depend_on schema.seed
-
       }
     end
 
@@ -163,11 +162,6 @@ module Prick::Lang
         program.term.depend_on schema.term
         program.seed.depend_on schema.seed
         program.auth.depend_on schema.auth
-
-#       schema.init.depend_on program.head
-#       schema.this.depend_on program.head
-        program.seed.tail.depend_on schema.seed.tail
-#       schema.seed.tail.depend_on program.seed.tail
       }
     end
 
@@ -177,10 +171,9 @@ module Prick::Lang
     # Mark dirty (changed) files. Note that absent files are not dirty because
     # they may be generated later, if not it will cause an error when executed
     def mark_dirty_nodes
-#FIXME FIXME FIXME
-#     program.trees(Idr::FileCommand).each { |cmd|
-#       cmd.dirty! if is_dirty? cmd.path #File.exist?(cmd.path) && File.mtime(cmd.path) > compiler.timestamp
-#     }
+      program.trees(Idr::FileCommand).each { |cmd|
+        cmd.dirty! if is_dirty? cmd.path #File.exist?(cmd.path) && File.mtime(cmd.path) > compiler.timestamp
+      }
     end
 
     # Mark nodes defined in dirty build files
@@ -195,9 +188,6 @@ module Prick::Lang
       compiler.resources.values.each { |node| node.dirty! if node.ast&.dirty? }
 
       # Propagate dirty
-
-
-
 #     program.nodes(Idr::Resource, Idr::ProvideCommand).each { |cmd| cmd.dirty! if cmd.ast&.dirty?  }
     end
 

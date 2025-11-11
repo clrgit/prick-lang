@@ -31,7 +31,6 @@ module Prick::Lang
       # Phases. Phases are not keywords but builtin identifirs and can be
       # used in references
       INIT: "init",
-      META: "meta",
       SEED: "seed",
       TERM: "term", # TODO Make this a drop-schema hook and create a FINAL phase instead
       AUTH: "auth",
@@ -173,7 +172,7 @@ module Prick::Lang
     #
     KINDS = TOKENS.keys # List of all token kinds
     PATHS = [:FILE, :DIR] # No longer needed
-    PHASES = [:INIT, :TERM, :META, :SEED, :AUTH]
+    PHASES = [:INIT, :TERM, :SEED, :AUTH]
     BOOLS = [:TRUE, :FALSE]
     IDENTS = [:IDENT] + PHASES
     REFS = [:REF] + IDENTS

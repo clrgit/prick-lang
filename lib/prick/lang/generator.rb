@@ -12,7 +12,6 @@ module Prick::Lang
     attr_reader :seed_units
     attr_reader :term_units
     attr_reader :auth_units
-    attr_reader :meta_units # YT
 
     def nodes = analyzer.reachable_nodes
     def schemas = analyzer.reachable_schemas

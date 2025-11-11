@@ -50,9 +50,6 @@ module Prick::Lang
       return @peeker.read(eol: eol, eof: eof)
     end
 
-#   def unpeek(token, eol: false, eof: false)
-#   end
-
     # Return true if peek is valid and is compatible with the given flags
     def peek?(eol: false, eof: false)
       @peeker.read? &&
