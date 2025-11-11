@@ -77,8 +77,18 @@ module Prick::Lang
     end
 
     class FileCommand
-      def dumpline = puts "FILE #{path}"
+      def dumpline = puts "FILE #{path} #{self.classname}"
       def dumpunit = puts "#{token&.kind || 'nil'} #{path}"
+    end
+
+#   class FoxCommand
+#     def dumpline = puts "FOX #{path} #{self.classname}"
+#     def dumpunit = puts "#{token&.kind || 'nil'} #{path}"
+#   end
+
+    class FoxCommand
+      def dumpline = puts "FOX #{path}"
+      def dumpunit = dumpline
     end
 
     class MultilineCommand

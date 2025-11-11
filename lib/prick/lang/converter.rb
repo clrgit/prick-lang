@@ -83,7 +83,9 @@ module Prick::Lang
       constrain ast, Ast::FileCommand, Ast::SqlCommand, Ast::ExternalCommand, Ast::CallCommand
       compiler.block.concat \
           case ast
-            when Ast::FileCommand; [Idr::FileCommand.new(compiler.context, ast.file)]
+            when Ast::FileCommand
+              klass = (ast.file.extname == "fox" ? Idr::FoxCommand : Idr::FileCommand)
+              [klass.new(compiler.context, ast.file)]
             when Ast::SqlCommand; [Idr::SqlCommand.new(compiler.context, ast)]
             when Ast::ExternalCommand; [Idr::ExternalCommand.new(compiler.context, ast)]
             when Ast::CallCommand; [Idr::CallCommand.new(compiler.context, ast)]

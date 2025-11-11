@@ -155,6 +155,10 @@ module Prick::Lang
     class FileCommand < Command
       alias_method :file, :ast # Ast::File
       def path = ast.value
+      def fox? = self.class == FoxCommand
+    end
+
+    class FoxCommand < FileCommand
     end
 
     class MultilineCommand < Command
@@ -306,8 +310,8 @@ module Prick::Lang
 
     class Schema < Resource
       attr_reader :schema_command # Command
+      attr_accessor *Phase::ATTRS # init, this, seed, term, auth
       attr_reader :functions # [Function]
-      attr_accessor *Phase::ATTRS
 
       def head = init.head
       def tail = auth.tail
