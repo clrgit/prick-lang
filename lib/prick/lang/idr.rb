@@ -109,25 +109,11 @@ module Prick::Lang
 
       # Make self depend on node
       def depend_on(node)
-        head.deps << node.tail
-        node.tail.reqs << self
+#       head.deps << node.tail
+#       node.tail.reqs << self
+        head.deps << node
+        node.reqs << self
       end
-
-      # Return the transitive closure using #deps. Only nodes with #exclude
-      # equal to false are considered
-#     def transitive_deps = Idr.transitive_closure([self])
-
-      # Return the transitive closure of the given nodes using #deps. Only
-      # nodes with #exclude equal to false are considered
-#     def Idr.transitive_closure(nodes)
-#       stack = nodes.dup
-#       seen = Set.new
-#       while node = stack.pop
-#         seen << node
-#         stack.concat node.deps if !node.exclude
-#       end
-#       seen.to_a
-#     end
 
       def Idr.transitive_closure(nodes, method: nil)
         constrain nodes, [Idr::Node]
@@ -209,7 +195,6 @@ module Prick::Lang
         @node = node
       end
 
-#       @deps << node; @node = node end
       def initialize(parent, ast, uid = nil)
         constrain parent, Idr::Resource
         constrain ast, Ast::Reference
@@ -250,10 +235,10 @@ module Prick::Lang
 
       # These specializations also hits the tail node itself
       def built!() super; tail.built! end
-      def dirty!() super; tail.dirty! end
+#     def dirty!() super; tail.dirty! end
+      def dirty!() super; children.map(&:dirty!) end
       def exclude!() super; tail.exclude! end
       def include!() super; tail.include! end
-
 
       def initialize(parent, ast)
         constrain parent, Resource, nil

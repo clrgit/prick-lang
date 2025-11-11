@@ -38,6 +38,7 @@ module Prick::Lang
     attr_reader :dir # Current user directory when the compiler was invoked
     attr_reader :file # Start file. Only used in error messages. May be nil, initialized by #parse if so
     attr_reader :mode # Symbol - Either :build or :make. Default is :build
+    attr_reader :sources # [Ast::Source]. List of included prick files
     attr_reader :targets # [String] - Target UIDs
     attr_reader :exclude # [String] - Excluded UIDs
     attr_reader :variables # {Var=>Val} - Command-line and built-in variables
@@ -55,7 +56,6 @@ module Prick::Lang
 
     # State data
     attr_reader :state_file # String - State file
-    attr_reader :sources # [Ast::Source]. List of included prick files
     attr_reader :timestamp # Time - time of last successful run. Default epoch
     attr_reader :completed_resources # [uid] - Completed resource
 
@@ -81,11 +81,11 @@ module Prick::Lang
       @dir_pathname = Pathname.new(@dir) # pre-computed, used in #userpath
       @file = file
       @mode = mode
+      @sources = []
       @targets = targets
       @exclude = exclude
       @variables = variables
       @state_file = state_file
-      @sources = []
       @timestamp = timestamp
       @parser = Parser.new
       @converter = Converter.new
@@ -195,8 +195,8 @@ module Prick::Lang
     #
     # Resources
     #
-    # A resource is a phase, function, schema, or program Idr object or a
-    # provide statement
+    # A resource is a phase, function, schema, or program object, or a provide
+    # statement
 
     # Map from uid to Idr resource object, false if marked absent and nil if
     # unknown
@@ -292,20 +292,31 @@ module Prick::Lang
         puts "variables"; indent { puts variables.map { |k,v| "#{k}: #{v}" } }
         puts "sources"; indent { puts sources.map(&:file) }
 #       puts "files"; indent { puts sources }
-        puts "resource:"
+        puts "resources:"
         indent {
-          puts "present:"; indent { puts present.map { "#{_1} (#{@resources[_1].classname})" } }
-          puts "absent:"; indent { puts absent }
-          puts "unknown:"; indent { puts unknown }
-        }
-        if unresolved.empty?
-          puts "unresolved: []"
-        else
-          puts "unresolved (#{unresolved.size}):"
-          indent {
-            unresolved.each { |node| puts "#{node.token.location}: #{node.unresolved_uid} #{node.classname}" }
+          resources.sort_by(&:first).each { |uid, node|
+            dirty = mode == :make && node.dirty? ? "*" : nil
+            puts [uid, dirty, "(#{node.classname})"].compact.join(' ') + " #{node.ast.class}"
           }
-        end
+        }
+        puts "nodes:"
+          idr.each { |node|
+            puts "#{node.ast&.token || node.classname} #{node.dirty?}"
+          }
+
+#       indent {
+#         puts "present:"; indent { puts present.map { "#{_1} (#{@resources[_1].classname})" } }
+#         puts "absent:"; indent { puts absent }
+#         puts "unknown:"; indent { puts unknown }
+#       }
+#       if unresolved.empty?
+#         puts "unresolved: []"
+#       else
+#         puts "unresolved (#{unresolved.size}):"
+#         indent {
+#           unresolved.each { |node| puts "#{node.token.location}: #{node.unresolved_uid} #{node.classname}" }
+#         }
+#       end
       }
     end
 

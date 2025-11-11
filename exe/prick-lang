@@ -34,6 +34,29 @@ SPEC = %(
   -T,trace
     Enable tracer. Used for debugging
 
+
+  Commands
+    make
+      * When a build file changes all schemas within the build file is marked
+        dirty together with required resources
+
+        P: This means that phases and hence schemas will need to be recreated
+          S: It may be assumed that if there are no dependencies between schema
+             phases, then they don't need to be recompiled
+          S: Keep track of seed files and only wipe them when phase needs to be
+             re-run
+
+        P: How to re-run phases
+          S: init phase - automatically rebuilds everything
+             seed phase - clear seed tables
+             term phase - should be re-entrant
+             auth phase - should be re-entrant
+
+  Make & seed tables
+    * Make tables may not be referred to by ID
+    * Seed tables may not depend on tables in other schemas
+
+
   Syntax
 
     PROGRAM ::= BLOCK

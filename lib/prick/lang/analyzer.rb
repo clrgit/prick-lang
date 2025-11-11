@@ -163,19 +163,42 @@ module Prick::Lang
         program.term.depend_on schema.term
         program.seed.depend_on schema.seed
         program.auth.depend_on schema.auth
+
+#       schema.init.depend_on program.head
+#       schema.this.depend_on program.head
+        program.seed.tail.depend_on schema.seed.tail
+#       schema.seed.tail.depend_on program.seed.tail
       }
     end
+
+    # Helper function
+    def is_dirty?(path) = File.exist?(path) && File.mtime(path) > compiler.timestamp
 
     # Mark dirty (changed) files. Note that absent files are not dirty because
     # they may be generated later, if not it will cause an error when executed
     def mark_dirty_nodes
-      program.trees(Idr::FileCommand).each { |cmd|
-        cmd.dirty! if File.exist?(cmd.path) && File.mtime(cmd.path) > compiler.timestamp
-      }
+#FIXME FIXME FIXME
+#     program.trees(Idr::FileCommand).each { |cmd|
+#       cmd.dirty! if is_dirty? cmd.path #File.exist?(cmd.path) && File.mtime(cmd.path) > compiler.timestamp
+#     }
     end
 
     # Mark nodes defined in dirty build files
     def mark_dirty_build
+      # Find dirty prick files
+      dirty_sources = compiler.sources.select { is_dirty? _1.file.path }
+
+      # Mark Ast nodes dirty
+      dirty_sources.each { |source| source.dirty!  }
+
+      # Mark resource Idr objects dirty if they have a dirty Ast node
+      compiler.resources.values.each { |node| node.dirty! if node.ast&.dirty? }
+
+      # Propagate dirty
+
+
+
+#     program.nodes(Idr::Resource, Idr::ProvideCommand).each { |cmd| cmd.dirty! if cmd.ast&.dirty?  }
     end
 
     # Mark nodes that are already built
@@ -197,6 +220,7 @@ module Prick::Lang
 
     def mark_nodes
       mark_built_nodes
+      mark_dirty_build
       mark_dirty_nodes
       mark_excluded_nodes
       mark_included_nodes

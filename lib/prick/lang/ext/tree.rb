@@ -67,16 +67,8 @@ module Tree
     acc
   end
 
-  def pairs_impl(acc, klasses, parent, &expr)
-    if klasses.any? { self.class <= _1 } && (block_given? ? expr.call(self) : true)
-      acc << [parent, self]
-      parent = self
-    end
-    @children.each { _1.pairs_impl(acc, klasses, parent, &expr) }
-  end
-
-  # Return subtrees of any of the given classes and for which expr yields true.
-  # The expression defaults to true and all classes are considered by default
+  # Return subtrees of any of the given classes and for which expr yields true
+  # (the default). All classes are considered by default
   def trees(*klass, &expr)
     klasses = klass_expr(klass)
     acc = []
@@ -99,6 +91,8 @@ module Tree
 # def nodes(*klass, &expr) = nodes_recursively([], klass_expr(klass), &expr)
 # def trees(*klass, &expr) = @children.flat_map { _1.trees_recursively([], klass_expr(klass), &expr) }
 # def nodes(*klass, &expr) = @children.flat_map { nodes_recursively([], klass_expr(klass), &expr) }
+
+  # Like #nodes but stop iteration when the block returns false
   def visit(*klass, &block) = visit_recursively(klass_expr(klass), &block)
 
   # bottom-up
@@ -122,6 +116,14 @@ module Tree
 #     node.pairs_impl(acc)
 #   }
 # end
+
+  def pairs_impl(acc, klasses, parent, &expr)
+    if klasses.any? { self.class <= _1 } && (block_given? ? expr.call(self) : true)
+      acc << [parent, self]
+      parent = self
+    end
+    @children.each { _1.pairs_impl(acc, klasses, parent, &expr) }
+  end
 
   def trees_impl(acc, klasses, &expr)
     if klasses.any? { self.class <= _1 } && (block_given? ? expr.call(self) : true)

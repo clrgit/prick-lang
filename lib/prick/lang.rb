@@ -56,7 +56,14 @@ module Prick::Lang
   def self.dump(compiler, kinds)
     compiler.load_state
     state = kinds.delete "state"
-    dump_phases(compiler, kinds)
+    if kinds.empty?
+      compiler.parse compiler.file
+      compiler.convert
+      compiler.analyze
+      compiler.generate
+    else
+      dump_phases(compiler, kinds)
+    end
     compiler.dump if state
   end
 

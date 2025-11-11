@@ -25,6 +25,15 @@ module Prick::Lang
 
       forward_to :token, :lineno, :charno, :kind, :file
 
+      # True if the node is part of a dirty (changed) build file. Initialized
+      # by Analyzer#mark_dirty_build. Initially false
+      def dirty?() @dirty end
+      def dirty!()
+        return if dirty?
+        @dirty = true
+        @children.each(&:dirty!)
+      end
+
       def initialize(token)
         constrain token, Token, nil
         @token = token
@@ -92,13 +101,14 @@ module Prick::Lang
     # Note that File does not include prick files. Prick files are represented
     # as Source objects (that has a File part object)
     class File < Value
-      forward_to :@token, :path, :dirname, :filename, :extname
+      forward_to :@token, :dirname, :filename, :extname
+      attr_reader :path # True path
       attr_reader :value
       def initialize(token, path = nil, dir)
         constrain token, FileToken, DirToken, ProgramToken
         super(token)
-        path ||= token.path
-        @value = (path == "/" || dir == "." ? path : ::File.join(dir, path))
+        @path = path || token.path
+        @value = (@path == "/" || dir == "." ? @path : ::File.join(dir, @path))
       end
     end
 
