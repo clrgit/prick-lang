@@ -52,9 +52,67 @@ SPEC = %(
              term phase - should be re-entrant
              auth phase - should be re-entrant
 
-  Make & seed tables
-    * Make tables may not be referred to by ID
-    * Seed tables may not depend on tables in other schemas
+    merge
+      * It is assumed that a migration has updated the schema of the production
+        database and that links that would be broken by changes in seed data have
+        been fixed beforehand
+
+      * Pseudo-code
+
+          build new version
+          dump meta and const table names
+          backup seed
+          move seed to temporary tables
+          backup production excl. meta and const from table name dump
+          load production backup
+          merge seed tables
+
+          P: How to handle new or deleted tables?
+            S: The new database dumps a list of tables to exclude
+            S: The production database knows its meta and const tables. It then
+               exclude those tables unless they're included in the table name
+               dump
+
+      * New phase
+
+          merge {
+            meta table1 table2
+            sync this_table key
+            sync that_table key
+            copy another_table # <- cause the table to be registered as a seed/copy table
+            seed schema.table
+            some_script.sql
+          }
+
+          N: Run completely without constraints/triggers/indexes etc. to be able to
+             copy tables. No, not needed. Just use the usual restore backup mode
+
+          N: The merge phase is all we need to identify seed tables. No,
+             because we can execute any script or command in a merge section
+             S: Introduce a seed keyword that marks the table as an unspecified
+                seed table that should be moved to a temporary table before
+                loading production and then merged using scripts/commands
+
+          N: It is possible to do a sanity check of the merge phase by
+             comparing non-empty tables with the set of referenced phases
+
+      * Data types
+
+        - meta    # Meta tables. Meta tables are used to create other schema objects
+                  # and are read-only. They can't be referenced by id (except
+                  # between meta tables). Defined by the 'meta' keyword
+        - copy    # Read-only seed data
+        - sync    # Writable seed data
+        - seed    # Copy & sync data
+        - app     # Application data
+        - data    # All data
+
+
+  Meta, sync, cop & seed tables
+    * Meta tables may not be referred to by ID except by other meta tables
+    * Seed tables can only refer to other seed tables in the same schema
+    * Sync tables should have a unique kind. They can be linked to by id
+    * Copy tables should have a unique kind. They can't be linked to by id
 
 
   Syntax

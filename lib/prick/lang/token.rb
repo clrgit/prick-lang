@@ -173,7 +173,7 @@ module Prick::Lang
     #
     KINDS = TOKENS.keys # List of all token kinds
     PATHS = [:FILE, :DIR] # No longer needed
-    PHASES = [:INIT, :TERM, :SEED, :AUTH]
+    PHASES = [:INIT, :SEED, :TERM, :AUTH]
     BOOLS = [:TRUE, :FALSE]
     IDENTS = [:IDENT] + PHASES
     REFS = [:REF] + IDENTS

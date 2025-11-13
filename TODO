@@ -3,12 +3,8 @@ o Dependencies between phases, particulary 'init' & 'term'. Requires three-level
 o Rename Ast::Reference -> QualifiedName and fix ident/reference/tablename/other problem
 o Kill Reader
 o Make-file changes are not detected if included in completed resources
-o Only execute files once
-
-o Database storage of state:
-    resources
-      uid
-      build-file
+o Only execute files once (sure?)
+o Database storage of state
 
 
 + Only include files once

@@ -212,10 +212,11 @@ module Prick::Lang
       attr_accessor :table_name
       def table() = "#{schema_name}.#{table_name}"
 
-      def initialize(parent, ast, schema_name, table_name)
-        constrain parent, Idr::Resource
+      def initialize(parent, ast, name)
+        constrain parent, Idr::Schema
         super(parent, ast)
-        @schema_name, @table_name = schema_name, table_name
+        @table_name, @schema_name = name.split('.').reverse
+        @schema_name ||= parent.ident.to_s
       end
     end
 
@@ -312,6 +313,8 @@ module Prick::Lang
       attr_reader :schema_command # Command
       attr_accessor *Phase::ATTRS # init, this, seed, term, auth
       attr_reader :functions # [Function]
+      attr_reader :meta_commands # [MetaCommand]
+      def meta_tables = meta_commands.map(&:table) # [String] Only used in dump
 
       def head = init.head
       def tail = auth.tail
@@ -334,6 +337,7 @@ module Prick::Lang
         @this = ThisPhase.new(self, ast)
         @schema_command = self.is_a?(Program) ? NopCommand.new(self) : SchemaCommand.new(self, ast)
         @functions = []
+        @meta_commands = []
       end
     end
 

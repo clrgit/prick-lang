@@ -161,6 +161,7 @@ module Prick::Lang
     end
 
     def parse_meta
+
       make = Ast::Meta.new(read)
       make.tables = parse_references
       make

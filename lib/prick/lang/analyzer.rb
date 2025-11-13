@@ -32,6 +32,7 @@ module Prick::Lang
         assign_default_phases
         add_mark_nodes
         assign_schema
+        collect_meta
         resolve_references
       end
       if link.nil? || link
@@ -122,6 +123,12 @@ module Prick::Lang
     def assign_schema
       idr.nodes(Idr::Schema).each { |schema|
         schema.nodes.each { |node| node.schema = schema }
+      }
+    end
+
+    def collect_meta
+      idr.nodes(Idr::MetaCommand).each { |meta|
+        meta.schema.meta_commands << meta
       }
     end
 

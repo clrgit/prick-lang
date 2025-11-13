@@ -181,7 +181,7 @@ module Prick::Lang
 
     class Schema
 #     PARTS = [:create, :functions, :phases, :block]
-      PARTS = [:create, :functions, :phases]
+      PARTS = [:schema_command, :functions, :meta_tables, :phases]
       def dumpunit = puts "SCHEMA #{ident}"
     end
 

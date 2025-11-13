@@ -70,13 +70,9 @@ module Prick::Lang
 
     def convert_meta(ast)
       constrain ast, Ast::Meta
-      check_context ast, Idr::Program, Idr::Schema, Idr::Phase
+      check_context ast, Idr::Schema
       compiler.block.concat \
-          ast.tables.map { |ref|
-            table_name, schema_name = ref.value.split('.').reverse
-            schema_name ||= compiler.schema.ident
-            Idr::MetaCommand.new(compiler.context, ref, schema_name, table_name)
-          }
+          ast.tables.map { |ref| Idr::MetaCommand.new(compiler.context, ref, ref.value) }
     end
 
     def convert_command(ast)

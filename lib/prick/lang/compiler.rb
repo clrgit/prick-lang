@@ -59,6 +59,9 @@ module Prick::Lang
     attr_reader :timestamp # Time - time of last successful run. Default epoch
     attr_reader :completed_resources # [uid] - Completed resource
 
+    attr_reader :meta_tables
+    attr_reader :seed_tables
+
     def initialize(
         file, targets = [DEFAULT_TARGET],
         mode: :build,
@@ -97,6 +100,10 @@ module Prick::Lang
       @contexts = [] # Stack of [Idr::Resource, Idr::Block] tuples
       @schemas = [] # Stack of Idr::Schema objects
     end
+
+    #
+    # State
+    #
 
     def load_state
       data = File.exist?(state_file) ? YAML.load_file(state_file, symbolize_names: true) : {}
