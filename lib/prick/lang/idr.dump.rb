@@ -166,7 +166,7 @@ module Prick::Lang
       end
     end
 
-    class Function
+    class Procedure
       PARTS = [:block]
     end
 

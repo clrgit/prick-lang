@@ -154,7 +154,7 @@ module Prick::Lang
           when Ast::Command; convert_command(stmt)
           when Ast::Source; convert_stmts(stmt.block)
           when Ast::Control; convert_control(stmt)
-          when Ast::Function; puts "TODO: Function not implemented"
+          when Ast::Procedure; puts "TODO: Procedure not implemented"
         else
           raise ArgumentError, "#{stmt.inspect}"
         end

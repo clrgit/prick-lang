@@ -1,4 +1,9 @@
 
+o Add copy, sync, merge, and seed keywords
+o Remove meta keyword
+o Add functions
+o Add function calls
+o Rename term->final
 o Dependencies between phases, particulary 'init' & 'term'. Requires three-level identifiers
 o Rename Ast::Reference -> QualifiedName and fix ident/reference/tablename/other problem
 o Kill Reader

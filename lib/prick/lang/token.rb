@@ -23,7 +23,7 @@ module Prick::Lang
       PROGRAM: nil,
       OPTION: "option",
       SCHEMA: "schema",
-      FUNCTION: "function",
+      PROCEDURE: "procedure",
       REQUIRE: "require",
       PROVIDE: "provide",
       META: "meta",
@@ -35,6 +35,7 @@ module Prick::Lang
       SEED: "seed",
       TERM: "term", # TODO Make this a drop-schema hook and create a FINAL phase instead
       AUTH: "auth",
+      MERGE: "merge",
 
       # Control structures
       IF: "if",
@@ -173,7 +174,7 @@ module Prick::Lang
     #
     KINDS = TOKENS.keys # List of all token kinds
     PATHS = [:FILE, :DIR] # No longer needed
-    PHASES = [:INIT, :SEED, :TERM, :AUTH]
+    PHASES = [:INIT, :TERM, :SEED, :AUTH, :MERGE]
     BOOLS = [:TRUE, :FALSE]
     IDENTS = [:IDENT] + PHASES
     REFS = [:REF] + IDENTS

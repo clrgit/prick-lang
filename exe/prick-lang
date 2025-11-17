@@ -7,7 +7,7 @@ require 'shellopts'
 SPEC = %(
   @ Prick compiler
 
-  -- CMD [TARGET...] [VAR=VAL...]
+  -- [OPTIONS] build|make|merge|run [VAR=VAL...]
 
   Compile a prick project
 
@@ -34,86 +34,296 @@ SPEC = %(
   -T,trace
     Enable tracer. Used for debugging
 
-
   Commands
-    make
-      * When a build file changes all schemas within the build file is marked
-        dirty together with required resources
+    build [TARGET...]
+      Builds the given targets, default is 'seed'
 
-        P: This means that phases and hence schemas will need to be recreated
-          S: It may be assumed that if there are no dependencies between schema
-             phases, then they don't need to be recompiled
-          S: Keep track of seed files and only wipe them when phase needs to be
-             re-run
+    make [TARGET...]
+      Like build but only update changed resources
 
-        P: How to re-run phases
-          S: init phase - automatically rebuilds everything
-             seed phase - clear seed tables
-             term phase - should be re-entrant
-             auth phase - should be re-entrant
+    migrate <MERGE-BACKUP>
+      Migrate database and merge seed data
 
-    merge
-      * It is assumed that a migration has updated the schema of the production
-        database and that links that would be broken by changes in seed data have
-        been fixed beforehand
+    merge <MERGE-BACKUP>
+      Merge production data into the database
 
-      * Pseudo-code
+    run PROCEDURE
 
-          build new version
-          dump meta and const table names
-          backup seed
-          move seed to temporary tables
-          backup production excl. meta and const from table name dump
-          load production backup
-          merge seed tables
+  Built-in procedures
+    run move.seed or seed.move ?
+      Create a copy of seed tables before emptying them
+    run dump.seed
+      Dump seed data (not used)
+    run dump.data
+      Dump user data
+    run dump.merge
+      Dump seed & user data
+    run load.data DATA-FILE
+      Load seed and user data
 
-          P: How to handle new or deleted tables?
-            S: The new database dumps a list of tables to exclude
-            S: The production database knows its meta and const tables. It then
-               exclude those tables unless they're included in the table name
-               dump
+    run auth.enable
+      Enable auth
+    run auth.disable
+      Disable auth
 
-      * New phase
+  Make command
+    When a build file changes all schemas within the build file is marked
+    dirty together with required resources
 
-          merge {
-            meta table1 table2
-            sync this_table key
-            sync that_table key
-            copy another_table # <- cause the table to be registered as a seed/copy table
-            seed schema.table
-            some_script.sql
-          }
+      P: This means that phases and hence schemas will need to be recreated
+        S: It may be assumed that if there are no dependencies between schema
+           phases, then they don't need to be recompiled
+        S: Keep track of seed files and only wipe them when phase needs to be
+           re-run
 
-          N: Run completely without constraints/triggers/indexes etc. to be able to
-             copy tables. No, not needed. Just use the usual restore backup mode
+      P: How to re-run phases
+        S: init phase - automatically rebuilds everything
+           seed phase - clear seed tables
+           term phase - should be re-entrant
+           auth phase - should be re-entrant
+           merge phase
 
-          N: The merge phase is all we need to identify seed tables. No,
-             because we can execute any script or command in a merge section
-             S: Introduce a seed keyword that marks the table as an unspecified
-                seed table that should be moved to a temporary table before
-                loading production and then merged using scripts/commands
+  Migrate command
+    OOPS: Migrate may require new seed data
 
-          N: It is possible to do a sanity check of the merge phase by
-             comparing non-empty tables with the set of referenced phases
+    P How to refer to new seed data in migrations? Eg. a new user_group that
+      refers to a new system_role
 
-      * Data types
+    P How to handle pure link tables?
+      S First delete all existing links
+        Then set max id to production table's max id
 
-        - meta    # Meta tables. Meta tables are used to create other schema objects
-                  # and are read-only. They can't be referenced by id (except
-                  # between meta tables). Defined by the 'meta' keyword
-        - copy    # Read-only seed data
-        - sync    # Writable seed data
-        - seed    # Copy & sync data
-        - app     # Application data
-        - data    # All data
+      S Merge using target.merge_records and with max id set to target.max_ids. This achieves
+          * Existing record IDs are not changed
+          * New record wont conflict with user data
+
+    P fox can't generate new IDs that are not continuous
+
+    N
+
+    I How to generate new seed:
+      Add columns
+      Merge old and new seed tables
+
+    I Phases
+      Add columns
+      Load new seed
+      Initialize new columns
+      Delete old columns
 
 
-  Meta, sync, cop & seed tables
-    * Meta tables may not be referred to by ID except by other meta tables
-    * Seed tables can only refer to other seed tables in the same schema
-    * Sync tables should have a unique kind. They can be linked to by id
-    * Copy tables should have a unique kind. They can't be linked to by id
 
+
+
+    I Two migration kinds
+      * Seed data are not migrated because they're defined during the build process
+
+      * Migrate database with seeds only data. This load database with generates new IDs (or keeps existing)
+      * Migrate database with user data
+
+
+
+    I Build process
+
+        Have max IDs for tables
+        build new version
+        backup seed tables
+
+        build old version
+        overwrite seed
+
+
+
+
+
+
+
+
+
+    Seed tables
+      Regular seed tables have a unique field in addition to the primary key
+      but that's not true for link tables. The categories key and link tables
+      are auto-detected
+
+    Key tables
+      Key tables can be referred to by ID if it is merged using the 'sync' or
+      'merge' strategies that promise to keep existing IDs constant. If not,
+      the table can only be referred to by the unique key
+
+    Link tables
+      Link tables require special handling because they don't contain an
+      alternate unique key. They may not be referred at all (link tables never
+      are). Link tables are generated with IDs starting at the first free ID
+      in the production database
+
+    Procedure make-seed-for-migration
+      extract max-ids for link tables from production database
+      build term
+      build seed with max-ids
+      dump seed tables
+
+    Migrate command
+      Migrations are defined in a make.prick file in its migration directory (eg.
+      ./migration/1.2.3-1.2.4/). The prick file should define the procedures
+      create_columns(), update_columns(), and delete_columns() and finalize().
+      Alternatively just initial() and final() that goes before/after the merge
+      step
+
+      The build.prick file may be empty if no tables are affected by the
+      migration (eg. some function changed)
+
+      Procedure
+        backup production database # If in production
+        load production database # If not in production
+
+        make-seed-for-migration:
+          extract max-ids for link tables from production database
+          set max-ids for key tables to 0 (their ID doesn't matter)
+          create template database
+          build term
+          build seed using max-ids
+          dump seed tables
+
+        call add_columns
+
+        merge:
+          wipe link table records
+          load seed-for-migration into merge schemas
+          merge link data using copy strategy
+          merge key data using any strategy
+
+        call update_columns
+        call delete_columns
+        call finalize
+
+    ./migration/1.2.3-1.2.4/
+      make.prick
+      create_columns.sql
+
+    make.prick:
+      procedure create_columns {
+        create_columns.sql
+        sql |
+          alter table ...
+      }
+
+    P A table that refers to a seed record by ID
+      S * It does not need to be updated if synchronized by sync or merge
+        * The seed record can't be referred by ID if not synchronized by sync or merge
+
+  Update command
+    Something more clever than rebuilding the whole database
+
+    Something like
+      update tables = [ customers cases events visits users case_users ]
+      For each update table
+        if has-reliable-date-stamp (only acts uses this)
+          Find UUIDs newer than timestamp
+        else
+          Find known UIDs
+          Three-way diff against sagsys
+        end
+        if UUID is in scope
+          import UUIDs
+        end
+      end
+
+      update {
+        timestamp TABLE TIMESTAMP-FIELD |
+          filter-sql
+
+        diff TABLE |
+          filter-sql
+      }
+
+  Merge command
+    The merge command consist of the following steps
+
+        build new version
+        copy and clear seed tables
+        load new production merge data
+        merge seed tables and maintain ID tables
+
+    It is assumed that the migration has updated the schema of the production
+    database and that links that would be broken by changes in seed data have
+    been fixed beforehand
+
+    Hierarcy of meta & seed table types
+
+      meta
+      seed
+        key
+          copy
+          sync
+          merge
+        link
+
+    Table types
+      meta
+          Meta tables are used to create schema objects (schemas / tables
+          / functions / etc.) and are non-empty after the 'this' phase
+
+          Meta table may not be referred to by ID except by other meta
+          tables (this can be checked). They are excluded from the
+          merge-backup of the production database so the backup can be
+          restored without conflicts
+
+      seed
+          Seed tables are non-empty after the 'seed' phase (and not a meta
+          table). Prick auto-detects seeds tables and compares it to the tables
+          in the merge section to warn about unhandled tables
+
+          Records in seed tables that use the sync or merge strategies
+          may be referenced by ID from the rest of the target database
+          (this can be checked) but it is an error if a to-be-deleted
+          record is still referenced in the target schema. The migration
+          should take care of that before data are merged
+
+    Merge strategies
+      A merge may be done on a whole table or on a subset defined by a set
+      of IDs, default prick.merge_records
+
+      copy
+          Delete existing data using prick.merge_records and copy source. This
+          is the fastest strategy but the table should be read-only in the
+          production environment and may not be referred to by ID except from
+          other seed tables
+
+      sync
+          Like copy but IDs are preserved for existing records so they can
+          be referred by ID in the target database
+
+      merge
+          Like sync but register obsolete targets instead of deleting them.
+          This is used when the delete operation would otherwise cascade to
+          other tables, the "deleted" records should processed later
+
+    Keywords
+      copy TABLE...
+          Merge tables using the copy strategy
+
+      sync TABLE KEY [ID-TABLE]
+      sync TABLE KEY | sql
+          Synchronize (a subset of) table using KEY as identity. ID-TABLE is
+          a table of IDs (default prick.merge_records) or a SQL expression
+          that yields an array of IDs
+
+      merge TABLE KEY [ID-TABLE]
+      merge TABLE KEY | sql
+          Like sync but obsolete records are not removed but registered in
+          prick.deleted_records
+
+      seed TABLE...
+          Declare a table to be a seed table. Seed record IDs are registered in
+          prick.merge_records but the actual merge process is supposed to be done
+          by commands in the merge section (exec, sql, etc.). The seed keywords
+          is only used to tell prick that the table is being handled, otherwise
+          it will generate a warning
+
+    ID tables
+      Seed tables are registered in prick.merge_tables and their records in
+      prick.merge_records. The ID tables are initially defined in the 'seed'
+      phase and then maintained in the 'merge' phase
 
   Syntax
 
@@ -141,10 +351,10 @@ SPEC = %(
 
     DECL-STMT ::=
         schema IDENT BLOCK-ARGS
-      | function IDENT BLOCK-ARGS
+      | procedure IDENT BLOCK-ARGS
 
     PHASE-STMT ::=
-        [init | term | meta | seeds | auth] BLOCK-ARGS
+        [init | term | meta | seeds | auth | merge] BLOCK-ARGS
 
     OPTION_STMT ::=
       # TODO

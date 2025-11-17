@@ -185,7 +185,7 @@ module Prick::Lang
       part :block, Block
     end
 
-    class Function < Decl
+    class Procedure < Decl
     end
 
     class Phase < Decl

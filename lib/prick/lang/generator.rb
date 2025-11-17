@@ -12,6 +12,7 @@ module Prick::Lang
     attr_reader :seed_units
     attr_reader :term_units
     attr_reader :auth_units
+    attr_reader :merge_units
 
     def nodes = analyzer.reachable_nodes
     def schemas = analyzer.reachable_schemas
@@ -200,7 +201,7 @@ __END__
     #     all auth
     #     program auth
     #
-    #   When we build something, the target's level (init/self/seed/final/auth)
+    #   When we build something, the target's level (init/self/seed/final/auth/merge)
     #   propagates to required objects. Eg. if a require b and we build the
     #   self phase of a previously compiled self phase of b is enough to
     #   satisfy the requirement
@@ -209,7 +210,7 @@ __END__
     #
     #     - schema:
     #         name: my_schema
-    #         phase: init|self|seed|final|auth|property
+    #         phase: init|self|seed|final|auth|merge|property
     #
     #   The executor can reuse a whole schema or continue compiling from a
     #   property but when an error happens, the entire schema is invalidated

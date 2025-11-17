@@ -91,15 +91,15 @@ describe "Prick::Lang" do
         end
 
 
-        context "function declarations" do
+        context "procedure declarations" do
           it "with a name argument" do
             l = %(
-              function func {
+              procedure func {
                 file.sql
               }
             )
             expect(sig l).to eq %(
-              Function func
+              Procedure func
                 File file.sql
             ).align
           end

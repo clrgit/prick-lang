@@ -158,6 +158,7 @@ module Prick::Lang
         schema.term.depend_on schema.this
         schema.seed.depend_on schema.term
         schema.auth.depend_on schema.seed
+        schema.merge.depend_on schema.auth
       }
     end
 
@@ -169,6 +170,7 @@ module Prick::Lang
         program.term.depend_on schema.term
         program.seed.depend_on schema.seed
         program.auth.depend_on schema.auth
+        program.merge.depend_on schema.merge
       }
     end
 

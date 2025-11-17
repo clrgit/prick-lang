@@ -306,18 +306,20 @@ module Prick::Lang
       def write_attr = :"this="
     end
 
-    class Function < Resource
+    class Procedure < Resource
     end
 
     class Schema < Resource
       attr_reader :schema_command # Command
-      attr_accessor *Phase::ATTRS # init, this, seed, term, auth
-      attr_reader :functions # [Function]
+      attr_accessor *Phase::ATTRS # init, this, seed, term, auth, merge
+      attr_reader :procedures # [Procedure]
       attr_reader :meta_commands # [MetaCommand]
       def meta_tables = meta_commands.map(&:table) # [String] Only used in dump
 
       def head = init.head
-      def tail = auth.tail
+#     def tail = auth.tail
+#     def tail = merge.tail
+      def tail = term.tail
       def deps = init.deps
 
       def exclude = schema_command.exclude

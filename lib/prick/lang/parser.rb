@@ -88,7 +88,7 @@ module Prick::Lang
     def parse_stmt
       case peek&.kind
         when :SCHEMA; parse_decl(Ast::Schema, read)
-        when :FUNCTION; parse_decl(Ast::Function, read)
+        when :PROCEDURE; parse_decl(Ast::Procedure, read)
         when :OPTIONS; parse_options
         when :PROVIDE; parse_provide
         when :REQUIRE; parse_require

@@ -54,7 +54,7 @@ module Prick::Lang
     def idr = @converter.idr # Idr::Program. Initialized by #convert and updated by #analyze
     def units = @generator.units # [Unit::Node]. Initialized by #generate
 
-    # State data
+    # State data TODO: Move to database
     attr_reader :state_file # String - State file
     attr_reader :timestamp # Time - time of last successful run. Default epoch
     attr_reader :completed_resources # [uid] - Completed resource

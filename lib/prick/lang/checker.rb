@@ -14,8 +14,8 @@ module Prick
       end
 
       NESTING = {
-        Ast::Schema => [Ast::Function, Ast::Phase],
-        Ast::Function => [],
+        Ast::Schema => [Ast::Procedure, Ast::Phase],
+        Ast::Procedure => [],
         Ast::Phase => []
       }
 
