@@ -152,7 +152,6 @@ schema another_schema {
   init {
     another_schema_init.sql
   }
-
 }
 
 seed {

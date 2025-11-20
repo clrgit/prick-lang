@@ -21,6 +21,9 @@ module Prick::Lang
           value = self.send(part)
           indent {
             case value
+              when Ast::Source
+                puts part
+                indent { puts value.value }
               when Node
                 puts part
                 indent { value.dump }
@@ -91,15 +94,15 @@ module Prick::Lang
       def dumpunit = dumpline
     end
 
-    class MultilineCommand
+    module MultilineCommand
       def lead = ast.kind.to_s
 
       def dumpunit
-        command = ast.kind
-        if ast.multiline?
+        command = ast.kind.downcase
+        if ast.source&.multiline?
           puts "#{lead}"; indent { puts source }
         else
-          puts "#{lead} #{source}"
+          puts "#{lead} <#{source}"
         end
       end
 
@@ -107,7 +110,7 @@ module Prick::Lang
 
       def dump
         command = ast.kind.downcase
-        if ast.multiline?
+        if ast.source&.multiline?
           puts command; indent { puts source }
         else
           puts "#{command} #{source}"
@@ -115,8 +118,39 @@ module Prick::Lang
       end
     end
 
+    class SqlCommand
+      include MultilineCommand
+    end
+
     class ExternalCommand
+      include MultilineCommand
       def lead = super + (path == "." ? " ./" : " #{path}/")
+    end
+
+    class CopyCommand
+      def dump
+        puts "copy #{tables.map(&:value).join(", ")}"
+      end
+    end
+
+    class SyncCommand
+      def dump
+        puts ["sync #{table} #{key}", id_table].compact.join(' ')
+        indent { puts source.value } if source
+      end
+    end
+
+    class PrepareCommand
+      def dump
+        puts ["prepare #{table} #{key}", id_table].compact.join(' ')
+        indent { puts source.value } if source
+      end
+    end
+
+    class HandledCommand
+      def dump
+        puts "handled #{tables.map(&:value).join(", ")}"
+      end
     end
 
     class CallCommand
@@ -181,13 +215,13 @@ module Prick::Lang
 
     class Schema
 #     PARTS = [:create, :functions, :phases, :block]
-      PARTS = [:schema_command, :functions, :meta_tables, :phases]
+      PARTS = [:schema_command, :procedures, :meta_tables, :phases]
       def dumpunit = puts "SCHEMA #{ident}"
     end
 
     class Program
 #     PARTS = [:functions, :phases, :schemas, :block]
-      PARTS = [:functions, :phases, :schemas]
+      PARTS = [:procedures, :phases, :schemas]
       def dump = super "Program"
       def dumpunit = puts "PROGRAM"
     end

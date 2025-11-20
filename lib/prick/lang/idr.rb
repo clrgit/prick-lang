@@ -161,14 +161,12 @@ module Prick::Lang
     class FoxCommand < FileCommand
     end
 
-    class MultilineCommand < Command
+    class SqlCommand < Command
       forward_to :ast, :source, :kind
     end
 
-    class SqlCommand < MultilineCommand
-    end
-
-    class ExternalCommand < MultilineCommand
+    class ExternalCommand < Command
+      forward_to :ast, :source, :kind
       def path = ast.dir
     end
 
@@ -226,6 +224,28 @@ module Prick::Lang
         super(parent, ast)
         @uid = uid
       end
+    end
+
+    class MergeCommand < Command
+      def tables = raise
+    end
+
+    class CopyCommand < MergeCommand
+      forward_to :ast, :tables
+    end
+
+    class SyncCommand < MergeCommand
+      forward_to :ast, :table, :key, :id_table, :source
+      def tables = [table]
+    end
+
+    class PrepareCommand < MergeCommand
+      forward_to :ast, :table, :key, :id_table, :source
+      def tables = [table]
+    end
+
+    class HandledCommand < MergeCommand
+      forward_to :ast, :tables
     end
 
     # A CheckCommand is only emitted when a check command was triggered. It
@@ -338,7 +358,7 @@ module Prick::Lang
         @schema = self
         @this = ThisPhase.new(self, ast)
         @schema_command = self.is_a?(Program) ? NopCommand.new(self) : SchemaCommand.new(self, ast)
-        @functions = []
+        @procedures = []
         @meta_commands = []
       end
     end

@@ -88,6 +88,17 @@ module Prick::Lang
           end
     end
 
+    def convert_merge_command(ast)
+      constrain ast, Ast::CopyCommand, Ast::SyncCommand, Ast::PrepareCommand, Ast::HandledCommand
+      compiler.block.concat \
+          case ast
+            when Ast::CopyCommand; [Idr::CopyCommand.new(compiler.context, ast)]
+            when Ast::SyncCommand; [Idr::SyncCommand.new(compiler.context, ast)]
+            when Ast::PrepareCommand; [Idr::PrepareCommand.new(compiler.context, ast)]
+            when Ast::HandledCommand; [Idr::HandledCommand.new(compiler.context, ast)]
+          end
+    end
+
     def convert_provide(ast)
       constrain ast, Ast::Provide
       check_context ast, Idr::Program, Idr::Schema, Idr::Phase
@@ -151,6 +162,7 @@ module Prick::Lang
           when Ast::Require; convert_require(stmt)
           when Ast::Meta; convert_meta(stmt)
           when Ast::Phase; convert_phase(stmt)
+          when Ast::MergeCommand; convert_merge_command(stmt)
           when Ast::Command; convert_command(stmt)
           when Ast::Source; convert_stmts(stmt.block)
           when Ast::Control; convert_control(stmt)
