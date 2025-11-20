@@ -139,7 +139,6 @@ module Prick::Lang
     # a '#' in the first column are replaced with an empty string. Leading and
     # traling blank lines are ignored
     def readtext(limit, eob: false, eof: false)
-      trace
       !eof? or return handle_eox(:EOF, eof)
 
       # Scan to first non blank and remember position

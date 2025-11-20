@@ -55,6 +55,12 @@ module Prick::Lang
       CALL: "call",
       ECHO: "echo",
 
+      # Merge commands
+      COPY: "copy",
+      SYNC: "sync",
+      PREPARE: "prepare",
+      HANDLED: "handled",
+
       # Punctuation
       BRACE_BEGIN: "{",
       BRACE_END: "}",

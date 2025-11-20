@@ -7,7 +7,7 @@ require 'shellopts'
 SPEC = %(
   @ Prick compiler
 
-  -- [OPTIONS] build|make|merge|run [VAR=VAL...]
+  #-- [OPTIONS] build|make|merge|run [VAR=VAL...]
 
   Compile a prick project
 
@@ -48,6 +48,9 @@ SPEC = %(
       Merge production data into the database
 
     run PROCEDURE
+)
+
+DESCR = %(
 
   Built-in procedures
     run move.seed or seed.move ?
@@ -152,9 +155,9 @@ SPEC = %(
 
     Link tables
       Link tables require special handling because they don't contain an
-      alternate unique key. They may not be referred at all (link tables never
-      are). Link tables are generated with IDs starting at the first free ID
-      in the production database
+      alternate unique key. They may not be referred to at all (link tables
+      never are). Link tables are generated with IDs starting at the first free
+      ID in the production database
 
     Procedure make-seed-for-migration
       extract max-ids for link tables from production database
@@ -248,6 +251,21 @@ SPEC = %(
     database and that links that would be broken by changes in seed data have
     been fixed beforehand
 
+    Syntax
+      schema s {
+        merge {
+          some-code
+          copy ...
+          some-code
+          sync ...
+          some-code
+          merge ...
+          some-code
+          seed ...
+          some-code
+        }
+      }
+
     Hierarcy of meta & seed table types
 
       meta
@@ -273,11 +291,11 @@ SPEC = %(
           table). Prick auto-detects seeds tables and compares it to the tables
           in the merge section to warn about unhandled tables
 
-          Records in seed tables that use the sync or merge strategies
-          may be referenced by ID from the rest of the target database
+          Records in seed tables that use the sync or prepare strategies
+          may be referenced to by ID from the rest of the target database
           (this can be checked) but it is an error if a to-be-deleted
-          record is still referenced in the target schema. The migration
-          should take care of that before data are merged
+          record is still referenced. The migration should take care of that
+          before data are merged
 
     Merge strategies
       A merge may be done on a whole table or on a subset defined by a set
@@ -293,7 +311,7 @@ SPEC = %(
           Like copy but IDs are preserved for existing records so they can
           be referred by ID in the target database
 
-      merge
+      prepare
           Like sync but register obsolete targets instead of deleting them.
           This is used when the delete operation would otherwise cascade to
           other tables, the "deleted" records should processed later
@@ -303,22 +321,24 @@ SPEC = %(
           Merge tables using the copy strategy
 
       sync TABLE KEY [ID-TABLE]
-      sync TABLE KEY | sql
-          Synchronize (a subset of) table using KEY as identity. ID-TABLE is
-          a table of IDs (default prick.merge_records) or a SQL expression
-          that yields an array of IDs
+      sync TABLE KEY '|' SQL
+          Synchronize (a subset of) table using KEY as identity. ID-TABLE is a
+          table of IDs (default prick.merge_records), SQL is a multiline SQL
+          expression that yields an array of IDs
 
-      merge TABLE KEY [ID-TABLE]
-      merge TABLE KEY | sql
+      prepare TABLE KEY [ID-TABLE]
+      prepare TABLE KEY '|' SQL
           Like sync but obsolete records are not removed but registered in
-          prick.deleted_records
+          prick.deleted_records. The deletion process is supposed to be handled
+          in the merge section's body
 
-      seed TABLE...
+NOPE - OR FIND A BETTER NAME
+      handled TABLE...
           Declare a table to be a seed table. Seed record IDs are registered in
-          prick.merge_records but the actual merge process is supposed to be done
-          by commands in the merge section (exec, sql, etc.). The seed keywords
-          is only used to tell prick that the table is being handled, otherwise
-          it will generate a warning
+          prick.merge_records but the actual merge process is supposed to be
+          done by commands in the merge section (exec, sql, etc.). Prick will
+          warn about non-empty tables that are not covered by copy, sync,
+          prepare, or handled
 
     ID tables
       Seed tables are registered in prick.merge_tables and their records in

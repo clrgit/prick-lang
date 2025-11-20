@@ -97,6 +97,9 @@ module Prick::Lang
         when :CASE; parse_case
         when *Token::PHASES; parse_decl(Ast::Phase, peek)
         when :EXEC, :EVAL, :ECHO, :SQL; parse_command
+        when :COPY; parse_copy_command
+        when :SYNC, :PREPARE; parse_sync_prepare_command
+        when :HANDLED; parse_handled_command
         when :RUBY; not_implemented_error "'ruby' command"
         when :CALL; parse_call_command
         when :CHECK; parse_check_command
@@ -161,7 +164,6 @@ module Prick::Lang
     end
 
     def parse_meta
-
       make = Ast::Meta.new(read)
       make.tables = parse_references
       make
@@ -178,14 +180,7 @@ module Prick::Lang
       else
         command = Ast::ExternalCommand.new(token, @tokenizer.dir)
       end
-      if peek(eol: true).kind == :PIPE
-        read
-        limit = @tokenizer.line.indentation
-        @tokenizer.readeol
-        command.source = readtext(limit)&.text
-      else
-        command.source = readline&.text
-      end or unexpected_token_error peek, "command"
+      command.source = parse_source(expect: "command")
       command
     end
 
@@ -211,7 +206,7 @@ module Prick::Lang
       if compiler.sources.include? path
         Ast::Nop.new(token)
       else
-        source = Ast::Source.new token
+        source = Ast::SourceFile.new token
         source.file = Ast::File.new(token, path, @tokenizer.dir)
         compiler.sources << source
         begin
@@ -233,8 +228,42 @@ module Prick::Lang
       call
     end
 
-    def realpath(path)
-      path[0] == "/" ? path : File.join(@tokenizer.dir, path)
+#   def realpath(path)
+#     path[0] == "/" ? path : File.join(@tokenizer.dir, path)
+#   end
+
+    #
+    # M E R G E   C O M M A N D S
+    #
+
+    def parse_copy_command
+      command = Ast::CopyCommand.new(read)
+      command.tables = parse_idents
+      command
+    end
+
+    def parse_sync_prepare_command
+      token = read
+      if token.kind == :SYNC # Either :SYNC or :PREPARE
+        command = Ast::SyncCommand.new(token)
+      else
+        command = Ast::PrepareCommand.new(token)
+      end
+      command.table = parse_ident(expect: "table")
+      command.key = parse_ident(expect: "key")
+
+      if id_table_token = parse_ident?
+        command.id_table = id_table_token
+      else
+        command.source = parse_source(expect: "sql source", singleline: false) if peek_token
+      end
+      command
+    end
+
+    def parse_handled_command
+      command = Ast::HandledCommand.new(read)
+      command.tables = parse_idents
+      command
     end
 
     #
@@ -522,19 +551,20 @@ module Prick::Lang
       token = peek(eol: true)
       Token::IDENTS.include?(token&.kind) ? Ast::Ident.new(read(eol: true)) : nil
     end
-    def parse_ident = Ast::Ident.new(readpred(:is_ident?, eol: true))
+    def parse_ident(expect: "identifier") = Ast::Ident.new(readpred(:is_ident?, eol: true, expect: expect))
     def parse_idents? = readwhile? { parse_ident? }
-    def parse_idents = check_expected("identifier", eol: true) { readwhile { parse_ident? } }
+    def parse_idents(expect: "identifier") = check_expected(expect, eol: true) { readwhile { parse_ident? } }
 
     # Single-component reference used in declarations. It parsed as a Reference object
     # because we later want to compute the uid
     def parse_name = Token::IDENTS.include?(peek&.kind) ? Ast::Reference.new(read) : nil
-    def parse_name? = Ast::Reference.new(readpred :is_ident? )
+    def parse_name? = Ast::Reference.new(readpred :is_ident?, expect: "name" )
 
     def parse_reference?() = Token::REFS.include?(peek&.kind) ? Ast::Reference.new(read) : nil
-    def parse_reference() Ast::Reference.new(readpred :is_ref?) end
+    def parse_reference() Ast::Reference.new(readpred :is_ref?, expect: "reference") end
     def parse_references? = readwhile? { parse_reference? }
     def parse_references = check_expected("reference") { readwhile { parse_reference? } }
+
 
     # Parse a space-separated list of values. Values are IDENT, REF, or a version match
     def parse_list?
@@ -554,6 +584,25 @@ module Prick::Lang
       else
         nil
       end
+    end
+
+    # Parse single or multiline source
+    def parse_source(expect: "command", singleline: true)
+      token = peek(eol: true)
+      if token.kind == :PIPE
+        read
+        limit = @tokenizer.line.indentation
+        @tokenizer.readeol
+        source = Ast::Source.new(peek)
+        source.value = readtext(limit)&.text
+        source
+      elsif singleline && !token.nil?
+        source = Ast::Source.new(token)
+        source.value = readline&.text
+      else
+        unexpected_token_error peek, expect
+      end
+      source
     end
 
     #
@@ -584,9 +633,9 @@ module Prick::Lang
     def readkinds(*kinds, **opts) = [readkind(*kinds, **opts)] + readkinds?(kinds, **opts)
     def readkinds?(*kinds, **opts) = readwhile { readkind?(*kinds, **opts) } # Returns [] if not found
 
-    def readpred(pred, **opts) = readpred?(pred, **opts) or unexpected_token_error kinds
-    def readpred?(pred, **opts) = peek(**opts).kind.send(pred) ? read(**opts) : nil
-    def readpreds(pred, **opts) = [readpred(pred, **opts)] + readpreds?(pred, **opts)
+    def readpred(pred, expect: nil, **opts) = readpred?(pred, **opts) or unexpected_token_error pred, expect
+    def readpred?(pred, **opts) = peek(**opts).send(pred) ? read(**opts) : nil
+    def readpreds(pred, expect: nil, **opts) = [readpred(pred, expect: expect, **opts)] + readpreds?(pred, **opts)
     def readpreds?(pred, **opts) = readwhile { readpred?(pred, **opts) } # Returns [] if not found
 
     # Return nil if empty
@@ -621,6 +670,8 @@ module Prick::Lang
     #
 
     # :call-seq:
+    #   unexpected_token_error(token, *words)
+    #
     #   unexpected_token_error(token = @tokenizer.error_token || @tokenizer.token, *words)
     #
     # Raise an error with the message format

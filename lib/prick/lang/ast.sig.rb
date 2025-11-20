@@ -61,7 +61,7 @@ module Prick::Lang
 #     def sig = puts "Program"
     end
 
-    class Source
+    class SourceFile
       def sig(nodes = children) = nodes.each &:sig
     end
 

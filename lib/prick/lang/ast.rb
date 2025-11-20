@@ -99,7 +99,7 @@ module Prick::Lang
     end
 
     # Note that File does not include prick files. Prick files are represented
-    # as Source objects (that has a File part object)
+    # as SourceFile objects (that has a File part object)
     class File < Value
       forward_to :@token, :dirname, :filename, :extname
       attr_reader :path # True path
@@ -141,6 +141,14 @@ module Prick::Lang
       def to_s = @token.text
     end
 
+    # Single or multiline external source (typically bash or SQL)
+    class Source < Value
+      attr_accessor :value # Possible multiline string
+
+      # True iff source consists of multiple lines
+      def multiline? = @value =~ /\n/
+    end
+
     #
     # S T A T E M E N T S
     #
@@ -158,7 +166,7 @@ module Prick::Lang
     end
 
     # A prick source file. Eg. 'make.prick'
-    class Source < Stmt
+    class SourceFile < Stmt
       part :file, File
       part :block, Block
     end
@@ -214,11 +222,9 @@ module Prick::Lang
       part :file, File
     end
 
+    # Make module
     class MultilineCommand < Command
-      attr_accessor :source # Array of source lines. Assigned after initialization
-
-      # True iff source consists of multiple lines
-      def multiline? = @source =~ /\n/
+      part :source, Source
     end
 
     class SqlCommand < MultilineCommand
@@ -242,6 +248,35 @@ module Prick::Lang
 
     class CallCommand < Command
       part :references, [Reference]
+    end
+
+    #
+    # M E R G E   C O M M A N D S
+    #
+
+    class MergeCommand < Command
+    end
+
+    class CopyCommand < MergeCommand
+      part :tables, [Ident]
+    end
+
+    class PrepareCommand < MergeCommand
+      part :table, Ident
+      part :key, Ident
+      part :id_table, Ident
+      part :source, Source
+    end
+
+    class SyncCommand < MergeCommand
+      part :table, Ident
+      part :key, Ident
+      part :id_table, Ident
+      part :source, Source
+    end
+
+    class HandledCommand < MergeCommand
+      part :tables, [Ident]
     end
 
     #
@@ -278,10 +313,4 @@ module Prick::Lang
     end
   end
 end
-
-
-
-
-
-
 

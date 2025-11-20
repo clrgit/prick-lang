@@ -38,7 +38,7 @@ module Prick::Lang
     attr_reader :dir # Current user directory when the compiler was invoked
     attr_reader :file # Start file. Only used in error messages. May be nil, initialized by #parse if so
     attr_reader :mode # Symbol - Either :build or :make. Default is :build
-    attr_reader :sources # [Ast::Source]. List of included prick files
+    attr_reader :sources # [Ast::SourceFile]. List of included prick files
     attr_reader :targets # [String] - Target UIDs
     attr_reader :exclude # [String] - Excluded UIDs
     attr_reader :variables # {Var=>Val} - Command-line and built-in variables
