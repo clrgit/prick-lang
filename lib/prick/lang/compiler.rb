@@ -4,6 +4,8 @@ module Prick::Lang
     include ErrorFunctions
     def compiler() @compiler ||= Compiler.instance end
 
+    forward_to :compiler, :prick_database, :prick_username, :prick_environment
+
     def mode = compiler.mode
     def mode_method() @mode_method ||= "#{mode}?".to_sym end
 
@@ -15,6 +17,8 @@ module Prick::Lang
     def ast() @ast ||= compiler.ast end
     def idr() @idr ||= compiler.idr end
     def units() @units ||= compiler.units end
+
+    def db() raise end
   end
 
   class Compiler
@@ -34,6 +38,11 @@ module Prick::Lang
     # executing different scripts
     DEFAULT_STATE_FILE = ".prick.state"
 
+    # Database environment
+    attr_reader :prick_database
+    attr_reader :prick_username
+    attr_reader :prick_environment
+
     # Source and environment
     attr_reader :dir # Current user directory when the compiler was invoked
     attr_reader :file # Start file. Only used in error messages. May be nil, initialized by #parse if so
@@ -48,6 +57,7 @@ module Prick::Lang
     attr_reader :converter
     attr_reader :analyzer
     attr_reader :generator
+    attr_reader :executer
 
     # Data structures
     def ast = @parser.ast # Ast::Program. Initialized by #parse
@@ -94,6 +104,7 @@ module Prick::Lang
       @converter = Converter.new
       @analyzer = Analyzer.new
       @generator = Generator.new
+      @executer = Executer.new
       @resources = {}
       @unresolved = []
       @requires = []
@@ -147,6 +158,10 @@ module Prick::Lang
       @generator.generate
     end
 
+    def execute
+      @executer.execute
+    end
+
     def compile
       t0 = Time.now
 
@@ -166,6 +181,10 @@ module Prick::Lang
 
       time "Generating" do
         generate
+      end
+
+      time "Execute" do
+        execute
       end
 
       save_state

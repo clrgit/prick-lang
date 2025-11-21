@@ -76,7 +76,8 @@ module Prick::Lang
     end
 
     def convert_command(ast)
-      constrain ast, Ast::FileCommand, Ast::SqlCommand, Ast::ExternalCommand, Ast::CallCommand
+      constrain ast, Ast::FileCommand, Ast::SqlCommand, Ast::ExternalCommand, Ast::CallCommand,
+                     Ast::CopyCommand, Ast::SyncCommand, Ast::PrepareCommand, Ast::HandledCommand
       compiler.block.concat \
           case ast
             when Ast::FileCommand
@@ -85,13 +86,6 @@ module Prick::Lang
             when Ast::SqlCommand; [Idr::SqlCommand.new(compiler.context, ast)]
             when Ast::ExternalCommand; [Idr::ExternalCommand.new(compiler.context, ast)]
             when Ast::CallCommand; [Idr::CallCommand.new(compiler.context, ast)]
-          end
-    end
-
-    def convert_merge_command(ast)
-      constrain ast, Ast::CopyCommand, Ast::SyncCommand, Ast::PrepareCommand, Ast::HandledCommand
-      compiler.block.concat \
-          case ast
             when Ast::CopyCommand; [Idr::CopyCommand.new(compiler.context, ast)]
             when Ast::SyncCommand; [Idr::SyncCommand.new(compiler.context, ast)]
             when Ast::PrepareCommand; [Idr::PrepareCommand.new(compiler.context, ast)]
@@ -162,7 +156,6 @@ module Prick::Lang
           when Ast::Require; convert_require(stmt)
           when Ast::Meta; convert_meta(stmt)
           when Ast::Phase; convert_phase(stmt)
-          when Ast::MergeCommand; convert_merge_command(stmt)
           when Ast::Command; convert_command(stmt)
           when Ast::Source; convert_stmts(stmt.block)
           when Ast::Control; convert_control(stmt)
