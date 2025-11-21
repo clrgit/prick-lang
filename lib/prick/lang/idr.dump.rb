@@ -106,7 +106,7 @@ module Prick::Lang
         end
       end
 
-      def dumpline = puts "#{ast.kind} #{source.sub(/\..*/m, "")}"
+      def dumpline = puts "#{ast.kind} #{source.value.sub(/\..*/m, "")}"
 
       def dump
         command = ast.kind.downcase
@@ -128,29 +128,36 @@ module Prick::Lang
     end
 
     class CopyCommand
-      def dump
-        puts "copy #{tables.map(&:value).join(", ")}"
-      end
+      def dumpline = puts "copy #{tables.map(&:value).join(", ")}"
     end
 
     class SyncCommand
-      def dump
+      def dumpline
         puts ["sync #{table} #{key}", id_table].compact.join(' ')
         indent { puts source.value } if source
       end
     end
 
+#       puts ["prepare #{table} #{key}", id_table].compact.join(' ')
     class PrepareCommand
-      def dump
+      def dumpline
         puts ["prepare #{table} #{key}", id_table].compact.join(' ')
         indent { puts source.value } if source
       end
+#     def dumpline
+#       indent(bol: false) {
+#         print ["prepare #{table} #{key}", id_table].compact.join(' ')
+#         if source
+#           indent { puts source.value }
+#         else
+#           puts
+#         end
+#       }
+#     end
     end
 
     class HandledCommand
-      def dump
-        puts "handled #{tables.map(&:value).join(", ")}"
-      end
+      def dumpline = puts "handled #{tables.map(&:value).join(", ")}"
     end
 
     class CallCommand
