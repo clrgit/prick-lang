@@ -244,7 +244,7 @@ module Prick::Lang
       def tables = [table]
     end
 
-    class HandledCommand < MergeCommand
+    class HandleCommand < MergeCommand
       forward_to :ast, :tables
     end
 

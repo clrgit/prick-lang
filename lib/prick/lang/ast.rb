@@ -275,7 +275,7 @@ module Prick::Lang
       part :source, Source
     end
 
-    class HandledCommand < MergeCommand
+    class HandleCommand < MergeCommand
       part :tables, [Ident]
     end
 

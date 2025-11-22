@@ -77,7 +77,7 @@ module Prick::Lang
 
     def convert_command(ast)
       constrain ast, Ast::FileCommand, Ast::SqlCommand, Ast::ExternalCommand, Ast::CallCommand,
-                     Ast::CopyCommand, Ast::SyncCommand, Ast::PrepareCommand, Ast::HandledCommand
+                     Ast::CopyCommand, Ast::SyncCommand, Ast::PrepareCommand, Ast::HandleCommand
       compiler.block.concat \
           case ast
             when Ast::FileCommand
@@ -89,7 +89,7 @@ module Prick::Lang
             when Ast::CopyCommand; [Idr::CopyCommand.new(compiler.context, ast)]
             when Ast::SyncCommand; [Idr::SyncCommand.new(compiler.context, ast)]
             when Ast::PrepareCommand; [Idr::PrepareCommand.new(compiler.context, ast)]
-            when Ast::HandledCommand; [Idr::HandledCommand.new(compiler.context, ast)]
+            when Ast::HandleCommand; [Idr::HandleCommand.new(compiler.context, ast)]
           end
     end
 

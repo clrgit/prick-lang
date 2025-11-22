@@ -99,7 +99,7 @@ module Prick::Lang
         when :EXEC, :EVAL, :ECHO, :SQL; parse_command
         when :COPY; parse_copy_command
         when :SYNC, :PREPARE; parse_sync_prepare_command
-        when :HANDLED; parse_handled_command
+        when :HANDLE; parse_handle_command
         when :RUBY; not_implemented_error "'ruby' command"
         when :CALL; parse_call_command
         when :CHECK; parse_check_command
@@ -260,8 +260,8 @@ module Prick::Lang
       command
     end
 
-    def parse_handled_command
-      command = Ast::HandledCommand.new(read)
+    def parse_handle_command
+      command = Ast::HandleCommand.new(read)
       command.tables = parse_idents
       command
     end

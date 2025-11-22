@@ -59,7 +59,7 @@ module Prick::Lang
       COPY: "copy",
       SYNC: "sync",
       PREPARE: "prepare",
-      HANDLED: "handled",
+      HANDLE: "handled",
 
       # Punctuation
       BRACE_BEGIN: "{",

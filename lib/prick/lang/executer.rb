@@ -14,35 +14,22 @@ module Prick::Lang
     def execute
       for unit in units
         case idr = unit.node
-#         when Idr::FileCommand
           when Idr::SqlCommand
             sql_command(idr.source.value)
-#           puts "sql('#{idr.source.value}')"
-
           when Idr::FoxCommand
             fox_command(idr.path)
-
           when Idr::FileCommand
             file_command(idr.path)
-
           when Idr::ExternalCommand
             idr.kind == :EXEC ? exec_command(idr.source.value) : eval_command(idr.source.value)
-
           when Idr::CopyCommand
             copy_command idr.tables.map(&:value)
-
           when Idr::SyncCommand
             sync_command idr.table, idr.key, idr.id_table || idr.source.value
-
           when Idr::PrepareCommand
             prepare_command idr.table, idr.key, idr.id_table || idr.source.value
-
-          when nil
-            puts "BOOM"
-
           when Idr::MarkCommand
             mark_command idr.uid
-
           else
             puts "Oops #{unit.node.class}"
         end

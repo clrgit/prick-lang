@@ -156,8 +156,8 @@ module Prick::Lang
 #     end
     end
 
-    class HandledCommand
-      def dumpline = puts "handled #{tables.map(&:value).join(", ")}"
+    class HandleCommand
+      def dumpline = puts "handle #{tables.map(&:value).join(", ")}"
     end
 
     class CallCommand

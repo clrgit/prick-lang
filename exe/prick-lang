@@ -279,12 +279,12 @@ DESCR = %(
           prick.deleted_records. The deletion process is supposed to be handled
           in the merge section's body
 
-      handled TABLE...
+      handle TABLE...
           Declare a table to be a seed table. Seed record IDs are registered in
           prick.merge_records but the actual merge process is supposed to be
           done by commands in the merge section (exec, sql, etc.). Prick will
           warn about non-empty tables that are not covered by copy, sync,
-          prepare, or handled
+          prepare, or handle
 
     ID tables
       Seed tables are registered in prick.merge_tables and their records in
