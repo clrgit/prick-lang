@@ -332,15 +332,17 @@ module Prick::Lang
         check.exprs << oper
       }
 
-      case t = peek(eol: true).kind
+      case peek(eol: true).kind
         when :PIPE
-          pipe = read(eol: true)
+          pipe = peek(eol: true)
           check.then_ = Ast::Block.new(pipe)
           command = Ast::ExternalCommand.new(pipe, :EXEC, @tokenizer.dir)
           check.then_.stmts << command
-          limit = @tokenizer.line.indentation
-          @tokenizer.readeol
-          command.source = readtext(limit)&.text
+          command.source = parse_source(expect: "shell script", singleline: false)
+
+#         limit = @tokenizer.line.indentation
+#         @tokenizer.readeol
+#         command.source = Ast::Source.new readtext(limit)&.text
         when :EOL
           read(eol: true)
           check.then_ = parse_block

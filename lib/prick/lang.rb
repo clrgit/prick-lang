@@ -2,6 +2,8 @@
 
 require_relative "lang/version"
 
+require 'stringio'
+
 require 'set'
 require 'pathname'
 require 'yaml'
@@ -9,6 +11,7 @@ require 'time'
 
 require 'constrain'
 require 'forward_to'
+require 'yaml'
 require 'indented_io'
 require 'string-text'
 
@@ -21,12 +24,12 @@ using String::Text
 require_relative './lang/ext/semver.rb'
 require_relative './lang/ext/tree.rb'
 require_relative './lang/ext/x_array.rb'
-require_relative './lang/ext/timer.rb'
 require_relative './lang/ext/debug.rb'
 require_relative './lang/ext/trace.rb' # Debug
 
 require_relative './lang/common.rb'
 require_relative './lang/error.rb'
+require_relative './lang/timer.rb'
 
 require_relative './lang/token.rb'
 require_relative './lang/part.rb'

@@ -157,7 +157,7 @@ module Prick::Lang
           when Ast::Meta; convert_meta(stmt)
           when Ast::Phase; convert_phase(stmt)
           when Ast::Command; convert_command(stmt)
-          when Ast::Source; convert_stmts(stmt.block)
+          when Ast::SourceFile; convert_stmts(stmt.block)
           when Ast::Control; convert_control(stmt)
           when Ast::Procedure; puts "TODO: Procedure not implemented"
         else

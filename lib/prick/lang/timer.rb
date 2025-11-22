@@ -27,7 +27,7 @@ module Prick::Lang
       t0 = Time.now
       r = yield
       t1 = Time.now
-      puts "#{title} (#{ftime t1 - t0})"
+      ShellOpts.verb "#{title} (#{ftime t1 - t0})"
       r
     end
   end

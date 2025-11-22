@@ -4,7 +4,9 @@ module Prick::Lang
     include ErrorFunctions
     def compiler() @compiler ||= Compiler.instance end
 
-    forward_to :compiler, :prick_database, :prick_username, :prick_environment
+    forward_to :compiler,
+        :prick_database, :prick_username, :prick_environment,
+        :verbose, :log, :dryrun
 
     def mode = compiler.mode
     def mode_method() @mode_method ||= "#{mode}?".to_sym end
@@ -19,6 +21,11 @@ module Prick::Lang
     def units() @units ||= compiler.units end
 
     def db() raise end
+  end
+
+  def logs(a1, a2 = nil)
+    puts a1
+    indent { puts a2 } if a2 && !a2.empty?
   end
 
   class Compiler
@@ -43,6 +50,11 @@ module Prick::Lang
     attr_reader :prick_username
     attr_reader :prick_environment
 
+    # Verbosity
+    def dryrun? = @dryrun
+    def verbose? = ShellOpts.verbose?
+    def log? = @log
+
     # Source and environment
     attr_reader :dir # Current user directory when the compiler was invoked
     attr_reader :file # Start file. Only used in error messages. May be nil, initialized by #parse if so
@@ -58,6 +70,7 @@ module Prick::Lang
     attr_reader :analyzer
     attr_reader :generator
     attr_reader :executer
+    # attr_reader :dumper <- TODO
 
     # Data structures
     def ast = @parser.ast # Ast::Program. Initialized by #parse
@@ -78,7 +91,10 @@ module Prick::Lang
         state_file: DEFAULT_STATE_FILE,
         timestamp: nil,
         exclude: [],
-        variables: {})
+        variables: {},
+        verbose: false,
+        dryrun: false,
+        log: false)
 
       constrain file, String
       constrain targets, [String]
@@ -96,10 +112,12 @@ module Prick::Lang
       @mode = mode
       @sources = []
       @targets = targets
-      @exclude = exclude
-      @variables = variables
       @state_file = state_file
       @timestamp = timestamp
+      @dryrun = dryrun
+      @log = log
+      @exclude = exclude
+      @variables = variables
       @parser = Parser.new
       @converter = Converter.new
       @analyzer = Analyzer.new
@@ -164,33 +182,36 @@ module Prick::Lang
 
     def compile
       t0 = Time.now
+      ShellOpts.verb "Compiling '#{file}'"
 
-      load_state
+      indent(ShellOpts.verbose?) {
+        load_state
 
-      time "Parsing #{file}" do
-        parse
-      end
+        time "Parsing" do
+          parse
+        end
 
-      time "Converting" do
-        convert
-      end
+        time "Converting" do
+          convert
+        end
 
-      time "Analyzing" do
-        analyze
-      end
+        time "Analyzing" do
+          analyze
+        end
 
-      time "Generating" do
-        generate
-      end
+        time "Generating" do
+          generate
+        end
 
-      time "Execute" do
-        execute
-      end
+        time "Execute" do
+          execute
+        end
 
-      save_state
+        save_state
+      }
 
       t1 = Time.now
-      puts "Success (#{ftime t1 - t0})"
+      ShellOpts.verb "Done (#{ftime t1 - t0})"
     end
 
     #

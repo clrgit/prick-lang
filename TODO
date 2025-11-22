@@ -1,5 +1,4 @@
 
-o Add copy, sync, merge, and seed keywords
 o Remove meta keyword
 o Add functions
 o Add function calls
@@ -12,6 +11,7 @@ o Only execute files once (sure?)
 o Database storage of state
 
 
++ Add copy, sync, merge, and handled keywords
 + Only include files once
 + Solve problem with relative file names in error messages and tokens
 + Implement 'prick make'

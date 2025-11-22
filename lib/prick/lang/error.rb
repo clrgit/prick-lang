@@ -22,7 +22,7 @@ module Prick::Lang
       location = (lineno ? [file, "#{lineno}:#{charno}"].compact.join(" ") : file)
       warn = warning ? "WARNING" : nil
       msg = [location, warn, args.join].compact.join(" ")
-      if !warning && (defined?(::RSpec) || USE_EXCEPTION)
+      if !warning && (defined?(::RSpec) || ShellOpts.exception)
         pretty_error Error, msg
       else
         $stderr.puts msg

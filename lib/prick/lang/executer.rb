@@ -1,6 +1,5 @@
 
 module Prick::Lang
-
   # TODO
   #   Handle schema commands
   #   Collect fox files
@@ -9,47 +8,7 @@ module Prick::Lang
   class Executer < CompilerProcess
     using String::Text
 
-    def commit
-      db.commit
-    end
-
-    # Operations
-    def exec(cmd)
-      system(cmd)
-    end
-
-    def eval(cmd)
-    end
-
-    def sql(source)
-      db.exec(source)
-    end
-
-    def file(filename)
-      sql(IO.read filename)
-    end
-
-    def fox
-      system("fox -d #{prick_database} -U #{prick_username} \#{files}")
-    end
-
-    def copy
-      commit
-      system("pg-merge copy ...")
-    end
-
-    def sync
-      system("pg-merge sync ...")
-    end
-
-    def prepare
-      system("pg-merge prepare ...")
-    end
-
-    def handled
-    end
-
-    def mark
+    def initialize
     end
 
     def execute
@@ -57,36 +16,106 @@ module Prick::Lang
         case idr = unit.node
 #         when Idr::FileCommand
           when Idr::SqlCommand
-            puts "sql('#{idr.source.value}')"
+            sql_command(idr.source.value)
+#           puts "sql('#{idr.source.value}')"
 
           when Idr::FoxCommand
-            puts "fox('#{idr.path}')"
+            fox_command(idr.path)
 
           when Idr::FileCommand
-            puts "file('#{idr.path}')"
+            file_command(idr.path)
 
           when Idr::ExternalCommand
-            cmd = idr.kind == :EXEC ? "exec" : "eval"
-            puts "#{cmd}('#{idr.source.value}')"
-          when Idr::CopyCommand, Idr::HandledCommand
-            cmd = idr.is_a?(Idr::CopyCommand) ? "copy" : "handled"
-            puts "#{cmd}(#{idr.tables.map(&:value).join(", ")})"
-          when Idr::SyncCommand, Idr::PrepareCommand
-            cmd = idr.is_a?(Idr::SyncCommand) ? "sync" : "prepare"
-            print "#{cmd}(#{idr.table}, #{idr.key}"
-            if idr.id_table
-              print ", #{idr.id_table}"
-            elsif idr.source
-              print ", '#{idr.source.value}'"
-            end
-            puts ")"
+            idr.kind == :EXEC ? exec_command(idr.source.value) : eval_command(idr.source.value)
+
+          when Idr::CopyCommand
+            copy_command idr.tables.map(&:value)
+
+          when Idr::SyncCommand
+            sync_command idr.table, idr.key, idr.id_table || idr.source.value
+
+          when Idr::PrepareCommand
+            prepare_command idr.table, idr.key, idr.id_table || idr.source.value
+
           when nil
             puts "BOOM"
+
           when Idr::MarkCommand
-            puts "mark('#{idr.uid}')"
+            mark_command idr.uid
+
           else
-            puts "#{unit.node.class}"
+            puts "Oops #{unit.node.class}"
         end
+      end
+    end
+
+  private
+    def commit_command
+      log "COMMIT"
+      run { db.commit }
+    end
+
+    # Operations
+    def exec_command(cmd)
+      commit_command
+      log "EXEC", cmd
+      run { system(cmd) }
+    end
+
+    def eval_command(cmd)
+      commit_command
+      log "EVAL", cmd
+      run { system(cmd) }
+    end
+
+    def sql_command(source)
+      log "SQL", source
+      run { db.exec(source) }
+    end
+
+    def file_command(filename)
+      log "FILE #{filename}"
+      run { sql(IO.read filename) }
+    end
+
+    def fox_command(filename)
+      commit_command
+      log "FOX #{filename}"
+      run { system("fox -d #{prick_database} -U #{prick_username} \#{files}") }
+    end
+
+    def copy_command(tables)
+      commit_command
+      log "COPY #{tables.join(', ')}"
+      run {
+        system("pg-merge copy ...")
+      }
+    end
+
+    def sync_command
+      commit_command
+      log "SYNC"
+      system("pg-merge sync ...")
+    end
+
+    def prepare_command
+      commit_command
+      log "PREPARE"
+      system("pg-merge prepare ...")
+    end
+
+    def mark_command(uid)
+      log "MARK #{uid}"
+    end
+
+    def run(&block)
+#     yield if !compiler.dryrun
+    end
+
+    def log(s, t = "")
+      if compiler.log?
+        puts s
+        indent { puts t } if !t.empty?
       end
     end
   end
