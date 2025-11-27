@@ -20,6 +20,8 @@ module Prick
     PROJECT_FILENAME = "prick.yml"
 
     # Full path to project root directory. nil when running rspec
+    #
+    # TODO: Use upfind
     PROJECT_DIR = project_dir || begin
       dir = Dir.getwd
       while dir != "/" && !File.exist?("#{dir}/#{PROJECT_FILENAME}")
@@ -53,7 +55,7 @@ module Prick
     ]
 
     # Default prick state file
-    PRICK_STATE_FILE = "#{STATE_DIR}/prick.state.yml"
+    DEFAULT_STATE_FILENAME, "prick.state.yml"
   end
 end
 

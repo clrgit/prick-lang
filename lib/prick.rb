@@ -30,6 +30,8 @@ module Prick
   # related constants are absolute paths
   #
   # :project_dir is only not-nil when running 'prick init'
+  #
+  # TODO: Move everything to constants.rb
   def self.initialize(database: nil, username: nil, environment: nil, project_dir: nil, state_file: nil)
     Prick.module_eval do
       # Installation root directory
@@ -73,7 +75,6 @@ module Prick
       ]
 
       # State filename
-      const_set :DEFAULT_STATE_FILENAME, ".prick.state.yml"
       const_set :STATE_FILE, state_file || File.join(STATE_DIR, DEFAULT_STATE_FILENAME)
 
       # Version file
@@ -81,8 +82,8 @@ module Prick
       const_set :VERSION_FILE, File.join(SCHEMA_PRICK_DIR, VERSION_FILENAME)
 
       # Database
-      const_set :PRICK_USERNAME, username
       const_set :PRICK_DATABASE, database
+      const_set :PRICK_USERNAME, username
       const_set :PRICK_ENVIRONMENT, environment
 
     end
@@ -144,6 +145,7 @@ module Prick
   def self.save_state(**opts) = save_file STATE_FILE, STATE_FILE_FIELDS, **opts
 
 private
+  # TODO: Move to xfile.rb
   def self.upfind(file, dir = ShellOpts.environment_path)
     while dir != "/" && !File.exist?(File.join dir, file)
       dir = File.dirname(dir)
@@ -161,6 +163,8 @@ private
   end
 
   def self.save_file(file, fields, **opts)
+    puts "save_file(#{file}, #{fields.inspect}, #{opts.inspect})"
+    p STATE_FILE
 #   p file
 #   p fields
 #   p opts

@@ -14,10 +14,8 @@ module Prick::Command
     end
 
     def run
-      # Create user
-      p Prick::PRICK_USERNAME
-      # Create database
-      # Run prick.sql
+#     create_database(PRICK_DATABASE, PRICK_USERNAME, PRICK_ENVIRONMENT)
+#     set_database(PRICK_DATABASE, PRICK_ENVIRONMENT)
       Prick.save_state
     end
   end
