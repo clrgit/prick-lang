@@ -1,31 +1,9 @@
-# frozen_string_literal: true
 
-require_relative "lang/version"
-
-require 'stringio'
-
-require 'set'
-require 'pathname'
-require 'yaml'
-require 'time'
-
-require 'constrain'
-require 'forward_to'
-require 'yaml'
-require 'indented_io'
-require 'string-text'
-
-include ForwardTo
-include Constrain
-include IndentedIO
-
-using String::Text
-
-require_relative './lang/ext/semver.rb'
-require_relative './lang/ext/tree.rb'
-require_relative './lang/ext/x_array.rb'
-require_relative './lang/ext/debug.rb'
-require_relative './lang/ext/trace.rb' # Debug
+require_relative './ext/semver.rb'
+require_relative './ext/tree.rb'
+require_relative './ext/x_array.rb'
+require_relative './ext/debug.rb' # Debug
+require_relative './ext/trace.rb' # Debug
 
 require_relative './lang/common.rb'
 require_relative './lang/error.rb'
@@ -40,8 +18,6 @@ require_relative './lang/idr.dump.rb'
 require_relative './lang/unit.rb'
 
 module Prick::Lang
-  class Error < StandardError; end
-  class InternalError < Error; end
   class TokenizerError < Error; end
   class EofError < Error; end # Not an error but used as a signal
 

@@ -23,11 +23,6 @@ module Prick::Lang
     def db() raise end
   end
 
-  def logs(a1, a2 = nil)
-    puts a1
-    indent { puts a2 } if a2 && !a2.empty?
-  end
-
   class Compiler
     include ErrorFunctions
     include Prick::Lang::Timer
@@ -41,11 +36,10 @@ module Prick::Lang
     # (eg. './dir' becomes './dir/make.prick')
     DEFAULT_SOURCE_FILE = "#{DEFAULT_SOURCE_NAME}.#{Token::PRICK_EXT}"
 
-    # Default state file. TODO Move into database for compatibility between
-    # executing different scripts
-    DEFAULT_STATE_FILE = ".prick.state"
+    # Default state file. Contains prick database, username, and environment
+    DEFAULT_STATE_FILE = ".prick.state.yml"
 
-    # Database environment
+    # Database environment from .prick.state
     attr_reader :prick_database
     attr_reader :prick_username
     attr_reader :prick_environment
@@ -180,7 +174,7 @@ module Prick::Lang
       @executer.execute
     end
 
-    def compile
+    def compile(&block)
       t0 = Time.now
       ShellOpts.verb "Compiling '#{file}'"
 
@@ -203,15 +197,21 @@ module Prick::Lang
           generate
         end
 
-        time "Execute" do
-          execute
-        end
+        yield
 
         save_state
       }
 
       t1 = Time.now
       ShellOpts.verb "Done (#{ftime t1 - t0})"
+    end
+
+    def interpret
+      compile do
+        time "Execute" do
+          execute
+        end
+      end
     end
 
     #

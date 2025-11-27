@@ -2,7 +2,7 @@
 module Prick::Lang
   class Tokenizer < CompilerProcess
     using String::Text
-    class TokenizerError < Prick::Lang::Error; end
+    class TokenizerError < Prick::Error; end
 
     # Source file as referred to in the source (eg. ./t.prick)
     attr_reader :file

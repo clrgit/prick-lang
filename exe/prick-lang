@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
-require_relative '../lib/prick/lang.rb'
+require_relative '../lib/prick.rb'
+require_relative '../doc/doc.rb'
 
 require 'shellopts'
 
@@ -11,12 +12,15 @@ SPEC = %(
 
   Compile a prick project
 
+  -C,directory=DIR
+    Switch to directory before doing anything else. Used in debug
+
   -f,file=FILE|DIR
     Prick source file. The default is the '#{Prick::Lang::Compiler::DEFAULT_SOURCE_FILE}'
     file in the project main directory
 
   --state-file=FILE
-    Prick compiler state file. Default is '#{Prick::Lang::Compiler::DEFAULT_STATE_FILE}'
+    Prick state file. Default is '#{Prick::Lang::Compiler::DEFAULT_STATE_FILE}'
 
   --timestamp=TIMESTAMP
     Override timestamp from the state file
@@ -24,7 +28,7 @@ SPEC = %(
   +x,exclude=SCHEMA,
     Comma-separated list of excluded schemas
 
-  -d,dump=tokens|ast|idr|links|deps|marks|units|state,
+  --dump=tokens|ast|idr|links|deps|marks|units|state,
     Dump debug. Default is 'ast'
 
   -l,log
@@ -40,472 +44,168 @@ SPEC = %(
   -T,trace
     Enable tracer. Used for debugging
 
-  Commands
-    build [TARGET...]
-      Builds the given targets, default is 'term'
+  -d,database=DATABASE
+    Database name. Default is the project name
 
-    make [TARGET...]
-      Like build but only update changed resources
+  -U,username=USERNAME
+    Username. Default is the project name
 
-    migrate MERGE-BACKUP
-      Migrate database and merge seed data
 
-    merge MERGE-BACKUP
-      Merge production data into the database
+  init! --name=NAME --title=TITLE -- [DIR]
+    Create a prick project
 
-    update
-      Merge sagsys online data into the database. FIXME Mikras specific
+  term!
+    Delete a prick project, its files, and all associated users
 
-    run PROCEDURE
+  setup! -- [USERNAME] DATABASE [ENVIRONMENT]
+    Setup a new database owned by username and with the given environment. The
+    environment argument is given preference over username
 
-    save meta|seed|user|data [TARGET...]
-    load BACKUP
-    move SCHEMA SCHEMA
+  teardown!
+    Teardown a database and associated users
 
-    backup
-      Create a full backup
-    restore BACKUP
-      Restore a full bvackup
+  build! -- [TARGET...]
+    Builds the given targets, default is 'term'
+
+  make! -- [TARGET...]
+    Like build but only update changed resources
+
+  migrate! -- MERGE-BACKUP
+    Migrate database and merge seed data
+
+  merge! -- MERGE-BACKUP
+    Merge production data into the database
+
+  update!
+    Merge sagsys online data into the database. FIXME Mikras specific
+
+  run! PROCEDURE
+
+  save! -- meta|seed|user|data [TARGET...]
+  load! -- BACKUP
+  move! -- SCHEMA SCHEMA
+
+  backup!
+    Create a full backup
+
+  restore! -- BACKUP
+    Restore a full bvackup
 )
 
-DESCR = %(
-
-  Built-in procedures
-    run move.seed or seed.move ?
-      Create a copy of seed tables before emptying them
-    run dump.seed
-      Dump seed data (not used)
-    run dump.data
-      Dump user data
-    run dump.merge
-      Dump seed & user data
-    run load.data DATA-FILE
-      Load seed and user data
-
-    run auth.enable
-      Enable auth
-    run auth.disable
-      Disable auth
-
-
-  Commands
-    Make command
-      When a build file changes all schemas within the build file is marked
-      dirty together with required resources
-
-    Migrate command
-      Migrations are defined in a make.prick file in its migration directory (eg.
-      ./migration/1.2.3-1.2.4/). The prick file should define the procedures
-      create_columns(), update_columns(), and delete_columns() and finalize().
-      Alternatively just initial() and final() that goes before/after the merge
-      step
-
-      The build.prick file may be empty if no tables are affected by the
-      migration (eg. some function changed)
-
-      Procedure
-        backup production database # If in production
-        load production database # If not in production
-
-        make-seed-for-migration:
-          extract max-ids for link tables from production database
-          set max-ids for key tables to 0 (their ID doesn't matter)
-          create template database
-          build term
-          build seed using max-ids
-          dump seed tables
-
-        call add_columns
-
-        merge:
-          wipe link table records
-          load seed-for-migration into merge schemas
-          merge link data using copy strategy
-          merge key data using any strategy
-
-        call update_columns
-        call delete_columns
-        call finalize
-
-    ./migration/1.2.3-1.2.4/
-      make.prick
-      create_columns.sql
-
-      make.prick:
-        procedure create_columns {
-          create_columns.sql
-          sql |
-            alter table ...
-        }
-
-      P A table that refers to a seed record by ID
-        S * It does not need to be updated if synchronized by sync or merge
-          * The seed record can't be referred by ID if not synchronized by sync or merge
-
-    Update command
-      Something more clever than rebuilding the whole database
-
-      Something like
-        update tables = [ customers cases events visits users case_users ]
-        For each update table
-          if has-reliable-date-stamp (only acts uses this)
-            Find UUIDs newer than timestamp
-          else
-            Find known UIDs
-            Three-way diff against sagsys
-          end
-          if UUID is in scope
-            import UUIDs
-          end
-        end
-
-        update {
-          timestamp TABLE TIMESTAMP-FIELD |
-            filter-sql
-
-          delta TABLE |
-            filter-sql
-        }
-
-    Merge command
-      The merge command consist of the following steps
-
-          build new version
-          copy and clear seed tables
-          load new production merge data (excl. meta)
-          merge seed tables and maintain ID tables
-
-      It is assumed that the migration has updated the schema of the production
-      database and that links that would be broken by changes in seed data have
-      been fixed beforehand
-
-      Syntax
-        schema s {
-          merge {
-            some-code
-            copy ...
-            some-code
-            sync ...
-            some-code
-            merge ...
-            some-code
-            seed ...
-            some-code
-          }
-        }
-
-      Hierarcy of meta & seed table types
-        meta
-        seed
-          key
-            copy
-            sync
-            merge
-          link
-
-    Table types
-      meta
-          Meta tables are used to create schema objects (schemas / tables
-          / functions / etc.) and are non-empty after the 'this' phase
-
-          Meta table may not be referred to by ID except by other meta
-          tables (this can be checked). They are excluded from the
-          merge-backup of the production database so the backup can be
-          restored without conflicts
-
-      seed
-          Seed tables are non-empty after the 'seed' phase (and not a meta
-          table). Prick auto-detects seeds tables and compares it to the tables
-          in the merge section to warn about unhandled tables
-
-          Records in seed tables that use the sync or prepare strategies
-          may be referenced to by ID from the rest of the target database
-          (this can be checked) but it is an error if a to-be-deleted
-          record is still referenced. The migration should take care of that
-          before data are merged
-
-    Table types
-      Seed tables
-        Regular seed tables have a unique field in addition to the primary key
-        but that's not true for link tables. The categories key and link tables
-        are auto-detected
-
-      Key tables
-        Key tables can be referred to by ID if it is merged using the 'sync' or
-        'merge' strategies that promise to keep existing IDs constant. If not,
-        the table can only be referred to by the unique key
-
-      Link tables
-        Link tables require special handling because they don't contain an
-        alternate unique key. They may not be referred to at all (link tables
-        never are). Link tables are generated with IDs starting at the first free
-        ID in the production database
-
-        Link table records are tracked in mumble and are deleted on merge.
-        Build records are then appended to the target table
-
-    Merge strategies
-      A merge may be done on a whole table or on a subset defined by a set
-      of IDs, default prick.merge_records
-
-      copy
-          Delete existing data using prick.merge_records and copy source. This
-          is the fastest strategy but the table should be read-only in the
-          production environment and may not be referred to by ID except from
-          other seed tables
-
-      sync
-          Like copy but IDs are preserved for existing records so they can
-          be referred by ID in the target database
-
-      prepare
-          Like sync but register obsolete targets instead of deleting them.
-          This is used when the delete operation would otherwise cascade to
-          other tables, the "deleted" records should processed later
-
-    Keywords
-      copy TABLE...
-          Merge tables using the copy strategy
-
-      sync TABLE KEY [ID-TABLE]
-      sync TABLE KEY '|' SQL
-          Synchronize (a subset of) table using KEY as identity. ID-TABLE is a
-          table of IDs (default prick.merge_records), SQL is a multiline SQL
-          expression that yields an array of IDs
-
-      prepare TABLE KEY [ID-TABLE]
-      prepare TABLE KEY '|' SQL
-          Like sync but obsolete records are not removed but registered in
-          prick.deleted_records. The deletion process is supposed to be handled
-          in the merge section's body
-
-      handle TABLE...
-          Declare a table to be a seed table. Seed record IDs are registered in
-          prick.merge_records but the actual merge process is supposed to be
-          done by commands in the merge section (exec, sql, etc.). Prick will
-          warn about non-empty tables that are not covered by copy, sync,
-          prepare, or handle
-
-    ID tables
-      Seed tables are registered in prick.merge_tables and their records in
-      prick.merge_records. The ID tables are initially defined in the 'seed'
-      phase and then maintained in the 'merge' phase
-
-  Random stuff
-      Procedure make-seed-for-migration
-        extract max-ids for link tables from production database
-        build term
-        build seed with max-ids
-        dump seed tables
-
-  Syntax
-
-    PROGRAM ::= BLOCK
-
-    BLOCK ::= STMT+
-
-    STMT ::=
-        DECL_STMT
-      | PHASE-STMT
-      | OPTION_STMT
-      | PROVIDE-STAT
-      | REQUIRE_STMT
-      | MAKE-STMT
-      | IF-STMT
-      | CASE-STMT
-      | COMMAND-STMT
-      | FILE-STMT
-      | DUMP-STMT
-      | LOAD-STMT
-      | SNAPSHOT-STMT
-      | RESTORE-STMT
-      | RETURN-STMT
-      | ECHO-STMT
-
-    DECL-STMT ::=
-        schema IDENT BLOCK-ARGS
-      | procedure IDENT BLOCK-ARGS
-
-    PHASE-STMT ::=
-        [init | term | meta | seeds | auth | merge] BLOCK-ARGS
-
-    OPTION_STMT ::=
-      # TODO
-
-    PROVIDE-STMT ::=
-      provide IDENT
-
-    REQUIRE-STMT ::=
-      require REF+
-
-    ECHO-STMT ::=
-      echo .*
-
-    MAKE-STMT ::=
-      make PATH+
-        BLOCK
-
-    IF-STMT ::=
-        if EXPR BLOCK end
-      | if EXPR BLOCK else BLOCK end
-      | if EXPR BLOCK ( elsif EXPR <NL> BLOCK )+ ( else BLOCK )? end
-
-    CASE-STMT ::=
-        case VAR-EXPR WHEN-STMT... [ else COMMAND... ] end
-
-    WHEN-STMT ::=
-        when ( EXPR | OPER EXPR )+ COMMAND...
-
-    COMMAND-STMT ::=
-        exec SOURCE
-      | eval SOURCE
-      | ruby RUBY_SCRIPT ARGUMENTS...
-      | sql SOURCE
-      | call REF+
-
-    DUMP-STMT ::=
-      dump BACKUP BACKUP_KINDS OBJECT_BLOCK
-      load BACKUP ( schema | data )? OBJECT_BLOCK
-      snapshot BACKUP OBJECT_BLOCK
-      restore BACKUP OBJECT_BLOCK
-
-    FILE-STMT ::= FILE+
-
-    EXIT-STMT ::= return INTEGER
-
-    BLOCK-ARGS ::=
-        COMMAND-STMT
-      | FILE-STMT...
-      | BLOCK
-
-    EXPR ::=
-        PREFIX_OP EXPR
-      | EXPR BINARY_OP EXPR
-      | EXPR SUFFIX_OP
-      | VARIABLE
-      | LITERAL
-
-    VARIABLE ::=
-        BUILTIN_VARIABLES
-      | COMMAND_VARIABLES
-      | ENVIRONMENT_VARIABLES
-
-    BUILTIN_VARIABLES ::=
-        '$prj'
-      | '$env'
-      | '$ver'
-      | '$cmd'
-      | '$user'
-
-    COMMAND_VARIABLES ::=
-        '$' DOWNCASED_IDENTIFIER
-
-    ENVIRONMENT_VARIABLES ::=
-        '$' UPCASED_IDENTIFIER
-
-    PREFIX_OP ::=
-        '!'
-
-    INFIX_OP ::=
-        '&&'
-      | '||'
-      | '<='
-      | '<'
-      | '=='
-      | '='
-      | '!='
-      | '>='
-      | '>'
-      | '~>'
-
-    SUFFIX_OP ::=
-        '?'
-
-    # Files
-    PATH ::= <path> '/' <*>
-    FILE ::= <path> '/' <*.sql> | <*.psql> | <*.fox> | <*.prick> | <*.rb>
-
-    # Reference & identifier
-    REF ::= .? IDENT ( . IDENT )*
-    IDENT ::= /[\w.]+/
-
-    # Inline source
-    SOURCE ::=
-        <line>
-      | '|' <indented lines>
-
-)
-
-opts, args = ShellOpts.process(SPEC, ARGV, verbose: true)
+opts, args = ShellOpts.process(SPEC, ARGV, verbose: true, version: true)
+COMMANDS = opts.__grammar__.commands.map(&:name)
 
 # Extract options
-file = opts.file || Prick::Lang::Compiler::DEFAULT_SOURCE_FILE
-exception = opts.exception? # Global because #error uses it
-state_file = opts.state_file || Prick::Lang::Compiler::DEFAULT_STATE_FILE
-timestamp = opts.timestamp && Time.parse(opts.timestamp)
-dryrun = opts.dryrun?
-log = opts.log?
-exclude = opts.exclude
+#file = opts.file || Prick::Lang::Compiler::DEFAULT_SOURCE_FILE
+#state_file = opts.state_file
+#timestamp = opts.timestamp && Time.parse(opts.timestamp)
+#exclude = opts.exclude
+#dryrun = opts.dryrun?
+#log = opts.log?
+#exception = opts.exception? # Global because #error uses it
+
+# Switch directory if requested
+Dir.chdir opts.directory if opts.directory?
 
 # Enable trace if requested
 Trace.enable if opts.trace?
 
 # Replace ShellOpts errors with exceptions if requested
-ShellOpts.exception = exception
+ShellOpts.exception = opts.exception?
 
 # Extract command
-cmd = args.extract(1)
-%w(build make run).include?(cmd) or ShellOpts::error "Illegal command: #{cmd}"
+cmd = opts.subcommand!.__name__
+COMMANDS.include?(cmd) or ShellOpts::error "Illegal command #{cmd}"
 
-# Extract targets
-targets = []
-while arg = args.first
-  break if arg !~ /^#{Prick::Lang::Token::TARGET_PATTERN}$/
-  targets << args.shift
-end
-targets = [Prick::Lang::Compiler::DEFAULT_TARGET] if targets.empty?
+# Initialize constants
+command = Prick::Command.create(cmd, opts, args)
+command.run
 
-# FIXME
-#BUILTIN_VARIABLES = { cmd: "build", env: "prod", ver: Semver.new("1.2.3"), user: "me" }
-BUILTIN_VARIABLES = { env: "prod", ver: Semver.new("1.2.3"), user: "me" }
+__END__
 
-# Extract variable assignments
-variables = BUILTIN_VARIABLES.dup
-if arg = args.shift
-  case arg
-    when /^(\w+)=(\S*)$/
-      variables[$1.to_sym] = $2
-    else
-      ShellOpts::error "Illegal argument '#{arg}'"
+case cmd
+  when "init"
+    Command.init(opts, args)
+  when
+
+
+
+# Handle commands
+case cmd
+  when "init"
+    project_name, project_directory = args.expect(1..2)
+    project_directory ||= project_name
+    Prick.initialize(project_directory: project_directory, state_file: state_file, new: true)
+    Command.init(project_name)
+
+  when "build", "make"
+    Prick.initialize(state_file: state_file, new: false)
+
+    # Extract targets
+    targets = []
+    while arg = args.first
+      break if arg !~ /^#{Prick::Lang::Token::TARGET_PATTERN}$/
+      targets << args.shift
+    end
+    targets = [Prick::Lang::Compiler::DEFAULT_TARGET] if targets.empty?
+
+    # TODO: Load prick.yml
+
+    # FIXME
+    #BUILTIN_VARIABLES = { cmd: "build", env: "prod", ver: Semver.new("1.2.3"), user: "me" }
+    BUILTIN_VARIABLES = { env: "prod", ver: Semver.new("1.2.3"), user: "me" }
+
+    # Extract variable assignments
+    variables = BUILTIN_VARIABLES.dup
+    if arg = args.shift
+      case arg
+        when /^(\w+)=(\S*)$/
+          variables[$1.to_sym] = $2
+        else
+          ShellOpts::error "Illegal argument '#{arg}'"
+      end
+    end
+
+    Compiler.command(cmd.to_sym,
+        file, targets,
+        mode: cmd.to_sym,
+        state_file: state_file,
+        timestamp: timestamp,
+        exclude: exclude,
+        variables: variables,
+        dryrun: dryrun,
+        log: log)
+
+    # Create compiler object
+    compiler = Prick::Lang::Compiler.new(
+        file, targets,
+        mode: cmd.to_sym,
+        state_file: state_file,
+        timestamp: timestamp,
+        exclude: exclude,
+        variables: variables,
+        dryrun: dryrun,
+        log: log)
+
+    # Handle dump option. 'units' is the default
+    if opts.dump?
+      kinds = opts.dump || "units"
+      (unknowns = kinds - Prick::Lang::DUMP_KINDS) or ShellOpts::error "Illegal value for --dump '#{unknowns.first}'"
+      Prick::Lang.dump(compiler, kinds)
+      exit
+    end
+
+    # Compile
+    begin
+      compiler.interpret
+    rescue => ex
+      raise Prick::Lang::ErrorFunctions.pretty_backtrace!(ex)
+    end
+
+  else
+    ShellOpts.failure "'#{cmd}' is not implemented yet"
   end
 end
-
-# Create compiler object
-compiler = Prick::Lang::Compiler.new(
-    file, targets,
-    mode: cmd.to_sym,
-    state_file: state_file,
-    timestamp: timestamp,
-    exclude: exclude,
-    variables: variables,
-    dryrun: dryrun,
-    log: log)
-
-# Handle dump option. 'units' is the default
-if opts.dump?
-  kinds = opts.dump || "units"
-  (unknowns = kinds - Prick::Lang::DUMP_KINDS) or ShellOpts::error "Illegal value for --dump '#{unknowns.first}'"
-  Prick::Lang.dump(compiler, kinds)
-  exit
-end
-
-# Compile
-begin
-  compiler.compile
-rescue => ex
-  raise Prick::Lang::ErrorFunctions.pretty_backtrace!(ex)
-end
-
 
 __END__
   Make command

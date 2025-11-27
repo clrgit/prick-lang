@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
-require_relative "lib/prick/lang/version"
+require_relative "lib/prick/version"
 
 Gem::Specification.new do |spec|
   spec.name = "prick-lang"
-  spec.version = Prick::Lang::VERSION
+  spec.version = Prick::VERSION
   spec.authors = ["author name"]
   spec.email = ["author@nowhere.com"]
 

@@ -1,29 +1,26 @@
 
-module Prick::Lang
-  # Prick gem installation directory. Used by 'prick init' to find build-in
-  # files. Note that constants.rb should be required before any directory changes
-  PRICK_DIR = File.absolute_path(File.dirname($PROGRAM_NAME, 2))
+require 'shellopts' # Because it must be required before this file
 
-  # Installation share directory
-  PRICK_SHARE_DIR = "#{PRICK_DIR}/lib/prick/lang/share"
+module Prick
+  def self.initialize_constants(project_dir = nil)
+    # Prick gem installation directory. Used to find the share directoryto find
+    # the share directoryby files. Note that constants.rb should be required
+    # before any directory changes
+    PRICK_DIR = File.dirname ShellOpts.path
 
-  # Absolute path to the directory of the user process that invoked prick.
-  # Prick changes to the project directory before running any code so error
-  # messages has to be modified relative to the directory of the user
-  CURRENT_DIR = Dir.getwd
+    # Installation share directory
+    PRICK_SHARE_DIR = "#{PRICK_DIR}/lib/prick/share"
 
-  p $PROGRAM_NAME
-  p File.absolute_path(File.dirname($PROGRAM_NAME, 2))
-  p PRICK_DIR
-  p PRICK_SHARE_DIR
-  p CURRENT_DIR
+    # Absolute path to the directory of the user process that invoked prick.
+    # Prick changes directory while running the code so error messages has to be
+    # modified relative to the environment of the user to make sense
+    ENVIRONMENT_DIR = Dir.getwd
 
-  # Project filename
-  PROJECT_FILENAME = "prick.yml"
+    # Project filename
+    PROJECT_FILENAME = "prick.yml"
 
-  # Full path to project root directory. nil when running rspec
-  if !defined?(PROJECT_DIR)
-    PROJECT_DIR = begin
+    # Full path to project root directory. nil when running rspec
+    PROJECT_DIR = project_dir || begin
       dir = Dir.getwd
       while dir != "/" && !File.exist?("#{dir}/#{PROJECT_FILENAME}")
         dir = File.dirname(dir)
@@ -34,29 +31,30 @@ module Prick::Lang
       end
       dir
     end
+
+    # Full path to the prick project file
+    PROJECT_FILE = File.join(PROJECT_DIR, PROJECT_FILENAME)
+
+    # Full path to project directories
+    PROJECT_DIRS = [
+      BIN_DIR = File.join(PROJECT_DIR, "bin"),
+      SCHEMA_DIR = File.join(PROJECT_DIR, "schema"),
+      SCHEMA_PRICK_DIR = File.join(SCHEMA_DIR, "prick"),
+      TEST_DIR = File.join(PROJECT_DIR, "spec"),
+      LIB_DIR = File.join(PROJECT_DIR, "lib"),
+      LIBEXEC_DIR = File.join(PROJECT_DIR, "libexec"),
+      VAR_DIR = File.join(PROJECT_DIR, "var"),
+      LOG_DIR = File.join(VARDIR, "/log"),
+      STATE_DIR = File.join(VARDIR, "/state"),
+      CACHE_DIR = File.join(VARDIR, "/cache"),
+      SPOOL_DIR = File.join(VARDIR, "/spool"),
+      BACKUP_DIR = File.join(VARDIR, "/backup"),
+      DUMP_DIR = File.join(VARDIR, "/dump")
+    ]
+
+    # Default prick state file
+    PRICK_STATE_FILE = "#{STATE_DIR}/prick.state.yml"
   end
-
-  # Full path to the prick project file
-  PROJECT_FILE = File.join(PROJECT_DIR, PROJECT_FILENAME)
-
-  PROJECT_DIRS = [
-    BIN_DIR = "bin",
-    SCHEMA_DIR = "schema",
-    SCHEMA_PRICK_DIR = "#{SCHEMA_DIR}/prick",
-    TEST_DIR = "spec",
-    LIB_DIR = "lib",
-    LIBEXEC_DIR = "libexec",
-    VAR_DIR = "var",
-    LOG_DIR = "#{VAR_DIR}/log",
-    STATE_DIR = "#{VAR_DIR}/state",
-    CACHE_DIR = "#{VAR_DIR}/cache",
-    SPOOL_DIR = "#{VAR_DIR}/spool",
-    BACKUP_DIR = "#{VAR_DIR}/backup",
-    DUMP_DIR = "#{VAR_DIR}/dump",
-  ]
-
-  # Default prick state file
-  PRICK_STATE_FILE = "#{STATE_DIR}/prick.state.yml"
 end
 
 __END__
