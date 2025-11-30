@@ -6,7 +6,6 @@ require 'pathname'
 require 'set'
 require 'stringio'
 require 'time'
-require 'yaml'
 
 require 'constrain'
 require 'forward_to'
@@ -23,16 +22,99 @@ module Prick
   class Error < StandardError; end
   class InternalError < Error; end
 
+  # Relative paths to subdirectories
+  BIN_DIRNAME = "bin"
+  SCHEMA_DIRNAME = "schema"
+  SCHEMA_PRICK_DIRNAME = File.join(SCHEMA_DIR, "prick")
+  TEST_DIRNAME = "spec"
+  LIB_DIRNAME = "lib"
+  LIBEXEC_DIRNAME = "libexec"
+  VAR_DIRNAME = "var"
+  LOG_DIRNAME = File.join(VARDIR, "log")
+  STATE_DIRNAME = File.join(VARDIR, "state")
+  CACHE_DIRNAME = File.join(VARDIR, "cache")
+  SPOOL_DIRNAME = File.join(VARDIR, "spool")
+  BACKUP_DIRNAME = File.join(VARDIR, "backup")
+  DUMP_DIRNAME = File.join(VARDIR, "dump")
+  TMP_DIRNAME = "tmp"
+
+  # Project subdirectories ([Symbol]). Keep in sync with project *_DIRNAMES!
+  PROJECT_DIR_ATTRS = [
+      :bin_dir, :schema_dir, :schema_prick_dir, :test_dir, :lib_dir, :libexec_dir, :var_dir, :log_dir,
+      :state_dir, :cache_dir, :spool_dir, :backup_dir, :dump_dir, :tmp_dir
+  ]
+
+  # Project filename
+  PROJECT_FILENAME = "prick.yml"
+
+  # Default environment filename
+  DEFAULT_ENVIRONMENT_FILENAME = "prick.environment.yml"
+
+  # Default database state file
+  DEFAULT_DATABASE_STATE_FILE = "database.state.yml"
+
+  # Default prick state filename
+  DEFAULT_COMPILER_STATE_FILENAME = "compiler-state.yml"
+
+  # Default fox state filename
+  DEFAULT_FOX_STATE_FILENAME = "fox-state.yml"
+
+  # Default reflections filename
+  DEFAULT_REFLECTIONS_FILENAME = "reflections.yml"
+
+  # Prick SQL file. Lives in the schema/prick directory and builds the prick schema
+  PRICK_SQL_FILENAME = "prick.sql"
+
+  # Suffix for prick source files
+  SOURCE_EXT = "prick"
+
+  # Default source file ('make.prick'). Also used when including directories
+  # (eg. './dir' becomes './dir/make.prick')
+  DEFAULT_SOURCE_FILENAME = "make.#{SOURCE_EXT}"
+
+  # State object
+  def self.state = @@state
+  def state = Prick.state
+
   # :call-seq
-  #   self.initialize(project_dir: nil, state_file: nil = nil, new: false)
+  #   self.initialize(**opts)
   #
-  # Define constants, ensure and and change to project directory. All path
-  # related constants are absolute paths
+  # See State for documentation of :opts
   #
-  # :project_dir is only not-nil when running 'prick init'
-  #
-  # TODO: Move everything to constants.rb
-  def self.initialize(database: nil, username: nil, environment: nil, project_dir: nil, state_file: nil)
+  def self.initialize(**opts)
+    # Create prick object
+    @@state = State.new(**opts)
+  end
+
+  def self.error(msg) = ShellOpts.error msg
+  def self.failure(msg) = ShellOpts.failure msg
+
+  def error(msg) = Prick.error msg
+  def failure(msg) = Prick.failure msg
+
+private
+  @@state = nil
+end
+
+require_relative './prick/state.rb'
+
+require_relative './prick/lang.rb'
+require_relative './prick/environment-lang.rb'
+require_relative './prick/command.rb'
+
+__END__
+    # Ensure project directory
+    case [!project_dir.nil?, File.directory?(project_dir)]
+      in [false, false]
+        ShellOpts.error "Can't find project directory #{project_dir}"
+      in [false, true]
+        File.exist? state.project_file or ShellOpts.error "Can't find #{state.project_file}"
+      in [true, false]
+        FileUtils.mkdir project_dir
+      in [true, true]
+        !File.exist? state.project_file or ShellOpts.error "Won't overwrite existing project"
+    end
+
     Prick.module_eval do
       # Installation root directory
       const_set :PRICK_DIR, File.dirname(ShellOpts::program_path, 2)
@@ -75,6 +157,7 @@ module Prick
       ]
 
       # State filename
+      const_set :DEFAULT_STATE_FILENAME, ".prick.state.yml"
       const_set :STATE_FILE, state_file || File.join(STATE_DIR, DEFAULT_STATE_FILENAME)
 
       # Version file
@@ -82,99 +165,8 @@ module Prick
       const_set :VERSION_FILE, File.join(SCHEMA_PRICK_DIR, VERSION_FILENAME)
 
       # Database
-      const_set :PRICK_DATABASE, database
       const_set :PRICK_USERNAME, username
+      const_set :PRICK_DATABASE, database
       const_set :PRICK_ENVIRONMENT, environment
 
     end
-
-    # Ensure project directory
-    case [!project_dir.nil?, File.exist?(PROJECT_DIR)]
-      in [false, false]
-        ShellOpts.error "Can't find project directory #{PROJECT_DIR}"
-      in [false, true]
-        File.exist? PROJECT_FILE or ShellOpts.error "Can't find #{PROJECT_FILE}"
-      in [true, false]
-        FileUtils.mkdir project_dir
-      in [true, true]
-        !File.exist? PROJECT_FILE or ShellOpts.error "Won't overwrite existing project"
-    end
-
-    # Load runtime information
-    load_files if project_dir.nil?
-
-    # Switch to project directory
-    Dir.chdir PROJECT_DIR
-  end
-
-  def self.load_files
-    load_project
-    load_version
-    load_state
-  end
-
-  def self.save_files
-    save_project
-    save_version
-    save_state
-  end
-
-  PROJECT_FILE_FIELDS = {
-    title: :PROJECT_TITLE,
-    name: :PROJECT_NAME,
-    prick_version: :PRICK_VERSION,
-  }
-
-  STATE_FILE_FIELDS = {
-    database: :PRICK_DATABASE,
-    username: :PRICK_USERNAME,
-    environment: :PRICK_ENVIRONMENT,
-  }
-
-  VERSION_FILE_FIELDS = {
-    version: :PROJECT_VERSION
-  }
-
-  def self.load_project = load_file PROJECT_FILE, PROJECT_FILE_FIELDS
-  def self.save_project(**opts) = save_file PROJECT_FILE, PROJECT_FILE_FIELDS, **opts
-
-  def self.load_version = load_file VERSION_FILE, VERSION_FILE_FIELDS
-  def self.save_version(**opts) = save_file VERSION_FILE, VERSION_FILE_FIELDS, **opts
-
-  def self.load_state = load_file STATE_FILE, STATE_FILE_FIELDS
-  def self.save_state(**opts) = save_file STATE_FILE, STATE_FILE_FIELDS, **opts
-
-private
-  # TODO: Move to xfile.rb
-  def self.upfind(file, dir = ShellOpts.environment_path)
-    while dir != "/" && !File.exist?(File.join dir, file)
-      dir = File.dirname(dir)
-    end
-    if dir == "/" # RSpec compatibility
-      dir = "" if defined?(RSpec)
-    end
-    dir == "/" ? nil : File.join(dir, file)
-  end
-
-  def self.load_file(file, fields)
-    return nil if !File.exist? file
-    h = YAML.load_file(file, symbolize_names: true)
-    fields.each { |field, const| const_set(const, h[field]) }
-  end
-
-  def self.save_file(file, fields, **opts)
-    puts "save_file(#{file}, #{fields.inspect}, #{opts.inspect})"
-    p STATE_FILE
-#   p file
-#   p fields
-#   p opts
-    data = fields.map { |field, const|
-      [field, opts.key?(field) ? opts[field] : Prick.const_get(const)]
-    }.to_h
-    IO.write file, data.to_yaml
-  end
-end
-
-require_relative './prick/lang.rb'
-require_relative './prick/command.rb'
-

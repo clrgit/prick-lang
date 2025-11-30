@@ -29,17 +29,18 @@ module Prick::Lang
 
     DEFAULT_TARGET = "<main>"
 
-    # Default source file name (excl. extension)
-    DEFAULT_SOURCE_NAME = "make"
+#   # Default source file name (excl. extension)
+#   DEFAULT_SOURCE_NAME = "make"
+#
+#   # Default source file ('make.prick'). Also used when including directories
+#   # (eg. './dir' becomes './dir/make.prick')
+#   DEFAULT_SOURCE_FILE = "#{DEFAULT_SOURCE_NAME}.#{Token::PRICK_EXT}"
 
-    # Default source file ('make.prick'). Also used when including directories
-    # (eg. './dir' becomes './dir/make.prick')
-    DEFAULT_SOURCE_FILE = "#{DEFAULT_SOURCE_NAME}.#{Token::PRICK_EXT}"
-
-    # Default state file. Contains prick database, username, and environment
-    DEFAULT_STATE_FILE = ".prick.state.yml"
+#   # Default state file. Contains prick database, username, and environment
+#   DEFAULT_STATE_FILE = ".prick.state.yml"
 
     # Database environment from .prick.state
+    forward_to
     attr_reader :prick_database
     attr_reader :prick_username
     attr_reader :prick_environment
@@ -72,7 +73,7 @@ module Prick::Lang
     def units = @generator.units # [Unit::Node]. Initialized by #generate
 
     # State data TODO: Move to database
-    attr_reader :state_file # String - State file
+    def state_file = Prick.state.compiler_state_file
     attr_reader :timestamp # Time - time of last successful run. Default epoch
     attr_reader :completed_resources # [uid] - Completed resource
 
@@ -82,7 +83,6 @@ module Prick::Lang
     def initialize(
         file, targets = [DEFAULT_TARGET],
         mode: :build,
-        state_file: DEFAULT_STATE_FILE,
         timestamp: nil,
         exclude: [],
         variables: {},
@@ -93,7 +93,6 @@ module Prick::Lang
       constrain file, String
       constrain targets, [String]
       constrain mode, :build, :make
-      constrain state_file, String
       constrain timestamp, Time, nil
       constrain exclude, [String]
       constrain variables, { Symbol => [String, Semver] }
@@ -106,7 +105,6 @@ module Prick::Lang
       @mode = mode
       @sources = []
       @targets = targets
-      @state_file = state_file
       @timestamp = timestamp
       @dryrun = dryrun
       @log = log
@@ -125,24 +123,48 @@ module Prick::Lang
     end
 
     #
-    # State
+    # Compile
     #
 
-    def load_state
-      data = File.exist?(state_file) ? YAML.load_file(state_file, symbolize_names: true) : {}
-      @timestamp ||= Time.parse(data[:timestamp] || "1970-01-01 00:00:00 UTC")
-      @completed_resources = data[:completed_resources] || []
+    def compile(&block)
+      t0 = Time.now
+      ShellOpts.verb "Compiling '#{file}'"
+
+      indent(ShellOpts.verbose?) {
+        load_compiler_state
+
+        time "Parsing" do
+          parse
+        end
+
+        time "Converting" do
+          convert
+        end
+
+        time "Analyzing" do
+          analyze
+        end
+
+        time "Generating" do
+          generate
+        end
+
+        yield
+
+        save_compiler_state
+      }
+
+      t1 = Time.now
+      ShellOpts.verb "Done (#{ftime t1 - t0})"
     end
 
-    def save_state
-      File.write state_file, {
-        timestamp: Time.now.strftime("%Y-%m-%d %H:%M:%S %Z"),
-        completed_resources: @completed_resources
-      }.to_yaml
+    def interpret
+      compile do
+        time "Execute" do
+          execute
+        end
+      end
     end
-
-    # Singleton instance
-    def self.instance = @@INSTANCE
 
     #
     # Processes
@@ -172,46 +194,6 @@ module Prick::Lang
 
     def execute
       @executer.execute
-    end
-
-    def compile(&block)
-      t0 = Time.now
-      ShellOpts.verb "Compiling '#{file}'"
-
-      indent(ShellOpts.verbose?) {
-        load_state
-
-        time "Parsing" do
-          parse
-        end
-
-        time "Converting" do
-          convert
-        end
-
-        time "Analyzing" do
-          analyze
-        end
-
-        time "Generating" do
-          generate
-        end
-
-        yield
-
-        save_state
-      }
-
-      t1 = Time.now
-      ShellOpts.verb "Done (#{ftime t1 - t0})"
-    end
-
-    def interpret
-      compile do
-        time "Execute" do
-          execute
-        end
-      end
     end
 
     #
@@ -333,6 +315,26 @@ module Prick::Lang
       @contexts.pop
       @schemas.pop if context.is_a? Idr::Schema
     end
+
+    #
+    # State
+    #
+
+    def load_compiler_state
+      data = File.exist?(state_file) ? YAML.load_extended(state_file) : {}
+      @timestamp ||= Time.parse(data[:timestamp] || "1970-01-01 00:00:00 UTC")
+      @completed_resources = data[:completed_resources] || []
+    end
+
+    def save_compiler_state
+      File.write state_file, {
+        timestamp: Time.now.strftime("%Y-%m-%d %H:%M:%S %Z"),
+        completed_resources: @completed_resources
+      }.to_yaml
+    end
+
+    # Singleton instance
+    def self.instance = @@INSTANCE
 
     #
     # D U M P

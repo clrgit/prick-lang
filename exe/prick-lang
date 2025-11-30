@@ -1,29 +1,37 @@
 #!/usr/bin/env ruby
 
+require 'shellopts'
+
 require_relative '../lib/prick.rb'
 require_relative '../doc/doc.rb'
-
-require 'shellopts'
 
 SPEC = %(
   @ Prick compiler
 
-  #-- [OPTIONS] build|make|merge|run [VAR=VAL...]
+  #-- [OPTIONS] COMMAND
 
   Compile a prick project
 
   -C,directory=DIR
     Switch to directory before doing anything else. Used in debug
 
-  -f,file=FILE|DIR
-    Prick source file. The default is the '#{Prick::Lang::Compiler::DEFAULT_SOURCE_FILE}'
-    file in the project main directory
+  --environment-file=FILE
+    Environment file. Default is '#{Prick::SCHEMA_DIR}/#{Prick::DEFAULT_ENVIRONMENT_FILENAME}'
 
-  --state-file=FILE
-    Prick state file. Default is '#{Prick::Lang::Compiler::DEFAULT_STATE_FILE}'
+  --reflections-file=FILE
+    Reflections file. Default is '#{Prick::SCHEMA_DIR}/#{Prick::DEFAULT_REFLECTIONS_FILENAME}'
+
+  --database-state-file=FILE
+    Prick database state file. Default is '#{Prick::STATE_DIR}::#{Prick::DEFAULT_DATABASE_STATE_FILENAME}'
+
+  --compiler-state-file=FILE
+    Prick compiler state file. Default is '#{Prick::STATE_DIR}::#{Prick::DEFAULT_COMPILER_STATE_FILENAME}'
+
+  --fox-state-file=FILE
+    Fox state file. Default is '#{Prick::STATE_DIR}/#{Prick::DEFAULT_FOX_STATE_FILENAME}'
 
   --timestamp=TIMESTAMP
-    Override timestamp from the state file
+    Override timestamp from the compiler state file
 
   +x,exclude=SCHEMA,
     Comma-separated list of excluded schemas
@@ -44,15 +52,9 @@ SPEC = %(
   -T,trace
     Enable tracer. Used for debugging
 
-  -d,database=DATABASE
-    Database name. Default is the project name
-
-  -U,username=USERNAME
-    Username. Default is the project name
-
 
   init! --name=NAME --title=TITLE -- [DIR]
-    Create a prick project
+    Create a prick project. DIR is created if needed, using '.' as default
 
   term!
     Delete a prick project, its files, and all associated users
@@ -64,10 +66,13 @@ SPEC = %(
   teardown!
     Teardown a database and associated users
 
-  build! -- [TARGET...]
+  set [database|username|environment] VALUE
+    Change database environment
+
+  build! -- [VAR=VAL...] [TARGET...]
     Builds the given targets, default is 'term'
 
-  make! -- [TARGET...]
+  make! -- [VAR=VAL...] [TARGET...]
     Like build but only update changed resources
 
   migrate! -- MERGE-BACKUP
@@ -95,16 +100,7 @@ SPEC = %(
 opts, args = ShellOpts.process(SPEC, ARGV, verbose: true, version: true)
 COMMANDS = opts.__grammar__.commands.map(&:name)
 
-# Extract options
-#file = opts.file || Prick::Lang::Compiler::DEFAULT_SOURCE_FILE
-#state_file = opts.state_file
-#timestamp = opts.timestamp && Time.parse(opts.timestamp)
-#exclude = opts.exclude
-#dryrun = opts.dryrun?
-#log = opts.log?
-#exception = opts.exception? # Global because #error uses it
-
-# Switch directory if requested
+# Switch directory if requested. TODO: Delay until after --*-file has been resolved
 Dir.chdir opts.directory if opts.directory?
 
 # Enable trace if requested
@@ -117,8 +113,16 @@ ShellOpts.exception = opts.exception?
 cmd = opts.subcommand!.__name__
 COMMANDS.include?(cmd) or ShellOpts::error "Illegal command #{cmd}"
 
+command =
+    case cmd
+      when "init"; Command::Init.new(opts, args)
+      when "setup"; Command::Setup.new(opts, args)
+      when "build", "make"; Command::BuildMake.new(cmd, opts, args)
+    else
+      ShellOpts.failure "'#{cmd}' command is not implemented yet"
+    end
+
 # Initialize constants
-command = Prick::Command.create(cmd, opts, args)
 command.run
 
 __END__

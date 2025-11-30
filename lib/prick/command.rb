@@ -2,38 +2,26 @@
 module Prick::Command
   class Command
     attr_reader :cmd
+    attr_reader :opts
+    attr_reader :args
+    attr_reader :attrs
 
-    def initialize(cmd)
-      @cmd = cmd
-    end
+    def initialize(cmd, opts, args, project_dir: nil, **attrs)
+      @cmd, @opts, @args, @attrs = cmd, opts, args, attrs
 
-    def run() end
-  end
-
-  def self.create(cmd, opts, args)
-    case cmd
-      when "init"; Init.new(opts, args)
-      when "setup"; Setup.new(opts, args)
-      when "build", "make"; BuildMake.new(cmd, opts, args)
-    else
-      ShellOpts.failure "'#{cmd}' command is not implemented yet"
-    end
-  end
-
-  # A command without an existing project. Ie. Init
-  class BareCommand < Command
-  end
-
-  # A command in an existing project
-  class ProjectCommand
-    def initialize(cmd, opts, args)
-      super(cmd)
+      # Initialize prick and set options
       Prick.initialize(
-          database: opts.database, username: opts.username, environment: opts.environment,
-          state_file: opts.state_file)
+        project_dir: project_dir,
+        environment_file: opts.environment_file,
+        reflections_file: opts.reflections_file,
+        compiler_stat_file: opts.compiler_state_file,
+        database_state_file: opts.database_state_file,
+        fox_state_file: opts.fox_state_file,
+        **attrs
+      )
     end
 
-    def run = Prick.save_files
+    def run() = raise
   end
 end
 

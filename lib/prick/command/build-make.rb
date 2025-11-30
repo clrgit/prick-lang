@@ -1,37 +1,31 @@
 
 module Prick::Command
-  class BuildMake < ProjectCommand
+  class BuildMake < Command
+    BUILTIN_VARIABLES = [:database, :username, :environment, :version, :prick_version ]
+
     attr_reader :compiler
+
+# --timestamp=TIMESTAMP
+#   Override timestamp from the compiler state file
+#
 
     def initialize(cmd, opts, args)
       super(cmd, opts, args)
 
+      # Define builtin variables and extract additional variables from command line
+      variables = BUILTIN_VARIABLES.map { |attr| [attr.to_s, state.send(attr)] }.to_h
+      while arg = args.first and arg =~ /^(\w+)=(\S*)$/
+        variables[$1.to_sym] = $2
+        args.shift
+      end
+
       # Extract targets
       targets = []
       while arg = args.first
-        break if arg !~ /^#{Prick::Lang::Token::TARGET_PATTERN}$/
+        arg =~ /^#{Prick::Lang::Token::TARGET_PATTERN}$/ or ShellOpts::error "Illegal argument '#{arg}'"
         targets << args.shift
       end
-      targets = [Prick::Lang::Compiler::DEFAULT_TARGET] if targets.empty?
-
-      #BUILTIN_VARIABLES = { cmd: "build", env: "prod", ver: Semver.new("1.2.3"), user: "me" }
-#     BUILTIN_VARIABLES = { env: "prod", ver: semver.new("1.2.3"), user: "me" }
-
-      # Extract variable assignments
-#     variables.merge! BUILTIN_VERSION_VARIABLES.map { |k,v| [k.to_s, Prick.const_get(v.upcase)] }.to_h
-#     variables = BUILTIN_STRING_VARIABLES.map { |k,v| [k.to_s, Prick.const_get(v.upcase)] }.to_h
-#     variables.merge! BUILTIN_VERSION_VARIABLES.map { |k,v| [k.to_s, Prick.const_get(v.upcase)] }.to_h
-#     variables = BUILTIN_VARIABLES.dup
-
-      variables = BUILTIN_VARIABLES.map { |name, const| [name.to_s, Prick.const_get(const)] }.to_h
-      if arg = args.shift
-        case arg
-          when /^(\w+)=(\S*)$/
-            variables[$1.to_sym] = $2
-          else
-            ShellOpts::error "Illegal argument '#{arg}'"
-        end
-      end
+      targets = [DEFAULT_TARGET] if targets.empty?
 
       # Create compiler object
       @compiler = Prick::Lang::Compiler.new(
@@ -45,9 +39,8 @@ module Prick::Command
           log: log)
     end
 
-
     def run
-      puts "RUNNING"
+      puts "RUNNING RETURN"
       return
       begin
         compiler.interpret
@@ -56,14 +49,6 @@ module Prick::Command
         raise Prick::Lang::ErrorFunctions.pretty_backtrace!(ex)
       end
     end
-
-    BUILTIN_VARIABLES = {
-      database: :PRICK_DATABASE,
-      username: :PRICK_USERNAME,
-      environment: :PRICK_ENVIRONMENT,
-      version: :PROJECT_VERSION,
-      prick_version: :PRICK_VERSION
-    }
 
 #   BUILTIN_VARIABLES = [:database, :username, :environment, :version, :prick_version]
 #   BUILTIN_STRING_VARIABLES = [:database, :username, :environment]

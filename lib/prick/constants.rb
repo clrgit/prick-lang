@@ -1,62 +1,48 @@
 
-require 'shellopts' # Because it must be required before this file
-
+__END__
 module Prick
-  def self.initialize_constants(project_dir = nil)
-    # Prick gem installation directory. Used to find the share directoryto find
-    # the share directoryby files. Note that constants.rb should be required
-    # before any directory changes
-    PRICK_DIR = File.dirname ShellOpts.path
+  # Paths to subdirectories relative to project directory
+  BIN_DIRNAME = "bin"
+  SCHEMA_DIRNAME = "schema"
+  SCHEMA_PRICK_DIRNAME = File.join(SCHEMA_DIR, "prick")
+  TEST_DIRNAME = "spec"
+  LIB_DIRNAME = "lib"
+  LIBEXEC_DIRNAME = "libexec"
+  VAR_DIRNAME = "var"
+  LOG_DIRNAME = File.join(VARDIR, "log")
+  STATE_DIRNAME = File.join(VARDIR, "state")
+  CACHE_DIRNAME = File.join(VARDIR, "cache")
+  SPOOL_DIRNAME = File.join(VARDIR, "spool")
+  BACKUP_DIRNAME = File.join(VARDIR, "backup")
+  DUMP_DIRNAME = File.join(VARDIR, "dump")
+  TMP_DIRNAME = "tmp"
 
-    # Installation share directory
-    PRICK_SHARE_DIR = "#{PRICK_DIR}/lib/prick/share"
+  # Project subdirectories ([Symbol]). Keep in sync with project *_DIRNAMES!
+  PROJECT_DIR_ATTRS = [
+      :bin_dir, :schema_dir, :schema_prick_dir, :test_dir, :lib_dir, :libexec_dir, :var_dir, :log_dir,
+      :state_dir, :cache_dir, :spool_dir, :backup_dir, :dump_dir, :tmp_dir
+  ]
 
-    # Absolute path to the directory of the user process that invoked prick.
-    # Prick changes directory while running the code so error messages has to be
-    # modified relative to the environment of the user to make sense
-    ENVIRONMENT_DIR = Dir.getwd
+  # Project filename
+  PROJECT_FILENAME = "prick.yml"
 
-    # Project filename
-    PROJECT_FILENAME = "prick.yml"
+  # Default environment filename
+  DEFAULT_ENVIRONMENT_FILENAME = "prick.environment.yml"
 
-    # Full path to project root directory. nil when running rspec
-    #
-    # TODO: Use upfind
-    PROJECT_DIR = project_dir || begin
-      dir = Dir.getwd
-      while dir != "/" && !File.exist?("#{dir}/#{PROJECT_FILENAME}")
-        dir = File.dirname(dir)
-      end
-      if dir == "/" # RSpec compatibility
-        defined?(RSpec) or ShellOpts.error "Can't find prick project directory"
-        dir = ""
-      end
-      dir
-    end
+  # Default database state file
+  DEFAULT_DATABASE_STATE_FILE = "database.state.yml"
 
-    # Full path to the prick project file
-    PROJECT_FILE = File.join(PROJECT_DIR, PROJECT_FILENAME)
+  # Default prick state filename
+  DEFAULT_COMPILER_STATE_FILENAME = "compiler-state.yml"
 
-    # Full path to project directories
-    PROJECT_DIRS = [
-      BIN_DIR = File.join(PROJECT_DIR, "bin"),
-      SCHEMA_DIR = File.join(PROJECT_DIR, "schema"),
-      SCHEMA_PRICK_DIR = File.join(SCHEMA_DIR, "prick"),
-      TEST_DIR = File.join(PROJECT_DIR, "spec"),
-      LIB_DIR = File.join(PROJECT_DIR, "lib"),
-      LIBEXEC_DIR = File.join(PROJECT_DIR, "libexec"),
-      VAR_DIR = File.join(PROJECT_DIR, "var"),
-      LOG_DIR = File.join(VARDIR, "/log"),
-      STATE_DIR = File.join(VARDIR, "/state"),
-      CACHE_DIR = File.join(VARDIR, "/cache"),
-      SPOOL_DIR = File.join(VARDIR, "/spool"),
-      BACKUP_DIR = File.join(VARDIR, "/backup"),
-      DUMP_DIR = File.join(VARDIR, "/dump")
-    ]
+  # Default fox state filename
+  DEFAULT_FOX_STATE_FILENAME = "fox-state.yml"
 
-    # Default prick state file
-    DEFAULT_STATE_FILENAME, "prick.state.yml"
-  end
+  # Default reflections filename
+  DEFAULT_REFLECTIONS_FILENAME = "reflections.yml"
+
+  # Prick SQL file. Lives in the schema/prick directory and builds the prick schema
+  PRICK_SQL_FILENAME = "prick.sql"
 end
 
 __END__
