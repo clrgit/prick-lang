@@ -15,8 +15,8 @@ module Prick::Command
       super \
           "setup", opts, args,
           database: database, username: username, environment: environment,
-          reflections_file: false,
-          database_state_file: false
+          load_files: [:environment_file],
+          save_files: [:database_state_file]
 
     end
 

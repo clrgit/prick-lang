@@ -8,19 +8,23 @@ module Prick::Command
     attr_reader :args
     attr_reader :attrs
 
-    def initialize(cmd, opts, args, project_dir: nil, **attrs)
+    def initialize(cmd, opts, args, project_dir: nil, **attrs, &block)
       @cmd, @opts, @args, @attrs = cmd, opts, args, attrs
 
       # Initialize prick and set options
       Prick.initialize(
         project_dir: project_dir,
-        environment_file: opts.environment_file,
-        reflections_file: opts.reflections_file,
-        database_state_file: opts.database_state_file,
-        compiler_state_file: opts.compiler_state_file,
-        fox_state_file: opts.fox_state_file,
-        **attrs
+        **attrs.merge({
+          environment_file: opts.environment_file,
+          reflections_file: opts.reflections_file,
+          database_state_file: opts.database_state_file,
+          compiler_state_file: opts.compiler_state_file,
+          fox_state_file: opts.fox_state_file
+        }.select { |k,v| !v.nil? })
       )
+    end
+
+    def common_options(opts)
     end
 
     def run() = raise

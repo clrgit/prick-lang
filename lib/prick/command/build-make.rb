@@ -10,7 +10,9 @@ module Prick::Command
 #
 
     def initialize(cmd, opts, args)
-      super(cmd, opts, args)
+      super \
+          cmd, opts, args,
+          load_files: [:environment_file, :database_state_file, :compiler_state_file]
 
       # Define builtin variables and extract additional variables from command line
       variables = BUILTIN_VARIABLES.map { |attr| [attr.to_s, state.send(attr)] }.to_h
@@ -25,7 +27,7 @@ module Prick::Command
         arg =~ /^#{Prick::Lang::Token::TARGET_PATTERN}$/ or ShellOpts::error "Illegal argument '#{arg}'"
         targets << args.shift
       end
-      targets = [DEFAULT_TARGET] if targets.empty?
+      targets = [Prick::Lang::Compiler::DEFAULT_TARGET] if targets.empty?
 
       # Create compiler object
       @compiler = Prick::Lang::Compiler.new(

@@ -30,8 +30,14 @@ module Prick
     # F I L E S
     #
 
+    # Initial 'make.prick' file
+    attr_reader :prick_file
+
     # 'prick.yml' project file
     attr_reader :project_file
+
+    # 'version.yml' file
+    attr_reader :version_file
 
     # 'prick.environment environment file. Note that the file can be absent if
     # the project doesn't use environments
@@ -52,6 +58,12 @@ module Prick
 
     # Prick SQL file. Builds the prick schema
     attr_reader :prick_sql_file
+
+    # List of file attributes to load
+    attr_reader :load_files
+
+    # List of file attributes to save
+    attr_reader :save_files
 
     #
     # P R O J E C T   A T T R I B U T E S
@@ -121,15 +133,17 @@ module Prick
     # We assume that we are somewhere in the project directory hierarchy if
     # :project_dir is nil.
     #
-    # If a file argument is nil or true, the default value is used. If false,
+    # If a file argument is true, the default value is used and the file will be loaded and saved. If false,
     # it is set to nil. Note that non-existing files are ignored so set it to
     # false only when the file is irrelevant for the current command (eg.
     # 'prick setup' doesn't need to read the reflections file)
     #
     def initialize(
         project_dir: nil,
-        environment_file: true, reflections_file: true,
-        database_state_file: true, compiler_state_file: false, fox_state_file: false,
+        environment_file: nil, reflections_file: nil,
+        database_state_file: nil, compiler_state_file: nil, fox_state_file: nil,
+        load_files: [:project_file], # :project_file is always loaded if present
+        save_files: [],
         **attrs)
 
       # Set installation and user directories
@@ -149,6 +163,7 @@ module Prick
       }
 
       # Assign files using helper method for brevity
+      @prick_file = File.join schema_dir, Prick::DEFAULT_SOURCE_FILENAME
       @project_file = File.join @project_dir, Prick::PROJECT_FILENAME
       @environment_file = file_attr environment_file, @project_dir, Prick::DEFAULT_ENVIRONMENT_FILENAME
       @reflections_file = file_attr reflections_file, schema_dir, Prick::DEFAULT_ENVIRONMENT_FILENAME
@@ -157,8 +172,12 @@ module Prick
       @fox_state_file = file_attr fox_state_file, state_dir, Prick::DEFAULT_FOX_STATE_FILENAME
       @prick_sql_file = File.join @schema_prick_dir, Prick::PRICK_SQL_FILENAME
 
-      # Load project, environment, state, and version files. Ignores absent files
-      load_files if project_dir.nil?
+      # Register state files to load/save
+      @load_files = ([:project_file] + load_files).uniq
+      @save_files = save_files
+
+      # Load state files. Absent files are ignored
+      load_state_files
 
       # Assign additional attributes
       attrs.each { |attr, value| self.send(:"#{attr}=", value) }
@@ -171,50 +190,56 @@ module Prick
     # S T A T E   H A N D L I N G
     #
 
-    def load_project = load_file @project_file, PROJECT_FILE_FIELDS
-    def save_project(**opts) = save_file @project_file, PROJECT_FILE_FIELDS, **opts
+    def load_project = load_file :project_file
+    def save_project(**opts) = save_file :project_file, **opts
 
     def load_environment
-      return nil if !File.exist? environment_file
+      return nil if environment_file.nil? || !File.exist?(environment_file)
       hash = YAML.load_extended environment_file
       @environments = EnvironmentLang.compile(hash)
       @environment_loaded = true
     end
 
-    def load_database_state = load_file @database_state_file, DATABASE_STATE_FILE_FIELDS
-    def save_database_state(**opts) = save_file @database_state_file, DATABASE_STATE_FILE_FIELDS, **opts
+    def load_database_state = load_file :database_state_file
+    def save_database_state(**opts) = save_file :database_state_file, **opts
 
     # load/save_compiler_state is in the Compiler module
 
-    def load_version = load_file @version_file, VERSION_FILE_FIELDS
-    def save_version(**opts) = save_file @version_file, VERSION_FILE_FIELDS, **opts
+    def load_version = load_file :version_file
+    def save_version(**opts) = save_file :version_file, **opts
 
-    def load_files() load_project; load_version; load_environment; load_database_state end
-    def save_files() save_project; save_version; save_database_state end
+    def load_state_files = @load_files.each { |attr| load_file(attr) }
+    def save_state_files(**opts) = @save_files.each { |attr| save_file(attr, **opts) }
 
   private
-    PROJECT_FILE_FIELDS = [:name, :title, :prick_version]
-    DATABASE_STATE_FILE_FIELDS = [:database, :username, :environment]
-    VERSION_FILE_FIELDS = [:version]
+    # Map from state file attribute to list of fields
+    STATE_FILES = {
+      project_file: [:name, :title, :prick_version],
+      database_state_file: [:database, :username, :environment],
+      version_file_fields: [:version]
+    }
+
+    # List of active state file attributes (Symbol). Active state files are
+    # both loaded and saved, while inactive files are only saved
+    attr_reader :active_files
 
     # Return absolute path of val if defined, default is
     # '#@project_dir/default'. Returns nil if false. Used to initialize *_file
     # attributes
-    def file_attr(val, *default)
-      return nil if val == false
-      val == true || val.nil? ? File.join(*default) : File.absolute_path(val)
-    end
+    def file_attr(val, *default) = val.nil? ? File.join(*default) : File.absolute_path(val)
 
-    def load_file(file, fields)
+    def load_file(attr)
+      return load_environment if attr == :environment_file
+      file = self.send(attr)
       return nil if file.nil? || !File.exist?(file)
       h = YAML.load_extended(file)
-      fields.each { |field| self.instance_variable_set(:"@#{field}", h[field]) }
+      STATE_FILES[attr].each { |field| self.instance_variable_set(:"@#{field}", h[field]) }
     end
 
-    def save_file(file, fields, **opts)
+    def save_file(attr, **opts)
+      file = self.send(attr)
       return nil if file.nil?
-      data = fields.map { |field|
-        [field, opts.key?(field) ? opts[field] : self.send(field)] }.to_h
+      data = STATE_FILES[attr].map { |field| [field, opts.key?(field) ? opts[field] : self.send(field)] }.to_h
       IO.write file, data.to_yaml
     end
   end

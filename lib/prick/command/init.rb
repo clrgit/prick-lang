@@ -23,14 +23,16 @@ module Prick::Command
         name: opts.subcommand!.name || project_dirname,
         title: opts.subcommand!.title || project_dirname.capitalize,
         prick_version: Prick::VERSION,
-        version: '0.0.0'
+        version: '0.0.0',
+        load_files: [],
+        save_files: [:project_file]
       )
     end
 
     def run
       create_dirs
       copy_files
-      make_state_files
+      save_state_files
       init_git_repo
     end
 
@@ -47,7 +49,7 @@ module Prick::Command
       }
     end
 
-    def make_state_files
+    def save_state_files
       state.save_project
       state.save_version
     end
@@ -60,9 +62,8 @@ module Prick::Command
     # Destination directory is relative to project directory and the share
     # directory is relative to the prick installation share directory
     FILES = {
-#     "schema/prick" => %w(prick.sql),
-      "schema/prick" => %w(prick.sql version.yml),
-      "." => %w(prick.environment.yml)
+      "schema" => %w(prick public),
+      "." => %w(prick.environment.yml),
     }
   end
 end

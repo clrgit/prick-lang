@@ -81,9 +81,9 @@ module Prick
   #
   # See State for documentation of :opts
   #
-  def self.initialize(**opts)
+  def self.initialize(**opts, &block)
     # Create prick object
-    @@state = State.new(**opts)
+    @@state = State.new(**opts, &block)
   end
 
   def self.error(msg) = ShellOpts.error msg
