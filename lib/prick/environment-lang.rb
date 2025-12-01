@@ -12,7 +12,7 @@ require_relative 'environment-lang/environment.rb'
 require_relative 'environment-lang/environments.rb'
 require_relative 'environment-lang/compiler.rb'
 
-module Prick::Environment
+module Prick::EnvironmentLang
   def self.compile(yaml) = Compiler.compile(yaml)
 end
 

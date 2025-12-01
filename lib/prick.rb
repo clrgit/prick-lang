@@ -51,7 +51,7 @@ module Prick
   DEFAULT_ENVIRONMENT_FILENAME = "prick.environment.yml"
 
   # Default database state file
-  DEFAULT_DATABASE_STATE_FILENAME = "database.state.yml"
+  DEFAULT_DATABASE_STATE_FILENAME = "database-state.yml"
 
   # Default prick state filename
   DEFAULT_COMPILER_STATE_FILENAME = "compiler-state.yml"

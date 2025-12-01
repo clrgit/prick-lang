@@ -105,9 +105,12 @@ module Prick
     # #connection method. Use '#environments[environment]' to get the
     # corresponding Environment object
     def environment() @environment end
+
+    # Sets the current environment. It is not an error if the environment
+    # doesn't exist - this happens when the environment is deleted from the
+    # prick.environment.yml file
     def environment=(env)
       constrain env, String, nil
-      env.nil? || environments.key?(env) or raise "Illegal environment: '#{env}'"
       @environment = env
     end
 
@@ -116,11 +119,17 @@ module Prick
     #
 
     # We assume that we are somewhere in the project directory hierarchy if
-    # :project_dir is nil
+    # :project_dir is nil.
+    #
+    # If a file argument is nil or true, the default value is used. If false,
+    # it is set to nil. Note that non-existing files are ignored so set it to
+    # false only when the file is irrelevant for the current command (eg.
+    # 'prick setup' doesn't need to read the reflections file)
+    #
     def initialize(
         project_dir: nil,
-        environment_file: nil, reflections_file: nil,
-        database_state_file: nil, compiler_state_file: nil, fox_state_file: nil,
+        environment_file: true, reflections_file: true,
+        database_state_file: true, compiler_state_file: false, fox_state_file: false,
         **attrs)
 
       # Set installation and user directories
@@ -129,7 +138,7 @@ module Prick
       @environment_dir = ShellOpts.environment_path
 
       # Search for project file if not given, stop initialization if not found
-      @project_dir = project_dir || FileUtils.upfind(Prick::PROJECT_FILENAME) or
+      @project_dir = project_dir || FileUtils.upfinddir(Prick::PROJECT_FILENAME) or
           Prick.error "Can't find #{Prick::PROJECT_FILENAME}"
 
       # Assign subdirectories
@@ -141,15 +150,15 @@ module Prick
 
       # Assign files using helper method for brevity
       @project_file = File.join @project_dir, Prick::PROJECT_FILENAME
-      @environment_file = file_attr environment_file, Prick::DEFAULT_ENVIRONMENT_FILENAME
-      @reflections_file = file_attr reflections_file, Prick::DEFAULT_ENVIRONMENT_FILENAME
-      @database_state_file = file_attr database_state_file, Prick::DEFAULT_DATABASE_STATE_FILENAME
-      @compiler_state_file = file_attr compiler_state_file, Prick::DEFAULT_COMPILER_STATE_FILENAME
-      @fox_state_file = file_attr fox_state_file, Prick::DEFAULT_FOX_STATE_FILENAME
+      @environment_file = file_attr environment_file, @project_dir, Prick::DEFAULT_ENVIRONMENT_FILENAME
+      @reflections_file = file_attr reflections_file, schema_dir, Prick::DEFAULT_ENVIRONMENT_FILENAME
+      @database_state_file = file_attr database_state_file, state_dir, Prick::DEFAULT_DATABASE_STATE_FILENAME
+      @compiler_state_file = file_attr compiler_state_file, state_dir, Prick::DEFAULT_COMPILER_STATE_FILENAME
+      @fox_state_file = file_attr fox_state_file, state_dir, Prick::DEFAULT_FOX_STATE_FILENAME
       @prick_sql_file = File.join @schema_prick_dir, Prick::PRICK_SQL_FILENAME
 
       # Load project, environment, state, and version files. Ignores absent files
-      load_files if project_dir
+      load_files if project_dir.nil?
 
       # Assign additional attributes
       attrs.each { |attr, value| self.send(:"#{attr}=", value) }
@@ -175,11 +184,13 @@ module Prick
     def load_database_state = load_file @database_state_file, DATABASE_STATE_FILE_FIELDS
     def save_database_state(**opts) = save_file @database_state_file, DATABASE_STATE_FILE_FIELDS, **opts
 
+    # load/save_compiler_state is in the Compiler module
+
     def load_version = load_file @version_file, VERSION_FILE_FIELDS
     def save_version(**opts) = save_file @version_file, VERSION_FILE_FIELDS, **opts
 
-    def load_files() load_project; load_environment; load_database_state; load_version end
-    def save_files() save_project; save_database_state; save_version end
+    def load_files() load_project; load_version; load_environment; load_database_state end
+    def save_files() save_project; save_version; save_database_state end
 
   private
     PROJECT_FILE_FIELDS = [:name, :title, :prick_version]
@@ -187,8 +198,12 @@ module Prick
     VERSION_FILE_FIELDS = [:version]
 
     # Return absolute path of val if defined, default is
-    # '#@project_dir/default'. Used to initialize *_file attributes
-    def file_attr(val, default) = val.nil? ? File.join(@project_dir, default) : File.absolute_path(val)
+    # '#@project_dir/default'. Returns nil if false. Used to initialize *_file
+    # attributes
+    def file_attr(val, *default)
+      return nil if val == false
+      val == true || val.nil? ? File.join(*default) : File.absolute_path(val)
+    end
 
     def load_file(file, fields)
       return nil if file.nil? || !File.exist?(file)

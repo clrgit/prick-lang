@@ -52,7 +52,7 @@ module Prick::Command
       state.save_version
     end
 
-    def create_git_repo
+    def init_git_repo
       # TODO
     end
 

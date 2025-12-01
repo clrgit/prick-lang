@@ -7,6 +7,8 @@ module Prick::EnvironmentLang
     # Compiled Environments object
     attr_reader :environments
 
+    forward_to :environments, :types
+
     def initialize(yaml)
       constrain yaml, Hash
       @yaml = yaml.dup # Read/write copy of input yaml
@@ -28,7 +30,7 @@ module Prick::EnvironmentLang
 
     # Find variables declarations and build name-to-type hash
     def parse_variables
-      decls = @yaml.delete("variables") || ""
+      decls = @yaml.delete(:variables) || ""
       decls.split.each { |decl|
         decl =~ /^(.*):(.*)$/ or error "Illegal declaration of '#{decl}' in variable list"
         name, type = $1.to_sym, $2
@@ -41,9 +43,11 @@ module Prick::EnvironmentLang
     # Parse environment entries
     def parse_environments
       @yaml.each { |environment, variables|
+        environment = environment.to_s
+        variables ||= {}
         assignments = variables.map { |ident, value|
           ident = ident.to_sym
-          case types[ident]
+          case @environments.types[ident]
             when "BOOLEAN"
               [TrueClass, FalseClass].include?(value.class) or error "Illegal value for #{ident}: #{value}"
             when "STRING"
@@ -59,7 +63,7 @@ module Prick::EnvironmentLang
           end
           [ident, value]
         }.to_h
-        @environments.environments[environment] = Environment.new(self, environment, assignments)
+        @environments.environments[environment] = Environment.new(@environments, environment, assignments)
       }
     end
 
@@ -80,7 +84,7 @@ module Prick::EnvironmentLang
       # the current environment
       for env in sorted_environments
         for inherited in env.parents
-          for ident, type in types
+          for ident, type in @environments.types
             next if ident == :comment # Comments are not inherited
             next if !inherited.key?(ident)
             value = inherited[ident]
