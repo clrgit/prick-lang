@@ -31,6 +31,7 @@ module Prick::Command
       create_dirs
       copy_files
       make_state_files
+      init_git_repo
     end
 
   private
@@ -47,8 +48,12 @@ module Prick::Command
     end
 
     def make_state_files
-      Prick.save_project
-      Prick.save_version
+      state.save_project
+      state.save_version
+    end
+
+    def create_git_repo
+      # TODO
     end
 
     # Map from destination directory to files in the share directory.
@@ -57,6 +62,7 @@ module Prick::Command
     FILES = {
 #     "schema/prick" => %w(prick.sql),
       "schema/prick" => %w(prick.sql version.yml),
+      "." => %w(prick.environment.yml)
     }
   end
 end

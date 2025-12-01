@@ -1,5 +1,5 @@
 
-require_relative '../ext/x_fileutils.rb'
+require_relative './ext/x_fileutils.rb'
 
 module Prick
   class State
@@ -130,13 +130,13 @@ module Prick
 
       # Search for project file if not given, stop initialization if not found
       @project_dir = project_dir || FileUtils.upfind(Prick::PROJECT_FILENAME) or
-          Prick.error "Can't find #{Prick::PROJECT_FILENAME)
+          Prick.error "Can't find #{Prick::PROJECT_FILENAME}"
 
       # Assign subdirectories
       @project_dirs = Prick::PROJECT_DIR_ATTRS.map { |attr|
         var = :"@#{attr}"
-        val = const_get(attr.upcase)
-        self.instance_variable_set(var, File.join @project_dir, val)
+        val = Prick.const_get(attr.to_s.upcase + "NAME")
+        self.instance_variable_set(var, File.join(@project_dir, val))
       }
 
       # Assign files using helper method for brevity
@@ -178,8 +178,8 @@ module Prick
     def load_version = load_file @version_file, VERSION_FILE_FIELDS
     def save_version(**opts) = save_file @version_file, VERSION_FILE_FIELDS, **opts
 
-    def load_files() load_project; load_environment; load_version; load_state end
-    def save_files() save_project; save_version; save_state end
+    def load_files() load_project; load_environment; load_database_state; load_version end
+    def save_files() save_project; save_database_state; save_version end
 
   private
     PROJECT_FILE_FIELDS = [:name, :title, :prick_version]
@@ -188,16 +188,18 @@ module Prick
 
     # Return absolute path of val if defined, default is
     # '#@project_dir/default'. Used to initialize *_file attributes
-    def set_file_attr(val, default) = val.nil? ? File.join(@project_dir, default) : File.absolute_path(val)
+    def file_attr(val, default) = val.nil? ? File.join(@project_dir, default) : File.absolute_path(val)
 
     def load_file(file, fields)
-      return nil if !File.exist? file
+      return nil if file.nil? || !File.exist?(file)
       h = YAML.load_extended(file)
       fields.each { |field| self.instance_variable_set(:"@#{field}", h[field]) }
     end
 
     def save_file(file, fields, **opts)
-      data = fields.map { |field| [field, opts.key?(field) ? opts[field] : send.send(field)] }.to_h
+      return nil if file.nil?
+      data = fields.map { |field|
+        [field, opts.key?(field) ? opts[field] : self.send(field)] }.to_h
       IO.write file, data.to_yaml
     end
   end

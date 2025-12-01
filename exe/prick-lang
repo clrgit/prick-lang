@@ -16,19 +16,19 @@ SPEC = %(
     Switch to directory before doing anything else. Used in debug
 
   --environment-file=FILE
-    Environment file. Default is '#{Prick::SCHEMA_DIR}/#{Prick::DEFAULT_ENVIRONMENT_FILENAME}'
+    Environment file. Default is '#{Prick::SCHEMA_DIRNAME}/#{Prick::DEFAULT_ENVIRONMENT_FILENAME}'
 
   --reflections-file=FILE
-    Reflections file. Default is '#{Prick::SCHEMA_DIR}/#{Prick::DEFAULT_REFLECTIONS_FILENAME}'
+    Reflections file. Default is '#{Prick::SCHEMA_DIRNAME}/#{Prick::DEFAULT_REFLECTIONS_FILENAME}'
 
   --database-state-file=FILE
-    Prick database state file. Default is '#{Prick::STATE_DIR}::#{Prick::DEFAULT_DATABASE_STATE_FILENAME}'
+    Prick database state file. Default is '#{Prick::STATE_DIRNAME}::#{Prick::DEFAULT_DATABASE_STATE_FILENAME}'
 
   --compiler-state-file=FILE
-    Prick compiler state file. Default is '#{Prick::STATE_DIR}::#{Prick::DEFAULT_COMPILER_STATE_FILENAME}'
+    Prick compiler state file. Default is '#{Prick::STATE_DIRNAME}::#{Prick::DEFAULT_COMPILER_STATE_FILENAME}'
 
   --fox-state-file=FILE
-    Fox state file. Default is '#{Prick::STATE_DIR}/#{Prick::DEFAULT_FOX_STATE_FILENAME}'
+    Fox state file. Default is '#{Prick::STATE_DIRNAME}/#{Prick::DEFAULT_FOX_STATE_FILENAME}'
 
   --timestamp=TIMESTAMP
     Override timestamp from the compiler state file
@@ -113,16 +113,10 @@ ShellOpts.exception = opts.exception?
 cmd = opts.subcommand!.__name__
 COMMANDS.include?(cmd) or ShellOpts::error "Illegal command #{cmd}"
 
-command =
-    case cmd
-      when "init"; Command::Init.new(opts, args)
-      when "setup"; Command::Setup.new(opts, args)
-      when "build", "make"; Command::BuildMake.new(cmd, opts, args)
-    else
-      ShellOpts.failure "'#{cmd}' command is not implemented yet"
-    end
+# Create command object
+command = Prick::Command.create(cmd, opts, args)
 
-# Initialize constants
+# Execute
 command.run
 
 __END__

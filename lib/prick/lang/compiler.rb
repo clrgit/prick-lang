@@ -1,12 +1,12 @@
 
 module Prick::Lang
   class CompilerProcess
+    include Prick
     include ErrorFunctions
+
     def compiler() @compiler ||= Compiler.instance end
 
-    forward_to :compiler,
-        :prick_database, :prick_username, :prick_environment,
-        :verbose, :log, :dryrun
+    forward_to :compiler, :database, :username, :environment, :verbose, :log, :dryrun
 
     def mode = compiler.mode
     def mode_method() @mode_method ||= "#{mode}?".to_sym end
@@ -24,6 +24,7 @@ module Prick::Lang
   end
 
   class Compiler
+    include Prick
     include ErrorFunctions
     include Prick::Lang::Timer
 
@@ -40,10 +41,10 @@ module Prick::Lang
 #   DEFAULT_STATE_FILE = ".prick.state.yml"
 
     # Database environment from .prick.state
-    forward_to
-    attr_reader :prick_database
-    attr_reader :prick_username
-    attr_reader :prick_environment
+    forward_to :state, :database, :username, :environment
+#   attr_reader :database
+#   attr_reader :username
+#   attr_reader :environment
 
     # Verbosity
     def dryrun? = @dryrun

@@ -1,0 +1,41 @@
+
+# Define variables
+variables: rpms:LIST gems:LIST initial:LIST final:LIST build:TEXT data:TEXT post:TEXT dump:LIST fdw:BOOLEAN
+
+# General environment. Supposed to be inherited by all other environments
+all:
+  # Inherit other environments
+  #
+  # inherit:
+
+  # Phases
+  #
+  # initial:
+  # final:
+  # build:
+  # data:
+  # post:
+  # dump:
+
+  # Comment
+  #
+  # comment:
+
+  # FDW flag (TODO Remove, not very general)
+  #
+  # fdw:
+
+  # Require packages (TODO Remove)
+  # rpms:
+  # gems:
+
+prod:
+  inherit: all
+
+dev:
+  inherit: all
+
+test:
+  inherit: all
+  gems: postspec
+

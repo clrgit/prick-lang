@@ -25,17 +25,17 @@ module Prick
   # Relative paths to subdirectories
   BIN_DIRNAME = "bin"
   SCHEMA_DIRNAME = "schema"
-  SCHEMA_PRICK_DIRNAME = File.join(SCHEMA_DIR, "prick")
+  SCHEMA_PRICK_DIRNAME = File.join(SCHEMA_DIRNAME, "prick")
   TEST_DIRNAME = "spec"
   LIB_DIRNAME = "lib"
   LIBEXEC_DIRNAME = "libexec"
   VAR_DIRNAME = "var"
-  LOG_DIRNAME = File.join(VARDIR, "log")
-  STATE_DIRNAME = File.join(VARDIR, "state")
-  CACHE_DIRNAME = File.join(VARDIR, "cache")
-  SPOOL_DIRNAME = File.join(VARDIR, "spool")
-  BACKUP_DIRNAME = File.join(VARDIR, "backup")
-  DUMP_DIRNAME = File.join(VARDIR, "dump")
+  LOG_DIRNAME = File.join(VAR_DIRNAME, "log")
+  STATE_DIRNAME = File.join(VAR_DIRNAME, "state")
+  CACHE_DIRNAME = File.join(VAR_DIRNAME, "cache")
+  SPOOL_DIRNAME = File.join(VAR_DIRNAME, "spool")
+  BACKUP_DIRNAME = File.join(VAR_DIRNAME, "backup")
+  DUMP_DIRNAME = File.join(VAR_DIRNAME, "dump")
   TMP_DIRNAME = "tmp"
 
   # Project subdirectories ([Symbol]). Keep in sync with project *_DIRNAMES!
@@ -51,7 +51,7 @@ module Prick
   DEFAULT_ENVIRONMENT_FILENAME = "prick.environment.yml"
 
   # Default database state file
-  DEFAULT_DATABASE_STATE_FILE = "database.state.yml"
+  DEFAULT_DATABASE_STATE_FILENAME = "database.state.yml"
 
   # Default prick state filename
   DEFAULT_COMPILER_STATE_FILENAME = "compiler-state.yml"

@@ -1,6 +1,8 @@
 
 module Prick::Command
   class Command
+    include Prick
+
     attr_reader :cmd
     attr_reader :opts
     attr_reader :args
@@ -14,7 +16,7 @@ module Prick::Command
         project_dir: project_dir,
         environment_file: opts.environment_file,
         reflections_file: opts.reflections_file,
-        compiler_stat_file: opts.compiler_state_file,
+        compiler_state_file: opts.compiler_state_file,
         database_state_file: opts.database_state_file,
         fox_state_file: opts.fox_state_file,
         **attrs
@@ -22,6 +24,16 @@ module Prick::Command
     end
 
     def run() = raise
+  end
+
+  def self.create(cmd, opts, args)
+    case cmd
+      when "init"; Prick::Command::Init.new(opts, args)
+      when "setup"; Prick::Command::Setup.new(opts, args)
+      when "build", "make"; Prick::Command::BuildMake.new(cmd, opts, args)
+    else
+      ShellOpts.failure "'#{cmd}' command is not implemented yet"
+    end
   end
 end
 

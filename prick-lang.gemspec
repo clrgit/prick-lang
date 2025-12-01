@@ -36,6 +36,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "forward_to"
   spec.add_dependency "indented_io"
   spec.add_dependency "string-text"
+  spec.add_dependency "dsort"
 
 
   # For more information and examples about making a new gem, check out our
