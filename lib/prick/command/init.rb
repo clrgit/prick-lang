@@ -42,10 +42,15 @@ module Prick::Command
     end
 
     def copy_files
-      FILES.each { |rel_dstdir, rel_files|
+      DIRS.each { |rel_dstdir, rel_files|
         dstdir = File.join(Prick.state.project_dir, rel_dstdir)
         files = rel_files.map { |file| File.join Prick.state.prick_share_dir, file }
         FileUtils.cp_r files, dstdir
+      }
+      FILES.each { |rel_dstfile, rel_srcfile|
+        FileUtils.cp \
+            File.join(Prick.state.prick_share_dir, rel_srcfile), 
+            File.join(Prick.state.project_dir, rel_dstfile)
       }
     end
 
@@ -61,9 +66,16 @@ module Prick::Command
     # Map from destination directory to files in the share directory.
     # Destination directory is relative to project directory and the share
     # directory is relative to the prick installation share directory
-    FILES = {
+    DIRS = {
       "schema" => %w(prick public make.prick),
-      "." => %w(prick.environment.yml),
+      "." => %w(prick.environment.yml spec),
+    }
+
+    # Map from destination file relative to project directory to source file
+    # relative to installation share directory. This is used for files that needs
+    # to be renamed
+    FILES = {
+      ".gitignore" => "dot.gitignore"
     }
   end
 end

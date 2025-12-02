@@ -1,0 +1,50 @@
+
+# Set up paths to fox-project libraries
+libdirs = `fox-project-libdirs 2>/dev/null`.chomp.split(":")
+if !libdirs.empty?
+  $LOAD_PATH.unshift(*libdirs)
+end
+
+require "bundler/setup"
+
+RSpec.configure do |config|
+  # Enable flags like --only-failures and --next-failure
+  config.example_status_persistence_file_path = ".rspec_status"
+
+  # Disable RSpec exposing methods globally on `Module` and `main`
+  # config.disable_monkey_patching!
+
+  config.expect_with :rspec do |c|
+    c.syntax = :expect
+  end
+end
+
+# Silence most of the output from pending tests. See https://github.com/rspec/rspec-core/issues/2377
+module FormatterOverrides
+  def example_pending(n)
+    colorizer=::RSpec::Core::Formatters::ConsoleCodes
+    output << current_indentation \
+           << colorizer.wrap(n.example.description, :pending) \
+           << "\n"
+  end
+
+  def dump_pending(_)
+  end
+end
+
+RSpec::Core::Formatters::DocumentationFormatter.prepend FormatterOverrides
+
+# Postspec
+require "postspec"
+require 'postspec_helper'
+require 'prick_helper'
+
+Postspec.configure do |config|
+  config.database = Prick.state.database
+  # config.anchors = "..."
+  config.mode = :seed
+  config.reflections = Prick::REFLECTIONS_PATH if File.exist?(Prick::REFLECTIONS_PATH)
+end
+
+# Local modifications
+
