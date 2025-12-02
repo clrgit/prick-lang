@@ -1,0 +1,9 @@
+
+schema s {
+  copy
+  sync 
+  merge
+
+  update {
+  }
+

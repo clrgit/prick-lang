@@ -15,4 +15,11 @@
 # Ignore Gemfile.lock. See https://stackoverflow.com/questions/4151495/should-gemfile-lock-be-included-in-gitignore
 /Gemfile.lock
 
+# Ignore scratch files from the top-level directory
+/*.rb
+/*.sql
+/dumps
+/gryf
+
 # Put your personal ignore files in /home/clr/.config/git/ignore
+

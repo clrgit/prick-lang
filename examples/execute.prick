@@ -1,0 +1,28 @@
+
+schema s {
+  s.sql
+
+  merge {
+    # File
+    t.sql
+
+    # Fox file
+    t.fox
+
+    # SQL expr
+    sql |
+      select 1
+
+    # Exec
+    exec |
+      ls -l
+
+    # Eval
+    eval |
+      ls -r
+
+    copy a_table
+    handled another_table
+  }
+
+}

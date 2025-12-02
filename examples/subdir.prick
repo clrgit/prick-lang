@@ -1,0 +1,7 @@
+
+begin.sql
+example.d/ # File defaults to make.prick
+example.d/file-in-example-d.sql
+end.sql
+exec ls
+

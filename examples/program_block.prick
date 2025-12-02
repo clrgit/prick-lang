@@ -1,0 +1,6 @@
+
+if env prod
+  schema a {
+    a.sql
+  }
+end

@@ -1,0 +1,33 @@
+
+#initial.sql
+if false
+  t.sql
+end
+
+check t.sh
+  t.sql
+end
+final.sql
+
+
+__END__
+
+schema my_schema {
+  init { init.sql }
+  seed { seed1.sql seed2.sql }
+  term { term.sql }
+  self.sql
+  provide prop
+  last.sql
+}
+
+schema another_schema {
+  another.sql
+}
+
+before.sql
+require my_schema.prop
+after.sql
+require my_schema
+require another_schema
+

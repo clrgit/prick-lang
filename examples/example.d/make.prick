@@ -1,0 +1,25 @@
+
+
+schema example {
+  init {
+    example-init.sql
+  }
+
+  example_d.sql
+
+  exec |
+    echo in example.d
+    ls
+
+  exec single-line
+
+  seed {
+    example-seed.sql
+  }
+
+  term {
+    example-term.sql
+  }
+}
+
+example-outer-scope.sql

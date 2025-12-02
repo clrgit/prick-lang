@@ -1,0 +1,22 @@
+
+schema a {
+  # has_a is unresolved
+  if resource has_a
+    if resource has_b
+      has_b.sql
+    else
+      not_has_b.sql
+    end
+  else
+    if resource has_b
+      not_has_a_has_b.sql
+    else
+      not_has_a_not_has_b.sql
+    end
+  end
+
+  if ! resource has_a
+    provide has_b
+    has_b.sql
+  end
+}

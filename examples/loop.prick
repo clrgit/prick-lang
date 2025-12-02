@@ -1,0 +1,28 @@
+
+if ! true
+  true.sql
+end
+
+if ~ check.sh && true
+  true.sql
+end
+
+__END__
+
+if ! ( $env = prod )
+  true.sql
+else
+  false.sql
+end
+
+if ! ( $env = prod )
+  true.sql
+else
+  false.sql
+end
+
+if ~check.sql
+  true.sql
+else
+  false.sql
+end

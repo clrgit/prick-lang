@@ -1,0 +1,36 @@
+
+schema s {
+
+  merge {
+    exec ls
+
+    copy tablename
+    copy tablename anothertablename
+
+    sync tablename keyname
+    sync tablename keyname id_table
+    sync tablename keyname |
+      select sql
+
+    prepare tablename keyname
+    prepare tablename keyname id_table
+    prepare tablename keyname |
+      select sql
+
+    handled tablename
+    handled tablename anothertablename
+
+    exec |
+      ls -l
+      ls -s
+    eval |
+      echo hej
+
+    t.sql
+    f.fox
+    sql |
+      select something
+
+  }
+}
+

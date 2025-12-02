@@ -1,0 +1,10 @@
+
+# Schema
+schema my_schema {
+  sql |
+    select 1
+    from table
+    where column = 42
+ # call my_function
+}
+

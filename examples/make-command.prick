@@ -1,0 +1,24 @@
+
+#before.sql
+
+make s.rb s.data |
+  s.rb <s.data >s.sql
+
+echo hej med dig
+
+echo |
+  a longer
+  text
+
+#s.sql
+#
+#provide a
+#
+#make t.rb t.data
+# exec t.rb <t.data >t.sql
+#end
+#
+#t.sql
+#
+#after.sql
+

@@ -1,0 +1,15 @@
+
+schema example {
+  a.sql
+  meta myschema.mytable localtable
+  b.sql
+
+  merge {
+    exec |
+      ls
+  }
+}
+
+require example
+
+

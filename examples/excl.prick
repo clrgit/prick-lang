@@ -1,0 +1,56 @@
+
+
+schema a {
+  init {
+    a-init.sql
+  }
+
+  a-this.sql
+
+  seed {
+    a-seed.sql
+  }
+
+  term {
+    a-term.sql
+  }
+
+  auth {
+    a-auth.sql
+  }
+}
+
+schema b {
+  init {
+    b-init.sql
+  }
+
+  b-this.sql
+
+  seed {
+    b-seed.sql
+  }
+
+  term {
+    b-term.sql
+  }
+}
+
+init {
+  main-init.sql
+}
+
+term {
+  main-term.sql
+}
+
+seed {
+  main-seed.sql
+}
+
+auth {
+  main-auth.sql
+}
+
+require a
+#require b
