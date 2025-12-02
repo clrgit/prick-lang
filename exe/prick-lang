@@ -15,6 +15,12 @@ SPEC = %(
   -C,directory=DIR
     Switch to directory before doing anything else. Used in debug
 
+  --timestamp=TIMESTAMP
+    Override timestamp from the compiler state file
+
+  +x,exclude=SCHEMA,
+    Comma-separated list of excluded schemas
+
   --environment-file=FILE
     Environment file. Default is '#{Prick::SCHEMA_DIRNAME}/#{Prick::DEFAULT_ENVIRONMENT_FILENAME}'
 
@@ -29,12 +35,6 @@ SPEC = %(
 
   --fox-state-file=FILE
     Fox state file. Default is '#{Prick::STATE_DIRNAME}/#{Prick::DEFAULT_FOX_STATE_FILENAME}'
-
-  --timestamp=TIMESTAMP
-    Override timestamp from the compiler state file
-
-  +x,exclude=SCHEMA,
-    Comma-separated list of excluded schemas
 
   --dump=tokens|ast|idr|links|deps|marks|units|state,
     Dump debug. Default is 'ast'

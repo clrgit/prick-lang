@@ -127,6 +127,13 @@ module Prick
     end
 
     #
+    # R U N T I M E   O P T I O N S
+    #
+    def verbose? = @verbose
+    def dryrun? = @dryrun
+    def log = @log
+
+    #
     # I N I T I A L I Z E
     #
 
@@ -142,7 +149,7 @@ module Prick
         project_dir: nil,
         environment_file: nil, reflections_file: nil,
         database_state_file: nil, compiler_state_file: nil, fox_state_file: nil,
-        load_files: [:project_file], # :project_file is always loaded if present
+        load_files: [:project_file, :version_file], # :project_file is always loaded if present
         save_files: [],
         **attrs)
 
@@ -165,6 +172,7 @@ module Prick
       # Assign files using helper method for brevity
       @prick_file = File.join schema_dir, Prick::DEFAULT_SOURCE_FILENAME
       @project_file = File.join @project_dir, Prick::PROJECT_FILENAME
+      @version_file = File.join schema_prick_dir, Prick::VERSION_FILENAME
       @environment_file = file_attr environment_file, @project_dir, Prick::DEFAULT_ENVIRONMENT_FILENAME
       @reflections_file = file_attr reflections_file, schema_dir, Prick::DEFAULT_ENVIRONMENT_FILENAME
       @database_state_file = file_attr database_state_file, state_dir, Prick::DEFAULT_DATABASE_STATE_FILENAME
@@ -173,7 +181,7 @@ module Prick
       @prick_sql_file = File.join @schema_prick_dir, Prick::PRICK_SQL_FILENAME
 
       # Register state files to load/save
-      @load_files = ([:project_file] + load_files).uniq
+      @load_files = ([:project_file, :version_file] + load_files).uniq
       @save_files = save_files
 
       # Load state files. Absent files are ignored
@@ -212,11 +220,13 @@ module Prick
     def save_state_files(**opts) = @save_files.each { |attr| save_file(attr, **opts) }
 
   private
+    attr_writer :verbose, :dryrun, :log
+
     # Map from state file attribute to list of fields
     STATE_FILES = {
       project_file: [:name, :title, :prick_version],
       database_state_file: [:database, :username, :environment],
-      version_file_fields: [:version]
+      version_file: [:version]
     }
 
     # List of active state file attributes (Symbol). Active state files are

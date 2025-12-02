@@ -47,6 +47,9 @@ module Prick
   # Project filename
   PROJECT_FILENAME = "prick.yml"
 
+  # Version filename
+  VERSION_FILENAME = "version.yml"
+
   # Default environment filename
   DEFAULT_ENVIRONMENT_FILENAME = "prick.environment.yml"
 

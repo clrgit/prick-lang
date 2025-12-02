@@ -19,7 +19,10 @@ module Prick::Command
           reflections_file: opts.reflections_file,
           database_state_file: opts.database_state_file,
           compiler_state_file: opts.compiler_state_file,
-          fox_state_file: opts.fox_state_file
+          fox_state_file: opts.fox_state_file,
+          verbose: opts.verbose?,
+          dryrun: opts.dryrun?,
+          log: opts.log?
         }.select { |k,v| !v.nil? })
       )
     end

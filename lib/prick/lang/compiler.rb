@@ -30,26 +30,11 @@ module Prick::Lang
 
     DEFAULT_TARGET = "<main>"
 
-#   # Default source file name (excl. extension)
-#   DEFAULT_SOURCE_NAME = "make"
-#
-#   # Default source file ('make.prick'). Also used when including directories
-#   # (eg. './dir' becomes './dir/make.prick')
-#   DEFAULT_SOURCE_FILE = "#{DEFAULT_SOURCE_NAME}.#{Token::PRICK_EXT}"
-
-#   # Default state file. Contains prick database, username, and environment
-#   DEFAULT_STATE_FILE = ".prick.state.yml"
-
-    # Database environment from .prick.state
+    # Database environment
     forward_to :state, :database, :username, :environment
-#   attr_reader :database
-#   attr_reader :username
-#   attr_reader :environment
 
-    # Verbosity
-    def dryrun? = @dryrun
-    def verbose? = ShellOpts.verbose?
-    def log? = @log
+    # Runtime options
+    forward_to :state, :dryrun?, :verbose?, :log?
 
     # Source and environment
     attr_reader :dir # Current user directory when the compiler was invoked
@@ -74,7 +59,7 @@ module Prick::Lang
     def units = @generator.units # [Unit::Node]. Initialized by #generate
 
     # State data TODO: Move to database
-    def state_file = Prick.state.compiler_state_file
+    def state_file = state.compiler_state_file
     attr_reader :timestamp # Time - time of last successful run. Default epoch
     attr_reader :completed_resources # [uid] - Completed resource
 
@@ -86,10 +71,7 @@ module Prick::Lang
         mode: :build,
         timestamp: nil,
         exclude: [],
-        variables: {},
-        verbose: false,
-        dryrun: false,
-        log: false)
+        variables: {})
 
       constrain file, String
       constrain targets, [String]
@@ -107,8 +89,6 @@ module Prick::Lang
       @sources = []
       @targets = targets
       @timestamp = timestamp
-      @dryrun = dryrun
-      @log = log
       @exclude = exclude
       @variables = variables
       @parser = Parser.new
@@ -131,7 +111,7 @@ module Prick::Lang
       t0 = Time.now
       ShellOpts.verb "Compiling '#{file}'"
 
-      indent(ShellOpts.verbose?) {
+      indent(verbose?) {
         load_compiler_state
 
         time "Parsing" do

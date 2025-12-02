@@ -12,10 +12,11 @@ module Prick::Command
     def initialize(cmd, opts, args)
       super \
           cmd, opts, args,
-          load_files: [:environment_file, :database_state_file, :compiler_state_file]
+          load_files: [:environment_file, :database_state_file, :compiler_state_file],
+          save_files: [:database_state_file, :compiler_state_file]
 
       # Define builtin variables and extract additional variables from command line
-      variables = BUILTIN_VARIABLES.map { |attr| [attr.to_s, state.send(attr)] }.to_h
+      variables = BUILTIN_VARIABLES.map { |attr| [attr, state.send(attr)] }.to_h
       while arg = args.first and arg =~ /^(\w+)=(\S*)$/
         variables[$1.to_sym] = $2
         args.shift
@@ -31,14 +32,12 @@ module Prick::Command
 
       # Create compiler object
       @compiler = Prick::Lang::Compiler.new(
-          file, targets,
+          state.prick_file, targets,
           mode: cmd.to_sym,
-          state_file: opts.state_file,
           timestamp: opts.timestamp && Time.parse(opts.timestamp),
-          exclude: opts.exclude?,
-          dryrun: opts.dryrun?,
-          variables: variables,
-          log: log)
+          exclude: opts.exclude,
+          variables: variables
+      )
     end
 
     def run
