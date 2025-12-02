@@ -185,7 +185,7 @@ module Prick::Lang
     end
 
     def parse_file
-      if peek.extname == Token::PRICK_EXT
+      if peek.extname == Prick::SOURCE_EXT
         parse_prick_file
       else
         command = Ast::FileCommand.new peek
@@ -195,7 +195,7 @@ module Prick::Lang
     end
 
     def parse_dir
-      parse_prick_file File.join(peek_token.path, Compiler::DEFAULT_SOURCE_FILE)
+      parse_prick_file File.join(peek_token.path, Prick::DEFAULT_SOURCE_FILENAME)
     end
 
     def parse_prick_file(path = nil)

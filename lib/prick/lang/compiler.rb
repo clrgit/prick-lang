@@ -111,6 +111,8 @@ module Prick::Lang
       t0 = Time.now
       ShellOpts.verb "Compiling '#{file}'"
 
+      Dir.chdir state.schema_dir # FIXME HACK
+
       indent(verbose?) {
         load_compiler_state
 

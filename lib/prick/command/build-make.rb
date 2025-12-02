@@ -12,8 +12,8 @@ module Prick::Command
     def initialize(cmd, opts, args)
       super \
           cmd, opts, args,
-          load_files: [:environment_file, :database_state_file, :compiler_state_file],
-          save_files: [:database_state_file, :compiler_state_file]
+          load_files: [:environment_file, :database_state_file],
+          save_files: [:database_state_file]
 
       # Define builtin variables and extract additional variables from command line
       variables = BUILTIN_VARIABLES.map { |attr| [attr, state.send(attr)] }.to_h
@@ -41,11 +41,8 @@ module Prick::Command
     end
 
     def run
-      puts "RUNNING RETURN"
-      return
       begin
         compiler.interpret
-        super
       rescue => ex
         raise Prick::Lang::ErrorFunctions.pretty_backtrace!(ex)
       end

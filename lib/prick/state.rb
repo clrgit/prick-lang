@@ -131,7 +131,7 @@ module Prick
     #
     def verbose? = @verbose
     def dryrun? = @dryrun
-    def log = @log
+    def log? = @log
 
     #
     # I N I T I A L I Z E

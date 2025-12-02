@@ -62,7 +62,7 @@ module Prick::Command
     # Destination directory is relative to project directory and the share
     # directory is relative to the prick installation share directory
     FILES = {
-      "schema" => %w(prick public),
+      "schema" => %w(prick public make.prick),
       "." => %w(prick.environment.yml),
     }
   end
