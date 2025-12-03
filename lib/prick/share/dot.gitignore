@@ -1,10 +1,4 @@
 
-# Local database and environment
-/.prick-state.yml
-
-# Fox state file
-/.fox-state.yml
-
-# rspec failure tracking
-.rspec_status
+# State files
+/var
 

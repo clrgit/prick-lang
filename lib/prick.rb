@@ -99,6 +99,10 @@ private
   @@state = nil
 end
 
+require_relative './prick/bash.rb'
+require_relative './prick/git.rb'
+require_relative './prick/ansi.rb'
+
 require_relative './prick/state.rb'
 
 require_relative './prick/lang.rb'

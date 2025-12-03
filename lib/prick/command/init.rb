@@ -32,15 +32,22 @@ module Prick::Command
     def run
       create_dirs
       copy_files
-      save_state_files
       init_git_repo
+      save_state_files
+      make_git_release
     end
 
   private
+    # Create directory structure. All directories will have a .keep file inside
+    # to make git keep the directory instead of ignoring it
     def create_dirs
-      FileUtils.mkdir_p Prick.state.project_dirs
+      for dir in Prick.state.project_dirs
+        FileUtils.mkdir_p dir
+        FileUtils.touch File.join dir, ".keep"
+      end
     end
 
+    # Copy files from the prick installation share directory
     def copy_files
       DIRS.each { |rel_dstdir, rel_files|
         dstdir = File.join(Prick.state.project_dir, rel_dstdir)
@@ -54,13 +61,35 @@ module Prick::Command
       }
     end
 
+    # Create initial import commit. This commit only includes standard files
+    # copied verbatim from the installation directory
+    def init_git_repo
+      Dir.chdir state.project_dir do
+        Bash.command %(
+          git init .
+          git add .
+          git commit -m "Initial import"
+        ), fail: true
+        Bash.status == 0 or Prick.failure "Failed creating initial import"
+      end
+    end
+
+    # Save project state and version
     def save_state_files
       state.save_project
       state.save_version
     end
 
-    def init_git_repo
-      # TODO
+    # Create first release including project files
+    def make_git_release
+      Dir.chdir state.project_dir do
+        Bash.command %(
+          git add #{state.project_file} #{state.version_file}
+          git commit -m "Release 0.0.0"
+          git tag --message "Initial Release" v0.0.0
+        ), fail: false
+        Bash.status == 0 or Prick.failure "Failed creating initial release"
+      end
     end
 
     # Map from destination directory to files in the share directory.
@@ -71,14 +100,66 @@ module Prick::Command
       "." => %w(prick.environment.yml spec),
     }
 
-    # Map from destination file relative to project directory to source file
-    # relative to installation share directory. This is used for files that needs
-    # to be renamed
+    # Map from destination file (relative to project directory) to source file
+    # (relative to the installation share directory). This is only used for
+    # files that needs to be renamed (eg. dot.gitignore -> .gitignore)
     FILES = {
       ".gitignore" => "dot.gitignore"
     }
   end
 end
 
+__END__
 
+  # FIXME: Ignores -p, -e, -s, -f options
+  def self.init(project_file, dir, name, title) # dir, name, and title can be nil
+    cwd = Dir.getwd
+    if dir
+      !File.exist?(dir) or Prick.error "Directory #{dir} exists"
+      FileUtils.mkdir_p(dir)
+      Dir.chdir(dir)
+    else
+      dir = "."
+    end
+    dirname = File.basename(Dir.getwd)
+    name ||= dirname
+    title ||= name.gsub(/[_-]/, " ").capitalize
+
+    # Note that the initial project file is invalid and is removed again after
+    # the initial commit
+    Command.command %(
+      git init .
+      dir=#{SHARE_PATH}/init
+      for path in $dir/*; do
+        source_file=$(basename $path)
+        dest_file=$(sed 's/^dot\././' <<<$source_file)
+        cp -a $dir/$source_file $dest_file
+      done
+      git add .
+      git commit -am "Initial import"
+      rm -f #{project_file}
+    ), fail: false
+    Command.status == 0 or Prick.failure "Failed creating initial import"
+
+    # Write (valid) configuration file
+    state = State.new(project_file, nil, nil, nil, nil)
+    state.name = name
+    state.title = title
+    state.prick_version = PrickVersion.new VERSION
+    state.version = PrickVersion.new("0.0.0")
+    state.save_project
+
+    # Commit configuration file and create initial release
+    Command.command %(
+      set -e
+      git add #{project_file}
+      git commit -am "Release 0.0.0"
+      git tag --message "Initial Release" v0.0.0
+    ), fail: false
+    Command.status == 0 or Prick.failure "Failed creating initial release"
+
+    Dir.chdir(cwd)
+    [dir, name]
+  end
+end
 
