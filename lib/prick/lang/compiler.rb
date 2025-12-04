@@ -316,7 +316,7 @@ module Prick::Lang
 
     def save_compiler_state
       File.write state_file, {
-        timestamp: Time.now.strftime(Prick::TIMESTAMP_FMT),
+        timestamp: Time.now.strftime(Prick::TIMESTAMP_FMT,
         completed_resources: @completed_resources
       }.to_yaml
     end

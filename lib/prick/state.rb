@@ -201,6 +201,9 @@ module Prick
     def load_project = load_file :project_file
     def save_project(**opts) = save_file :project_file, **opts
 
+    def load_version = load_file :version_file
+    def save_version(**opts) = save_file :version_file, **opts
+
     def load_environment
       return nil if environment_file.nil? || !File.exist?(environment_file)
       hash = YAML.load_extended environment_file
@@ -212,9 +215,6 @@ module Prick
     def save_database_state(**opts) = save_file :database_state_file, **opts
 
     # load/save_compiler_state is in the Compiler module
-
-    def load_version = load_file :version_file
-    def save_version(**opts) = save_file :version_file, **opts
 
     def load_state_files = @load_files.each { |attr| load_file(attr) }
     def save_state_files(**opts) = @save_files.each { |attr| save_file(attr, **opts) }
