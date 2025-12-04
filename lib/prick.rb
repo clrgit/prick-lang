@@ -80,18 +80,18 @@ module Prick
   # (eg. './dir' becomes './dir/make.prick')
   DEFAULT_SOURCE_FILENAME = "make.#{SOURCE_EXT}"
 
-  # State object
-  def self.state = @@state
-  def state = Prick.state
+  # Settings object
+  def self.settings = @@settings
+  def settings = Prick.settings
 
   # :call-seq
   #   self.initialize(**opts)
   #
-  # See State for documentation of :opts
+  # See Settings for documentation of :opts
   #
   def self.initialize(**opts, &block)
     # Create prick object
-    @@state = State.new(**opts, &block)
+    @@settings = Settings.new(**opts, &block)
   end
 
   def self.error(msg) = ShellOpts.error msg
@@ -108,7 +108,7 @@ require_relative './prick/bash.rb'
 require_relative './prick/git.rb'
 require_relative './prick/ansi.rb'
 
-require_relative './prick/state.rb'
+require_relative './prick/settings.rb'
 
 require_relative './prick/lang.rb'
 require_relative './prick/environment-lang.rb'

@@ -16,7 +16,7 @@ module Prick::Command
           save_files: [:database_state_file]
 
       # Define builtin variables and extract additional variables from command line
-      variables = BUILTIN_VARIABLES.map { |attr| [attr, state.send(attr)] }.to_h
+      variables = BUILTIN_VARIABLES.map { |attr| [attr, settings.send(attr)] }.to_h
       while arg = args.first and arg =~ /^(\w+)=(\S*)$/
         variables[$1.to_sym] = $2
         args.shift
@@ -32,7 +32,7 @@ module Prick::Command
 
       # Create compiler object
       @compiler = Prick::Lang::Compiler.new(
-          state.prick_file, targets,
+          settings.prick_file, targets,
           mode: cmd.to_sym,
           timestamp: opts.timestamp && Time.parse(opts.timestamp),
           exclude: opts.exclude,

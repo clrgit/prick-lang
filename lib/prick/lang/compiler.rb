@@ -61,7 +61,7 @@ module Prick::Lang
     # State data TODO: Move to database
     #
     # State data have default values that are overwriten by #load_compiler_state
-    def state_file = state.compiler_state_file
+    def state_file = settings.compiler_state_file
     attr_reader :timestamp # Time - time of last successful run. Default epoch
     attr_reader :completed_resources # [uid] - Completed resource
 
@@ -113,7 +113,7 @@ module Prick::Lang
       t0 = Time.now
       ShellOpts.verb "Compiling '#{file}'"
 
-      Dir.chdir state.schema_dir # FIXME HACK
+      Dir.chdir settings.schema_dir # FIXME HACK
 
       indent(verbose?) {
         load_compiler_state
@@ -306,9 +306,6 @@ module Prick::Lang
     #
 
     def load_compiler_state
-
-      puts "#load_compiler_state"
-
       data = File.exist?(state_file) ? YAML.load_extended(state_file) : {}
       @timestamp ||= Time.parse(data[:timestamp] || Prick::EPOCH)
       @completed_resources = data[:completed_resources] || []
@@ -316,7 +313,7 @@ module Prick::Lang
 
     def save_compiler_state
       File.write state_file, {
-        timestamp: Time.now.strftime(Prick::TIMESTAMP_FMT,
+        timestamp: Time.now.strftime(Prick::TIMESTAMP_FMT),
         completed_resources: @completed_resources
       }.to_yaml
     end

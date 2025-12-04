@@ -40,7 +40,7 @@ require 'postspec_helper'
 require 'prick_helper'
 
 Postspec.configure do |config|
-  config.database = Prick.state.database
+  config.database = Prick.settings.database
   # config.anchors = "..."
   config.mode = :seed
   config.reflections = Prick::REFLECTIONS_PATH if File.exist?(Prick::REFLECTIONS_PATH)

@@ -23,7 +23,7 @@ module Prick::Command
     def run
 #     create_database(PRICK_DATABASE, PRICK_USERNAME, PRICK_ENVIRONMENT)
 #     set_database(PRICK_DATABASE, PRICK_ENVIRONMENT)
-      state.save_database_state
+      settings.save_database_state
     end
   end
 end

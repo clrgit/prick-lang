@@ -41,7 +41,7 @@ module Prick::Command
     # Create directory structure. All directories will have a .keep file inside
     # to make git keep the directory instead of ignoring it
     def create_dirs
-      for dir in Prick.state.project_dirs
+      for dir in Prick.settings.project_dirs
         FileUtils.mkdir_p dir
         FileUtils.touch File.join dir, ".keep"
       end
@@ -50,21 +50,21 @@ module Prick::Command
     # Copy files from the prick installation share directory
     def copy_files
       DIRS.each { |rel_dstdir, rel_files|
-        dstdir = File.join(Prick.state.project_dir, rel_dstdir)
-        files = rel_files.map { |file| File.join Prick.state.prick_share_dir, file }
+        dstdir = File.join(Prick.settings.project_dir, rel_dstdir)
+        files = rel_files.map { |file| File.join Prick.settings.prick_share_dir, file }
         FileUtils.cp_r files, dstdir
       }
       FILES.each { |rel_dstfile, rel_srcfile|
         FileUtils.cp \
-            File.join(Prick.state.prick_share_dir, rel_srcfile), 
-            File.join(Prick.state.project_dir, rel_dstfile)
+            File.join(Prick.settings.prick_share_dir, rel_srcfile), 
+            File.join(Prick.settings.project_dir, rel_dstfile)
       }
     end
 
     # Create initial import commit. This commit only includes standard files
     # copied verbatim from the installation directory
     def init_git_repo
-      Dir.chdir state.project_dir do
+      Dir.chdir settings.project_dir do
         Bash.command %(
           git init .
           git add .
@@ -76,15 +76,15 @@ module Prick::Command
 
     # Save project state and version
     def save_state_files
-      state.save_project
-      state.save_version
+      settings.save_project
+      settings.save_version
     end
 
     # Create first release including project files
     def make_git_release
-      Dir.chdir state.project_dir do
+      Dir.chdir settings.project_dir do
         Bash.command %(
-          git add #{state.project_file} #{state.version_file}
+          git add #{settings.project_file} #{settings.version_file}
           git commit -m "Release 0.0.0"
           git tag --message "Initial Release" v0.0.0
         ), fail: false
@@ -143,11 +143,11 @@ __END__
 
     # Write (valid) configuration file
     state = State.new(project_file, nil, nil, nil, nil)
-    state.name = name
-    state.title = title
-    state.prick_version = PrickVersion.new VERSION
-    state.version = PrickVersion.new("0.0.0")
-    state.save_project
+    settings.name = name
+    settings.title = title
+    settings.prick_version = PrickVersion.new VERSION
+    settings.version = PrickVersion.new("0.0.0")
+    settings.save_project
 
     # Commit configuration file and create initial release
     Command.command %(

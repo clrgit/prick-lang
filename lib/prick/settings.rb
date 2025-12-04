@@ -2,7 +2,7 @@
 require_relative './ext/x_fileutils.rb'
 
 module Prick
-  class State
+  class Settings
     #
     # D I R E C T O R I E S
     #
@@ -93,6 +93,12 @@ module Prick
     # database is absent
     attr_accessor :username
 
+    # Name of current environment. If not set in the state file, the enviroment
+    # is read from the database when the first connection is established by the
+    # #connection method. Use '#environments[environment]' to get the
+    # corresponding Environment object
+    attr_accessor :environment
+
     # Project version from PRICK.VERSIONS. Initialized when connecting to the database
     attr_accessor :database_version
 
@@ -111,20 +117,6 @@ module Prick
 
     # Map from environment name to environment object
     attr_reader :environments # {String => Environment}
-
-    # Name of current environment. If not set in the state file, the enviroment
-    # is read from the database when the first connection is established by the
-    # #connection method. Use '#environments[environment]' to get the
-    # corresponding Environment object
-    def environment() @environment end
-
-    # Sets the current environment. It is not an error if the environment
-    # doesn't exist - this happens when the environment is deleted from the
-    # prick.environment.yml file
-    def environment=(env)
-      constrain env, String, nil
-      @environment = env
-    end
 
     #
     # R U N T I M E   O P T I O N S
@@ -204,7 +196,7 @@ module Prick
     def load_version = load_file :version_file
     def save_version(**opts) = save_file :version_file, **opts
 
-    def load_environment
+    def load_environments
       return nil if environment_file.nil? || !File.exist?(environment_file)
       hash = YAML.load_extended environment_file
       @environments = EnvironmentLang.compile(hash)
@@ -239,7 +231,7 @@ module Prick
     def file_attr(val, *default) = val.nil? ? File.join(*default) : File.absolute_path(val)
 
     def load_file(attr)
-      return load_environment if attr == :environment_file
+      return load_environments if attr == :environment_file
       file = self.send(attr)
       return nil if file.nil? || !File.exist?(file)
       h = YAML.load_extended(file)
