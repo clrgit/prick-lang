@@ -382,7 +382,7 @@ module Prick::Lang
 
   class ProgramToken < FileToken
     def initialize(path, lineno, charno)
-      m = FILE_RE.match(path) or raise InternalError
+      m = FILE_RE.match(path) or raise Prick::InternalError
       dirname = m[:filepath]
       filename = m[:file]
       extname = m[:ext]

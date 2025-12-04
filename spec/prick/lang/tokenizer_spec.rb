@@ -4,7 +4,7 @@ describe "Prick::Lang" do
   using String::Text
 
   describe "Tokenizer" do
-    def file = "file.txt" # Considered a constant
+    def file = "file.prick" # Considered a constant
 
     def make(lines)
       compiler = Prick::Lang::Compiler.new(file)

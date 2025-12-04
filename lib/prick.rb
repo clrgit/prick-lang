@@ -22,6 +22,11 @@ module Prick
   class Error < StandardError; end
   class InternalError < Error; end
 
+  # Time constants
+  EPOCH = "1970-01-01 00:00:00 UTC"
+  EPOCH_TIMESTAMP = Time.parse(EPOCH)
+  TIMESTAMP_FMT ="%Y-%m-%d %H:%M:%S %Z"
+
   # Relative paths to subdirectories
   BIN_DIRNAME = "bin"
   SCHEMA_DIRNAME = "schema"

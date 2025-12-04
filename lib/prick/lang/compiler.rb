@@ -59,6 +59,8 @@ module Prick::Lang
     def units = @generator.units # [Unit::Node]. Initialized by #generate
 
     # State data TODO: Move to database
+    #
+    # State data have default values that are overwriten by #load_compiler_state
     def state_file = state.compiler_state_file
     attr_reader :timestamp # Time - time of last successful run. Default epoch
     attr_reader :completed_resources # [uid] - Completed resource
@@ -304,14 +306,17 @@ module Prick::Lang
     #
 
     def load_compiler_state
+
+      puts "#load_compiler_state"
+
       data = File.exist?(state_file) ? YAML.load_extended(state_file) : {}
-      @timestamp ||= Time.parse(data[:timestamp] || "1970-01-01 00:00:00 UTC")
+      @timestamp ||= Time.parse(data[:timestamp] || Prick::EPOCH)
       @completed_resources = data[:completed_resources] || []
     end
 
     def save_compiler_state
       File.write state_file, {
-        timestamp: Time.now.strftime("%Y-%m-%d %H:%M:%S %Z"),
+        timestamp: Time.now.strftime(Prick::TIMESTAMP_FMT),
         completed_resources: @completed_resources
       }.to_yaml
     end

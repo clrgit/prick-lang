@@ -109,8 +109,8 @@ module Prick
     # E N V I R O N M E N T S
     #
 
-    # Map from environment name (String) to environment object
-    attr_reader :environments
+    # Map from environment name to environment object
+    attr_reader :environments # {String => Environment}
 
     # Name of current environment. If not set in the state file, the enviroment
     # is read from the database when the first connection is established by the
@@ -169,7 +169,7 @@ module Prick
         self.instance_variable_set(var, File.join(@project_dir, val))
       }
 
-      # Assign files using helper method for brevity
+      # Assign files using #file_attr helper method for brevity
       @prick_file = File.join schema_dir, Prick::DEFAULT_SOURCE_FILENAME
       @project_file = File.join @project_dir, Prick::PROJECT_FILENAME
       @version_file = File.join schema_prick_dir, Prick::VERSION_FILENAME

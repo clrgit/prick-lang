@@ -7,7 +7,7 @@ describe "Prick::Lang" do
   end
 
   describe "Parser" do
-    def file = "file.txt" # Considered a constant
+    def file = "file.prick" # Considered a constant
 
 #   # TODO: Library
 #   def capture(stream = :stdout, &block) # ChatGPT

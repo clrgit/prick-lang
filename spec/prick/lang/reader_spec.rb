@@ -7,7 +7,7 @@ describe "Prick::Lang" do
       attr_accessor :index, :pos, :token, :error
     end
 
-    def file = "file.txt" # Considered a constanta
+    def file = "file.prick" # Considered a constanta
 
     def make(lines)
       lines = lines.align(empty: true).split("\n", -1) if lines.is_a?(String)

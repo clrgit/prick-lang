@@ -3,7 +3,8 @@ module Tree
   attr_reader :parent
   attr_reader :children
 
-  forward_to :children, :empty?
+# forward_to :children, :empty?
+  def empty? = children.empty?
 
   def self.initialize(this, parent = nil)
     @parent = parent && parent.attach(this)

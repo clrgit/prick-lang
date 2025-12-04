@@ -2,7 +2,7 @@ describe "Prick::Lang" do
   using String::Text
 
   describe "Evaluator" do
-    def file = "file.txt" # Considered a constant
+    def file = "file.prick" # Considered a constant
 
     # Return an Analyzer object
     def make(lines)

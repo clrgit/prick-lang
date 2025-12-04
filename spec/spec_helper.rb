@@ -3,7 +3,8 @@
 
 # frozen_string_literal: true
 
-require "prick/lang.rb"
+#require "prick/lang.rb"
+require "prick.rb"
 
 #using String::Text
 
