@@ -12,6 +12,10 @@ SPEC = %(
 
   Compile a prick project
 
+  -U,username=USERNAME
+    The superuser to connect as when doing RDBMS operations. Default is the
+    user executing the command
+
   -C,directory=DIR
     Switch to directory before doing anything else. Used in debug
 

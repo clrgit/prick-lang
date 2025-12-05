@@ -13,6 +13,7 @@ PROJECT="gryf"
 [ $# -ge 1 ] || error "Illegal number of arguments"
 CMD=$1; shift
 
+clear
 case "$CMD" in
     init)
         [ -f $PROJECT/.safety ] && rm -rf $PROJECT
@@ -20,7 +21,7 @@ case "$CMD" in
         touch $PROJECT/.safety
         ;;
     setup)
-        bundle exec exe/prick-lang -C $PROJECT setup test
+        bundle exec exe/prick-lang -C $PROJECT setup "$@"
         ;;
     build)
         bundle exec exe/prick-lang -C $PROJECT build "$@"

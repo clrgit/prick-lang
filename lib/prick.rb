@@ -10,6 +10,7 @@ require 'time'
 require 'constrain'
 require 'forward_to'
 require 'indented_io'
+require 'pg_conn'
 require 'string-text'
 
 include ForwardTo
@@ -80,6 +81,10 @@ module Prick
   # (eg. './dir' becomes './dir/make.prick')
   DEFAULT_SOURCE_FILENAME = "make.#{SOURCE_EXT}"
 
+  # List of SQL files that defines objects in the prick schema. Only prick.sql
+  # is mandatory
+  PRICK_BUILD_FILENAMES = %w(prick.sql tables.sql views.sql functions.sql)
+
   # Settings object
   def self.settings = @@settings
   def settings = Prick.settings
@@ -109,6 +114,7 @@ require_relative './prick/git.rb'
 require_relative './prick/ansi.rb'
 
 require_relative './prick/settings.rb'
+require_relative './prick/database.rb'
 
 require_relative './prick/lang.rb'
 require_relative './prick/environment-lang.rb'

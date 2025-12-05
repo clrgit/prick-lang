@@ -23,7 +23,7 @@ module Prick
     # List of project subdirectories
     attr_reader :project_dirs
 
-    # Each project subdirectory
+    # Each project subdirectory. :bin_dir, :schema_dir, ...
     attr_reader *Prick::PROJECT_DIR_ATTRS
 
     #
@@ -99,18 +99,6 @@ module Prick
     # corresponding Environment object
     attr_accessor :environment
 
-    # Project version from PRICK.VERSIONS. Initialized when connecting to the database
-    attr_accessor :database_version
-
-    # Prick version from PRICK.VERSIONS. Initialized when connecting to the database
-    attr_accessor :database_prick_version
-
-    # Environment from PRICK.VERSIONS. Initialized when connecting to the database
-    attr_accessor :database_environment
-
-    # Timestamp from PRICK.VERSIONS
-    attr_accessor :database_timestamp
-
     #
     # E N V I R O N M E N T S
     #
@@ -124,6 +112,83 @@ module Prick
     def verbose? = @verbose
     def dryrun? = @dryrun
     def log? = @log
+
+    #
+    # T I M E S T A M P S
+    #
+
+    # Time when the program started
+    @@created_at = Time.now
+    def created_at = @@created_at
+
+    # Duration of the compile and execute phases. Read from the connection build object
+    attr_accessor :compile_duration
+    attr_accessor :execute_duration
+
+    #
+    # G I T
+    #
+
+    # Git branch
+    def branch() @branch ||= Git.branch.current end
+
+    # Git revision (commit ID)
+    def rev(kind: :long)
+      case kind
+        when :short; @rev_short ||= rev()[0...8]
+        when :long; @rev_long ||= Git.id
+      end
+    end
+
+    # True if the git repository is clean (not modified)
+    def clean?()
+      return @clean if defined?(@clean)
+      @clean = Git.clean?
+    end
+
+    #
+    # C O N N E C T I O N S
+    #
+
+    # Superuser connection
+    def super_conn = @super_conn ||= PgConn.new("postgres")
+
+    # User connection
+    def user_conn = @user_conn ||= PgConn.new(database, username)
+
+    # The user connection if defined, otherwise the superuser connection
+    def conn = @user_conn || super_conn
+
+    # Database build state. Initialized by #load_build_state
+    attr_accessor :build # PRICK.STATES Struct object
+
+    #
+    # S T A T E   H A N D L I N G
+    #
+
+    def load_project = load_file :project_file
+    def save_project(**opts) = save_file :project_file, **opts
+
+    def load_version = load_file :version_file
+    def save_version(**opts) = save_file :version_file, **opts
+
+    def load_environments
+      return nil if environment_file.nil? || !File.exist?(environment_file)
+      hash = YAML.load_extended environment_file
+      @environments = EnvironmentLang.compile(hash)
+      @environment_loaded = true
+    end
+
+    def load_database_state = load_file :database_state_file
+    def save_database_state(**opts) = save_file :database_state_file, **opts
+
+    # load/save_compiler_state is in the Compiler module
+
+    def load_state_files = @load_files.each { |attr| load_file(attr) }
+    def save_state_files(**opts) = @save_files.each { |attr| save_file(attr, **opts) }
+
+    def load_build_state = Database.load_build_state
+    def save_build_state(status: nil) = Database.save_build_state(status: status)
 
     #
     # I N I T I A L I Z E
@@ -144,6 +209,12 @@ module Prick
         load_files: [:project_file, :version_file], # :project_file is always loaded if present
         save_files: [],
         **attrs)
+
+      # TODO
+      #   ...
+      #   use_super_conn: false,
+      #   use_conn: false
+      #
 
       # Set installation and user directories
       @prick_dir = File.dirname ShellOpts.program_path, 2
@@ -179,37 +250,15 @@ module Prick
       # Load state files. Absent files are ignored
       load_state_files
 
+      # Start connection promishes
+#     promise_connections(use_super_conn, use_conn)
+
       # Assign additional attributes
       attrs.each { |attr, value| self.send(:"#{attr}=", value) }
 
       # Connect to database using promise if defined and present and requested (the default) using an option
       # TODO
     end
-
-    #
-    # S T A T E   H A N D L I N G
-    #
-
-    def load_project = load_file :project_file
-    def save_project(**opts) = save_file :project_file, **opts
-
-    def load_version = load_file :version_file
-    def save_version(**opts) = save_file :version_file, **opts
-
-    def load_environments
-      return nil if environment_file.nil? || !File.exist?(environment_file)
-      hash = YAML.load_extended environment_file
-      @environments = EnvironmentLang.compile(hash)
-      @environment_loaded = true
-    end
-
-    def load_database_state = load_file :database_state_file
-    def save_database_state(**opts) = save_file :database_state_file, **opts
-
-    # load/save_compiler_state is in the Compiler module
-
-    def load_state_files = @load_files.each { |attr| load_file(attr) }
-    def save_state_files(**opts) = @save_files.each { |attr| save_file(attr, **opts) }
 
   private
     attr_writer :verbose, :dryrun, :log
