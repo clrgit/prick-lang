@@ -113,8 +113,8 @@ require_relative './prick/bash.rb'
 require_relative './prick/git.rb'
 require_relative './prick/ansi.rb'
 
-require_relative './prick/settings.rb'
 require_relative './prick/database.rb'
+require_relative './prick/settings.rb'
 
 require_relative './prick/lang.rb'
 require_relative './prick/environment-lang.rb'

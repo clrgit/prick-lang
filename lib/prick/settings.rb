@@ -182,13 +182,44 @@ module Prick
     def load_database_state = load_file :database_state_file
     def save_database_state(**opts) = save_file :database_state_file, **opts
 
-    # load/save_compiler_state is in the Compiler module
+    def load_compiler_state
+      data = File.exist?(state_file) ? YAML.load_extended(state_file) : {}
+      @timestamp ||= Time.parse(data[:timestamp] || Prick::EPOCH)
+      @completed_resources = data[:completed_resources] || []
+    end
+
+    def save_compiler_state
+      File.write state_file, {
+        timestamp: Time.now.strftime(Prick::TIMESTAMP_FMT),
+        completed_resources: @completed_resources
+      }.to_yaml
+    end
+
 
     def load_state_files = @load_files.each { |attr| load_file(attr) }
     def save_state_files(**opts) = @save_files.each { |attr| save_file(attr, **opts) }
 
-    def load_build_state = Database.load_build_state
-    def save_build_state(status: nil) = Database.save_build_state(status: status)
+    # Load status of last build from the PRICK.STATES view (that builds on the
+    # PRICK.BUILDS table)
+    def load_build_state
+      @build = conn.struct "select * from prick.states limit 1"
+    end
+
+    # Save status of last build to the PRICK.BUILDS table
+    def save_build_state(status: nil)
+      user_conn.insert "prick.builds",
+          name: name,
+          environment: environment,
+          version: version,
+          branch: branch,
+          rev: rev(kind: :short),
+          clean: clean?,
+          status: status,
+          prick_version: prick_version,
+          created_at: created_at,
+          compile_duration: compile_duration,
+          execute_duration: execute_duration
+    end
 
     #
     # I N I T I A L I Z E
@@ -206,7 +237,7 @@ module Prick
         project_dir: nil,
         environment_file: nil, reflections_file: nil,
         database_state_file: nil, compiler_state_file: nil, fox_state_file: nil,
-        load_files: [:project_file, :version_file], # :project_file is always loaded if present
+        load_files: [:project_file, :version_file], # :project_file is always loaded if present on disk
         save_files: [],
         **attrs)
 

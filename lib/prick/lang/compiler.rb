@@ -30,6 +30,9 @@ module Prick::Lang
 
     DEFAULT_TARGET = "<main>"
 
+    # Singleton instance
+    def self.instance = @@INSTANCE
+
     # Database environment
     forward_to :state, :database, :username, :environment
 
@@ -116,7 +119,7 @@ module Prick::Lang
       Dir.chdir settings.schema_dir # FIXME HACK
 
       indent(verbose?) {
-        load_compiler_state
+        settings.load_compiler_state
 
         time "Parsing" do
           parse
@@ -136,7 +139,7 @@ module Prick::Lang
 
         yield
 
-        save_compiler_state
+        settings.save_compiler_state
       }
 
       t1 = Time.now
@@ -300,26 +303,6 @@ module Prick::Lang
       @contexts.pop
       @schemas.pop if context.is_a? Idr::Schema
     end
-
-    #
-    # State
-    #
-
-    def load_compiler_state
-      data = File.exist?(state_file) ? YAML.load_extended(state_file) : {}
-      @timestamp ||= Time.parse(data[:timestamp] || Prick::EPOCH)
-      @completed_resources = data[:completed_resources] || []
-    end
-
-    def save_compiler_state
-      File.write state_file, {
-        timestamp: Time.now.strftime(Prick::TIMESTAMP_FMT),
-        completed_resources: @completed_resources
-      }.to_yaml
-    end
-
-    # Singleton instance
-    def self.instance = @@INSTANCE
 
     #
     # D U M P

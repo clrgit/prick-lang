@@ -11,7 +11,7 @@ create table builds (
   branch varchar, -- current git branch
   rev varchar, -- git reference (?)
   clean boolean, -- true if repo was up to date
-  status boolean not null default false, -- true if compiled sucessfully
+  status boolean, -- true if compiled sucessfully
   prick_version varchar,
   created_at timestamp not null default 'now()',
   duration double precision generated always as (compile_duration + coalesce(execute_duration, 0)) stored,
