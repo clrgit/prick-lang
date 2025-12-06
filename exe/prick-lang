@@ -73,6 +73,12 @@ SPEC = %(
   set [database|username|environment] VALUE
     Change database environment
 
+  cd! DATABASE
+    Change Database
+
+  pwd!
+    Print Working Database. Note that it may be empty
+
   build! -- [VAR=VAL...] [TARGET...]
     Builds the given targets, default is 'term'
 

@@ -36,6 +36,8 @@ module Prick::Command
       when "init"; Prick::Command::Init.new(opts, args)
       when "setup"; Prick::Command::Setup.new(opts, args)
       when "teardown"; Prick::Command::Teardown.new(opts, args)
+      when "cd"; Prick::Command::CD.new(opts, args)
+      when "pwd"; Prick::Command::PWD.new(opts, args)
       when "build", "make"; Prick::Command::BuildMake.new(cmd, opts, args)
     else
       ShellOpts.failure "'#{cmd}' command is not implemented yet"
@@ -47,6 +49,8 @@ end
 require_relative './command/init.rb'
 require_relative './command/setup.rb'
 require_relative './command/teardown.rb'
+require_relative './command/cd.rb'
+require_relative './command/pwd.rb'
 require_relative './command/build-make.rb'
 
 

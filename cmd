@@ -21,10 +21,16 @@ case "$CMD" in
         touch $PROJECT/.safety
         ;;
     setup)
-        bundle exec exe/prick-lang -C $PROJECT setup $PROJECT
+        bundle exec exe/prick-lang -C $PROJECT setup ${@:-$PROJECT}
         ;;
     teardown)
-        bundle exec exe/prick-lang -C $PROJECT teardown $PROJECT
+        bundle exec exe/prick-lang -C $PROJECT teardown ${@:-$PROJECT}
+        ;;
+    cd)
+        bundle exec exe/prick-lang -C $PROJECT cd $@
+        ;;
+    pwd)
+        bundle exec exe/prick-lang -C $PROJECT pwd
         ;;
     build)
         bundle exec exe/prick-lang -C $PROJECT build "$@"

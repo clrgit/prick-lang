@@ -1,6 +1,8 @@
 
-require_relative './ext/x_fileutils.rb'
 require 'concurrent'
+
+require_relative './ext/x_fileutils.rb'
+require_relative './ext/x_yaml.rb'
 
 module Prick
   class Settings
@@ -166,6 +168,9 @@ module Prick
     # The user connection if defined, otherwise the superuser connection. Used
     # when any connection to the database will do
     def conn = @user_conn || super_conn
+#   def conn
+#     @user_conn || super_conn
+#   end
 
     #
     # R U N T I M E   O P T I O N S

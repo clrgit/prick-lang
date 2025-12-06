@@ -60,6 +60,11 @@ module Prick
     # Database methods works on the database in Settings
     #
 
+    # Return true if current database is an initialized prick database
+    def self.prick?
+      user_conn.schema.exist_relation? "prick", "states"
+    end
+
     # Initialize database
     def self.init
       # Run prick build files. prick.sql is mandatory, other absent files are
