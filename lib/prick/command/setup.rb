@@ -25,8 +25,7 @@ module Prick::Command
     end
 
     def run
-      Database.drop(database, username)
-      Database.create(database, username)
+      Database.ensure database, username
       Database.init
       settings.save_build_state
       settings.save_database_state

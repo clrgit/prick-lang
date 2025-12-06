@@ -23,6 +23,9 @@ case "$CMD" in
     setup)
         bundle exec exe/prick-lang -C $PROJECT setup $PROJECT
         ;;
+    teardown)
+        bundle exec exe/prick-lang -C $PROJECT teardown $PROJECT
+        ;;
     build)
         bundle exec exe/prick-lang -C $PROJECT build "$@"
         ;;

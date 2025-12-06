@@ -15,6 +15,7 @@ module Prick::Command
       Prick.initialize(
         project_dir: project_dir,
         **attrs.merge({
+          superuser: opts.superuser || ENV['USER'],
           environment_file: opts.environment_file,
           reflections_file: opts.reflections_file,
           database_state_file: opts.database_state_file,
@@ -27,9 +28,6 @@ module Prick::Command
       )
     end
 
-    def common_options(opts)
-    end
-
     def run() = raise
   end
 
@@ -37,15 +35,18 @@ module Prick::Command
     case cmd
       when "init"; Prick::Command::Init.new(opts, args)
       when "setup"; Prick::Command::Setup.new(opts, args)
+      when "teardown"; Prick::Command::Teardown.new(opts, args)
       when "build", "make"; Prick::Command::BuildMake.new(cmd, opts, args)
     else
       ShellOpts.failure "'#{cmd}' command is not implemented yet"
     end
   end
+
 end
 
 require_relative './command/init.rb'
 require_relative './command/setup.rb'
+require_relative './command/teardown.rb'
 require_relative './command/build-make.rb'
 
 

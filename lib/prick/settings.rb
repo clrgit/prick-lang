@@ -2,9 +2,6 @@
 require_relative './ext/x_fileutils.rb'
 require 'concurrent'
 
-require_relative './lang/timer.rb'
-include Prick::Lang::Timer
-
 module Prick
   class Settings
     #
@@ -102,6 +99,10 @@ module Prick
     # #connection method. Use '#environments[environment]' to get the
     # corresponding Environment object
     attr_accessor :environment
+
+    # Superuser name. It is only set on the command line and default is the
+    # current user
+    attr_accessor :superuser
 
     #
     # B U I L D   S T A T E
@@ -245,7 +246,7 @@ module Prick
       @save_files = save_files
 
       # Load state files. Absent files are ignored
-      load_state_files
+      load_state
 
       # Start connection promises if required
       promise_super_conn if super_conn
@@ -274,23 +275,22 @@ module Prick
 
     def load_database_state = load_file :database_state_file
     def save_database_state(**opts) = save_file :database_state_file, **opts
+    def reset_database_state = reset_file :database_state_file
 
     def load_compiler_state
-      data = File.exist?(state_file) ? YAML.load_extended(state_file) : {}
+      data = File.exist?(compiler_state_file) ? YAML.load_extended(compiler_state_file) : {}
       @timestamp ||= Time.parse(data[:timestamp] || Prick::EPOCH)
       @completed_resources = data[:completed_resources] || []
     end
 
     def save_compiler_state
-      File.write state_file, {
+      File.write compiler_state_file, {
         timestamp: Time.now.strftime(Prick::TIMESTAMP_FMT),
         completed_resources: @completed_resources
       }.to_yaml
     end
 
-
-    def load_state_files = @load_files.each { |attr| load_file(attr) }
-    def save_state_files(**opts) = @save_files.each { |attr| save_file(attr, **opts) }
+    def reset_compiler_state = reset_file :compiler_state_file
 
     # Load status of last build from the PRICK.STATES view (that builds on the
     # PRICK.BUILDS table)
@@ -313,6 +313,10 @@ module Prick
           compile_duration: compile_duration,
           execute_duration: execute_duration
     end
+
+    def load_state = @load_files.each { |attr| load_file(attr) }
+    def save_state(**opts) = @save_files.each { |attr| save_file(attr, **opts) }
+    def reset_state() reset_database_state; reset_compiler_state end
 
   private
     attr_writer :verbose, :dryrun, :log
@@ -346,6 +350,12 @@ module Prick
       return nil if file.nil?
       data = STATE_FILES[attr].map { |field| [field, opts.key?(field) ? opts[field] : self.send(field)] }.to_h
       IO.write file, data.to_yaml
+    end
+
+    def reset_file(attr)
+      file = self.send(attr)
+      return nil if file.nil?
+      FileUtils.rm_f file
     end
   end
 end

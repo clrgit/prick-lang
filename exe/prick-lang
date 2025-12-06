@@ -12,7 +12,7 @@ SPEC = %(
 
   Compile a prick project
 
-  -U,username=USERNAME
+  -s,superuser=USERNAME
     The superuser to connect as when doing RDBMS operations. Default is the
     user executing the command
 
@@ -67,7 +67,7 @@ SPEC = %(
     Setup a new database owned by username and with the given environment. The
     environment argument is given preference over username
 
-  teardown!
+  teardown! --keep-owner -- DATABASE
     Teardown a database and associated users
 
   set [database|username|environment] VALUE

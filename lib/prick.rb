@@ -95,7 +95,7 @@ module Prick
   # See Settings for documentation of :opts
   #
   def self.initialize(**opts, &block)
-    # Create prick object
+    # Initialize Settings
     @@settings = Settings.new(**opts, &block)
   end
 
