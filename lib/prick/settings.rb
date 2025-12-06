@@ -1,5 +1,9 @@
 
 require_relative './ext/x_fileutils.rb'
+require 'concurrent'
+
+require_relative './lang/timer.rb'
+include Prick::Lang::Timer
 
 module Prick
   class Settings
@@ -100,30 +104,18 @@ module Prick
     attr_accessor :environment
 
     #
+    # B U I L D   S T A T E
+    #
+
+    # Database build state. Initialized by #load_build_state
+    attr_accessor :build # PRICK.STATES Struct object
+
+    #
     # E N V I R O N M E N T S
     #
 
     # Map from environment name to environment object
     attr_reader :environments # {String => Environment}
-
-    #
-    # R U N T I M E   O P T I O N S
-    #
-    def verbose? = @verbose
-    def dryrun? = @dryrun
-    def log? = @log
-
-    #
-    # T I M E S T A M P S
-    #
-
-    # Time when the program started
-    @@created_at = Time.now
-    def created_at = @@created_at
-
-    # Duration of the compile and execute phases. Read from the connection build object
-    attr_accessor :compile_duration
-    attr_accessor :execute_duration
 
     #
     # G I T
@@ -150,17 +142,118 @@ module Prick
     # C O N N E C T I O N S
     #
 
-    # Superuser connection
-    def super_conn = @super_conn ||= PgConn.new("postgres")
+    # Start creating super_conn in an independent thread
+    def promise_super_conn
+      @super_conn_promise ||= Concurrent::Promise.execute do
+        PgConn.new("postgres")
+      end
+    end
 
-    # User connection
-    def user_conn = @user_conn ||= PgConn.new(database, username)
+    # Start creating user_conn in an independent thread
+    def promise_user_conn
+      @user_conn_promise ||= Concurrent::Promise.execute do
+        PgConn.new(database, username)
+      end
+    end
 
-    # The user connection if defined, otherwise the superuser connection
+    # Superuser connection. Use promise if present
+    def super_conn = @super_conn ||= promise_super_conn.value
+
+    # User (database owner) connection. Use promise if present
+    def user_conn = @user_conn ||= promise_user_conn.value
+
+    # The user connection if defined, otherwise the superuser connection. Used
+    # when any connection to the database will do
     def conn = @user_conn || super_conn
 
-    # Database build state. Initialized by #load_build_state
-    attr_accessor :build # PRICK.STATES Struct object
+    #
+    # R U N T I M E   O P T I O N S
+    #
+
+    def verbose? = @verbose
+    def dryrun? = @dryrun
+    def log? = @log
+
+    #
+    # T I M E S T A M P S
+    #
+
+    # Time when the program started
+    @@created_at = Time.now
+    def created_at = @@created_at
+
+    # Duration of the compile and execute phases. Read from the connection build object
+    attr_accessor :compile_duration
+    attr_accessor :execute_duration
+
+    #
+    # I N I T I A L I Z E
+    #
+
+    # We assume that we are somewhere in the project directory hierarchy if
+    # :project_dir is nil.
+    #
+    # If a file argument is true, the default value is used and the file will be loaded and saved. If false,
+    # it is set to nil. Note that non-existing files are ignored so set it to
+    # false only when the file is irrelevant for the current command (eg.
+    # 'prick setup' doesn't need to read the reflections file)
+    #
+    def initialize(
+        project_dir: nil,
+        environment_file: nil, reflections_file: nil,
+        database_state_file: nil, compiler_state_file: nil, fox_state_file: nil,
+        load_files: [:project_file, :version_file], # :project_file is always loaded if present on disk
+        save_files: [],
+        super_conn: false, user_conn: false,
+        **attrs)
+
+      # TODO
+      #   ...
+      #   use_super_conn: false,
+      #   use_conn: false
+      #
+
+      # Set installation and user directories
+      @prick_dir = File.dirname ShellOpts.program_path, 2
+      @prick_share_dir = "#{@prick_dir}/lib/prick/share"
+      @environment_dir = ShellOpts.environment_path
+
+      # Search for project file if not given, stop initialization if not found
+      @project_dir = project_dir || FileUtils.upfinddir(Prick::PROJECT_FILENAME) or
+          Prick.error "Can't find #{Prick::PROJECT_FILENAME}"
+
+      # Assign subdirectories
+      @project_dirs = Prick::PROJECT_DIR_ATTRS.map { |attr|
+        var = :"@#{attr}"
+        val = Prick.const_get(attr.to_s.upcase + "NAME")
+        self.instance_variable_set(var, File.join(@project_dir, val))
+      }
+
+      # Assign files using #file_attr helper method for brevity
+      @prick_file = File.join schema_dir, Prick::DEFAULT_SOURCE_FILENAME
+      @project_file = File.join @project_dir, Prick::PROJECT_FILENAME
+      @version_file = File.join schema_prick_dir, Prick::VERSION_FILENAME
+      @environment_file = file_attr environment_file, @project_dir, Prick::DEFAULT_ENVIRONMENT_FILENAME
+      @reflections_file = file_attr reflections_file, schema_dir, Prick::DEFAULT_ENVIRONMENT_FILENAME
+      @database_state_file = file_attr database_state_file, state_dir, Prick::DEFAULT_DATABASE_STATE_FILENAME
+      @compiler_state_file = file_attr compiler_state_file, state_dir, Prick::DEFAULT_COMPILER_STATE_FILENAME
+      @fox_state_file = file_attr fox_state_file, state_dir, Prick::DEFAULT_FOX_STATE_FILENAME
+      @prick_sql_file = File.join @schema_prick_dir, Prick::PRICK_SQL_FILENAME
+
+      # Register state files to load/save
+      @load_files = ([:project_file, :version_file] + load_files).uniq
+      @save_files = save_files
+
+      # Load state files. Absent files are ignored
+      load_state_files
+
+      # Start connection promises if required
+      promise_super_conn if super_conn
+      promise_user_conn if user_conn && @database
+
+      # Assign additional attributes
+      attrs.each { |attr, value| self.send(:"#{attr}=", value) }
+    end
 
     #
     # S T A T E   H A N D L I N G
@@ -221,76 +314,6 @@ module Prick
           execute_duration: execute_duration
     end
 
-    #
-    # I N I T I A L I Z E
-    #
-
-    # We assume that we are somewhere in the project directory hierarchy if
-    # :project_dir is nil.
-    #
-    # If a file argument is true, the default value is used and the file will be loaded and saved. If false,
-    # it is set to nil. Note that non-existing files are ignored so set it to
-    # false only when the file is irrelevant for the current command (eg.
-    # 'prick setup' doesn't need to read the reflections file)
-    #
-    def initialize(
-        project_dir: nil,
-        environment_file: nil, reflections_file: nil,
-        database_state_file: nil, compiler_state_file: nil, fox_state_file: nil,
-        load_files: [:project_file, :version_file], # :project_file is always loaded if present on disk
-        save_files: [],
-        **attrs)
-
-      # TODO
-      #   ...
-      #   use_super_conn: false,
-      #   use_conn: false
-      #
-
-      # Set installation and user directories
-      @prick_dir = File.dirname ShellOpts.program_path, 2
-      @prick_share_dir = "#{@prick_dir}/lib/prick/share"
-      @environment_dir = ShellOpts.environment_path
-
-      # Search for project file if not given, stop initialization if not found
-      @project_dir = project_dir || FileUtils.upfinddir(Prick::PROJECT_FILENAME) or
-          Prick.error "Can't find #{Prick::PROJECT_FILENAME}"
-
-      # Assign subdirectories
-      @project_dirs = Prick::PROJECT_DIR_ATTRS.map { |attr|
-        var = :"@#{attr}"
-        val = Prick.const_get(attr.to_s.upcase + "NAME")
-        self.instance_variable_set(var, File.join(@project_dir, val))
-      }
-
-      # Assign files using #file_attr helper method for brevity
-      @prick_file = File.join schema_dir, Prick::DEFAULT_SOURCE_FILENAME
-      @project_file = File.join @project_dir, Prick::PROJECT_FILENAME
-      @version_file = File.join schema_prick_dir, Prick::VERSION_FILENAME
-      @environment_file = file_attr environment_file, @project_dir, Prick::DEFAULT_ENVIRONMENT_FILENAME
-      @reflections_file = file_attr reflections_file, schema_dir, Prick::DEFAULT_ENVIRONMENT_FILENAME
-      @database_state_file = file_attr database_state_file, state_dir, Prick::DEFAULT_DATABASE_STATE_FILENAME
-      @compiler_state_file = file_attr compiler_state_file, state_dir, Prick::DEFAULT_COMPILER_STATE_FILENAME
-      @fox_state_file = file_attr fox_state_file, state_dir, Prick::DEFAULT_FOX_STATE_FILENAME
-      @prick_sql_file = File.join @schema_prick_dir, Prick::PRICK_SQL_FILENAME
-
-      # Register state files to load/save
-      @load_files = ([:project_file, :version_file] + load_files).uniq
-      @save_files = save_files
-
-      # Load state files. Absent files are ignored
-      load_state_files
-
-      # Start connection promishes
-#     promise_connections(use_super_conn, use_conn)
-
-      # Assign additional attributes
-      attrs.each { |attr, value| self.send(:"#{attr}=", value) }
-
-      # Connect to database using promise if defined and present and requested (the default) using an option
-      # TODO
-    end
-
   private
     attr_writer :verbose, :dryrun, :log
 
@@ -326,6 +349,9 @@ module Prick
     end
   end
 end
+
+
+
 
 __END__
 

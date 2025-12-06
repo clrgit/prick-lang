@@ -19,9 +19,9 @@ module Prick::Command
       super \
           "setup", opts, args,
           database: database, username: username, environment: environment,
+          super_conn: true, user_conn: true,
           load_files: [:environment_file],
           save_files: [:database_state_file]
-#         use_super_conn: true, use_conn: true,
     end
 
     def run
@@ -30,13 +30,6 @@ module Prick::Command
       Database.init
       settings.save_build_state
       settings.save_database_state
-
-
-#     set_database(PRICK_DATABASE, PRICK_ENVIRONMENT)
-    end
-
-    def create_database
-
     end
   end
 end

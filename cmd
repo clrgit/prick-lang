@@ -21,7 +21,7 @@ case "$CMD" in
         touch $PROJECT/.safety
         ;;
     setup)
-        bundle exec exe/prick-lang -C $PROJECT setup "$@"
+        bundle exec exe/prick-lang -C $PROJECT setup $PROJECT
         ;;
     build)
         bundle exec exe/prick-lang -C $PROJECT build "$@"

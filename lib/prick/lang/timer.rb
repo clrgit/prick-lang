@@ -23,6 +23,8 @@ module Prick::Lang
       return time.to_s + unit
     end
 
+    def dftime(t0, limit: "ms") = ftime(Time.now - t0, limit: "ms")
+
     def time(title, &block)
       t0 = Time.now
       r = yield

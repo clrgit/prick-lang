@@ -38,6 +38,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "string-text"
   spec.add_dependency "dsort"
   spec.add_dependency "pg_conn"
+  spec.add_dependency "concurrent-ruby"
 
 
   # For more information and examples about making a new gem, check out our

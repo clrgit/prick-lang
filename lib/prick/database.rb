@@ -3,10 +3,64 @@ module Prick
   module Database
     include Prick
 
-    def self.settings = Prick.settings
-    def self.super_conn = settings.super_conn
-    def self.user_conn = settings.user_conn
-    def self.conn = settings.conn
+    forward_to_class "Prick.settings", :super_conn, :user_conn, :conn
+
+    #
+    # R D B M S   M E T H O D S
+    #
+    # RDBMS methods takes a database and optionallly a user (owner) argument
+    #
+
+    # Return true if the database exists
+    def self.exist?(database)
+      conn.rdbms.exist? database
+    end
+
+    # Create database. Create owner too if absent
+    def self.create(database, owner)
+      # Create owner if absent
+      if !super_conn.role.exist? owner
+        # FIXME Should not be created as superuser but that requires that prick
+        # is aware of which objects that should be created using the super user
+        # and not the database owner
+        super_conn.role.create owner, superuser: true, can_login: true, create_role: true
+      end
+
+      # Create database
+      super_conn.rdbms.create database, owner: owner
+    end
+
+    # Drop database and optionally owner
+    def self.drop(database, owner = nil)
+      super_conn.rdbms.drop database
+      super_conn.role.drop owner if owner
+    end
+
+    #
+    # D A T A B A S E   M E T H O D S
+    #
+    # Database methods works on the database in Settings
+    #
+
+    # Initialize database
+    def self.init
+      # Run prick build files. prick.sql is mandatory, other absent files are
+      # ignored
+      PRICK_BUILD_FILENAMES.each { |filename|
+        file = File.join Prick::SCHEMA_PRICK_DIRNAME, filename
+        if File.exist? file
+          user_conn.exec(IO.read(file))
+        else
+          filename != "prick.sql" or error "Can't find #{file}"
+        end
+      }
+    end
+
+    def self.status(database)
+    end
+  end
+end
+
 
 
 
@@ -50,79 +104,6 @@ module Prick
 #       @@connection
 #     end
 #   end
-
-    def self.load_build_state
-      settings.build = conn.struct "select * from prick.states limit 1"
-    end
-
-    def self.save_build_state(status: nil)
-      user_conn.insert "prick.builds",
-          name: settings.name,
-          environment: settings.environment,
-          version: settings.version,
-          branch: settings.branch,
-          rev: settings.rev(kind: :short),
-          clean: settings.clean?,
-          status: status,
-          prick_version: settings.prick_version,
-          created_at: settings.created_at,
-          compile_duration: settings.compile_duration,
-          execute_duration: settings.execute_duration
-    end
-
-    #
-    # R D B M S   M E T H O D S
-    #
-    # RDBMS methods takes a database and optionallly a user argument
-    #
-
-    def self.exist?(database)
-      conn.rdbms.exist? database
-    end
-
-    def self.create(database, owner)
-      # Create owner if absent
-      if !super_conn.role.exist? owner
-        # FIXME Should not be created as superuser but that requires that prick
-        # is aware of which objects that should be created using the super user
-        # and not the database owner
-        super_conn.role.create owner, superuser: true, can_login: true, create_role: true
-      end
-
-      # Create database
-      super_conn.rdbms.create database, owner: owner
-    end
-
-    def self.drop(database, owner = nil)
-      super_conn.rdbms.drop database
-      super_conn.role.drop owner if owner
-    end
-
-    #
-    # D A T A B A S E   M E T H O D S
-    #
-    # Database methods works on the database in Settings
-    #
-
-    def self.init
-      # Run prick build files. prick.sql is mandatory, other absent files are
-      # ignored
-      PRICK_BUILD_FILENAMES.each { |filename|
-        file = File.join Prick::SCHEMA_PRICK_DIRNAME, filename
-        if File.exist? file
-          user_conn.exec(IO.read(file))
-        elsif filename == "prick.sql"
-          error "Can't find #{file}"
-        end
-      }
-    end
-
-    def self.status(database)
-    end
-  end
-end
-
-
 
 
 
