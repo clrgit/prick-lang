@@ -19,7 +19,6 @@ module Prick::Command
       super \
           "setup", opts, args,
           database: database, username: username, environment: environment,
-          super_conn: true, user_conn: true,
           load_files: [:environment_file],
           save_files: [:database_state_file]
     end

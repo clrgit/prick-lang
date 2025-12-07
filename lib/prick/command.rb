@@ -43,7 +43,6 @@ module Prick::Command
       ShellOpts.failure "'#{cmd}' command is not implemented yet"
     end
   end
-
 end
 
 require_relative './command/init.rb'

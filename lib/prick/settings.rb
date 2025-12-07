@@ -1,6 +1,4 @@
 
-require 'concurrent'
-
 require_relative './ext/x_fileutils.rb'
 require_relative './ext/x_yaml.rb'
 
@@ -145,32 +143,14 @@ module Prick
     # C O N N E C T I O N S
     #
 
-    # Start creating super_conn in an independent thread
-    def promise_super_conn
-      @super_conn_promise ||= Concurrent::Promise.execute do
-        PgConn.new("postgres")
-      end
-    end
+    # Superuser connection to the postgres database
+    def system_conn = @system_conn ||= PgConn.new("postgres", superuser)
 
-    # Start creating user_conn in an independent thread
-    def promise_user_conn
-      @user_conn_promise ||= Concurrent::Promise.execute do
-        PgConn.new(database, username)
-      end
-    end
+    # Superuser connection to the current database
+    def super_conn = @super_conn ||= PgConn.new(database, superuser)
 
-    # Superuser connection. Use promise if present
-    def super_conn = @super_conn ||= promise_super_conn.value
-
-    # User (database owner) connection. Use promise if present
-    def user_conn = @user_conn ||= promise_user_conn.value
-
-    # The user connection if defined, otherwise the superuser connection. Used
-    # when any connection to the database will do
-    def conn = @user_conn || super_conn
-#   def conn
-#     @user_conn || super_conn
-#   end
+    # User (database owner) to the current database
+    def user_conn = @user_conn ||= PgConn.new(database, username)
 
     #
     # R U N T I M E   O P T I O N S
@@ -252,10 +232,6 @@ module Prick
 
       # Load state files. Absent files are ignored
       load_state
-
-      # Start connection promises if required
-      promise_super_conn if super_conn
-      promise_user_conn if user_conn && @database
 
       # Assign additional attributes
       attrs.each { |attr, value| self.send(:"#{attr}=", value) }

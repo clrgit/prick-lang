@@ -44,6 +44,33 @@ module Prick
   DUMP_DIRNAME = File.join(VAR_DIRNAME, "dump")
   TMP_DIRNAME = "tmp"
 
+  # prick.yml
+  # prick.environment.yml
+  #
+  # var
+  #   lib
+  #     gryf
+  #       database.yml
+  #       build-cache.yml
+  #       compiler-spool.yml
+  #       fox-spool.yml
+  #
+  #     mikras-production
+  #       database.yml
+  #       build-cache.yml
+  #       compiler-spool.yml
+  #       fox-spool.yml
+  #
+  #   log
+  #     prick.log
+  #     gryf
+  #       gryf.log
+  #
+  #   database  # database name. Database setup is then in ./var/$database/database.yml
+  #             # database.yml should not contain database name - it is derived from its
+  #             # containing directory - so it is easy to rename databases
+  #
+
   # Project subdirectories ([Symbol]). Keep in sync with project *_DIRNAMES!
   PROJECT_DIR_ATTRS = [
       :bin_dir, :schema_dir, :schema_prick_dir, :test_dir, :lib_dir, :libexec_dir, :var_dir, :log_dir,

@@ -9,10 +9,8 @@ module Prick::Command
       database = args.expect(1)
       super \
           "cd", opts, args,
-          database: database,
-          super_conn: true
+          database: database
       settings.username = Database.owner(database)
-      settings.promise_user_conn
     end
 
     def run
@@ -24,5 +22,4 @@ module Prick::Command
     end
   end
 end
-
 

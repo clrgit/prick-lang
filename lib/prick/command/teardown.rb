@@ -13,8 +13,7 @@ module Prick::Command
       @target_database = args.expect(1)
       super \
           "teardown", opts, args,
-          load_files: [:database_state_file],
-          super_conn: true
+          load_files: [:database_state_file]
     end
 
     def run
