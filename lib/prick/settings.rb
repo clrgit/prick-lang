@@ -307,7 +307,7 @@ module Prick
     # Map from state file attribute to list of fields
     STATE_FILES = {
       project_file: [:name, :title, :prick_version],
-      version_file: [:version]
+      version_file: [:version],
       state_file: [:database]
     }
 
