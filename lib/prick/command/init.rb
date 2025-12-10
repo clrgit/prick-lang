@@ -41,7 +41,7 @@ module Prick::Command
     # Create directory structure. All directories will have a .keep file inside
     # to make git keep the directory instead of ignoring it
     def create_dirs
-      for dir in Prick.settings.project_dirs
+      for dir in Prick.settings.dirs.to_h.values
         FileUtils.mkdir_p dir
         FileUtils.touch File.join dir, ".keep"
       end
@@ -56,7 +56,7 @@ module Prick::Command
       }
       FILES.each { |rel_dstfile, rel_srcfile|
         FileUtils.cp \
-            File.join(Prick.settings.prick_share_dir, rel_srcfile), 
+            File.join(Prick.settings.prick_share_dir, rel_srcfile),
             File.join(Prick.settings.project_dir, rel_dstfile)
       }
     end

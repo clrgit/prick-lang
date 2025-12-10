@@ -11,18 +11,21 @@ module Prick
     # Prick installation directory
     attr_reader :prick_dir
 
-    # Prick instalation share directory
+    # Prick installation share directory
     attr_reader :prick_share_dir
 
     # User environment dir (the current directory when prick was called). Used
     # make paths in error messages relative to the current directory
-    attr_reader :environment_dir
+    attr_reader :user_dir
 
     # Project dir. Top-level project directory
     attr_reader :project_dir
 
+    # Database cache dir
+    attr_reader :database_dir
+
     # List of project subdirectories
-    attr_reader :project_dirs
+    attr_reader :dirs
 
     # Each project subdirectory. :bin_dir, :schema_dir, ...
     attr_reader *Prick::PROJECT_DIR_ATTRS
@@ -32,7 +35,7 @@ module Prick
     #
 
     # Initial 'make.prick' file
-    attr_reader :prick_file
+    attr_reader :make_file
 
     # 'prick.yml' project file
     attr_reader :project_file
@@ -60,27 +63,21 @@ module Prick
     # Prick SQL file. Builds the prick schema
     attr_reader :prick_sql_file
 
-    # List of file attributes to load
-    attr_reader :load_files
-
-    # List of file attributes to save
-    attr_reader :save_files
-
     #
     # P R O J E C T   A T T R I B U T E S
     #
 
-    # Project identifier. Used as default for database, username etc.
+    # Project identifier. Read from prick.yml
     attr_accessor :name
 
-    # Project title. Capitalized name of project. Default @name.capitalize
+    # Project title. Defaults to @name.capitalize. Read from prick.yml
     attr_accessor :title
 
-    # Project version
+    # Project version. Read from schema/prick/version.yml
     attr_accessor :version
 
-    # Version of prick. Note that this can be different than the current
-    # version of prick
+    # Version of prick. Note that this can be different from the current
+    # version of prick. Read from var/<database>/states.yml
     attr_accessor :prick_version
 
     #
@@ -90,19 +87,18 @@ module Prick
     # Database name. nil if state file is absent
     attr_accessor :database
 
-    # Database owner name. Typically the same as the database name. nil if
-    # database is absent
-    attr_accessor :username
+    # Database owner name (a postgres user). Always the same as the name of the
+    # database
+    alias_method :username, :database
 
-    # Name of current environment. If not set in the state file, the enviroment
-    # is read from the database when the first connection is established by the
-    # #connection method. Use '#environments[environment]' to get the
-    # corresponding Environment object
-    attr_accessor :environment
-
-    # Superuser name. It is only set on the command line and default is the
+    # Superuser name. It is only set on the command line, defaults to the
     # current user
     attr_accessor :superuser
+
+    # Name of current environment. If not set in the database state file, it is
+    # read from the database the enviroment.  Use '#environments[environment]'
+    # to get the corresponding Environment object
+    attr_accessor :environment
 
     #
     # B U I L D   S T A T E
@@ -186,52 +182,57 @@ module Prick
     #
     def initialize(
         project_dir: nil,
-        environment_file: nil, reflections_file: nil,
-        database_state_file: nil, compiler_state_file: nil, fox_state_file: nil,
-        load_files: [:project_file, :version_file], # :project_file is always loaded if present on disk
+        database: nil,
+        load_files: [], # Can be :database, :compiler, or :fox
         save_files: [],
-        super_conn: false, user_conn: false,
         **attrs)
-
-      # TODO
-      #   ...
-      #   use_super_conn: false,
-      #   use_conn: false
-      #
 
       # Set installation and user directories
       @prick_dir = File.dirname ShellOpts.program_path, 2
       @prick_share_dir = "#{@prick_dir}/lib/prick/share"
-      @environment_dir = ShellOpts.environment_path
+      @user_dir = ShellOpts.environment_path
 
       # Search for project file if not given, stop initialization if not found
       @project_dir = project_dir || FileUtils.upfinddir(Prick::PROJECT_FILENAME) or
           Prick.error "Can't find #{Prick::PROJECT_FILENAME}"
 
       # Assign subdirectories
-      @project_dirs = Prick::PROJECT_DIR_ATTRS.map { |attr|
-        var = :"@#{attr}"
-        val = Prick.const_get(attr.to_s.upcase + "NAME")
-        self.instance_variable_set(var, File.join(@project_dir, val))
-      }
+      @dirs = OpenStruct.new \
+          Prick::PROJECT_DIR_ATTRS.map { |attr|
+            val = Prick.const_get(attr.to_s.upcase + "NAME")
+            [attr, File.join(@project_dir, val)]
+          }.to_h
+      @dirs.project = @project_dir
 
-      # Assign files using #file_attr helper method for brevity
-      @prick_file = File.join schema_dir, Prick::DEFAULT_SOURCE_FILENAME
-      @project_file = File.join @project_dir, Prick::PROJECT_FILENAME
-      @version_file = File.join schema_prick_dir, Prick::VERSION_FILENAME
-      @environment_file = file_attr environment_file, @project_dir, Prick::DEFAULT_ENVIRONMENT_FILENAME
-      @reflections_file = file_attr reflections_file, schema_dir, Prick::DEFAULT_ENVIRONMENT_FILENAME
-      @database_state_file = file_attr database_state_file, state_dir, Prick::DEFAULT_DATABASE_STATE_FILENAME
-      @compiler_state_file = file_attr compiler_state_file, state_dir, Prick::DEFAULT_COMPILER_STATE_FILENAME
-      @fox_state_file = file_attr fox_state_file, state_dir, Prick::DEFAULT_FOX_STATE_FILENAME
-      @prick_sql_file = File.join @schema_prick_dir, Prick::PRICK_SQL_FILENAME
+      # Assign global prick files using #file_attr helper method for brevity
+      @project_file = File.join dirs.project, Prick::PROJECT_FILENAME
+      @version_file = File.join dirs.schema_prick, Prick::VERSION_FILENAME
+      @state_file = File.join dirs.project, Prick::PRICK_STATE_FILE
+      @environment_file = file_attr environment_file, dirs.project, Prick::ENVIRONMENT_FILENAME
+      @reflections_file = file_attr reflections_file, dirs.schema, Prick::REFLECTIONS_FILENAME
+      @make_file = File.join dirs.schema, Prick::SOURCE_FILENAME
+      @prick_sql_file = File.join dirs.schema_prick, Prick::PRICK_SQL_FILENAME
 
-      # Register state files to load/save
-      @load_files = ([:project_file, :version_file] + load_files).uniq
-      @save_files = save_files
+      # Set database
+      if database
+        @database = database
+      else
+        load_prick_state
+      end
+
+      # Assign settings that depends on the database
+      if @database
+        @dirs.database = File.join(Prick::CACHE_DIR, @database)
+
+        # Assign database cache files
+        @database_state_file = file_attr database_state_file, dirs.database, Prick::DATABASE_STATE_FILENAME
+        @compiler_state_file = file_attr compiler_state_file, dirs.database, Prick::COMPILER_STATE_FILENAME
+        @fox_state_file = file_attr fox_state_file, dirs.database, Prick::FOX_STATE_FILENAME
+      end
 
       # Load state files. Absent files are ignored
-      load_state
+      load_project
+      load_version
 
       # Assign additional attributes
       attrs.each { |attr, value| self.send(:"#{attr}=", value) }
@@ -254,50 +255,51 @@ module Prick
       @environment_loaded = true
     end
 
-    def load_database_state = load_file :database_state_file
-    def save_database_state(**opts) = save_file :database_state_file, **opts
-    def reset_database_state = reset_file :database_state_file
+    def load_prick_state = load_file :prick_state_file
+    def save_prick_state(**opts) = save_file :prick_state_file, **opts
+    def reset_prick_state = reset_file :prick_state_file
 
-    def load_compiler_state
-      data = File.exist?(compiler_state_file) ? YAML.load_extended(compiler_state_file) : {}
-      @timestamp ||= Time.parse(data[:timestamp] || Prick::EPOCH)
-      @completed_resources = data[:completed_resources] || []
+    # Load build status from cache file. We'll never use this. Database state
+    # files are only used to list all databases
+    # FIXME FIXME FIXME
+    def load_database_state
+      @build = OpenStruct.new YAML.load_extended database_state_file
+      @environment = @build.environment
     end
 
-    def save_compiler_state
-      File.write compiler_state_file, {
-        timestamp: Time.now.strftime(Prick::TIMESTAMP_FMT),
-        completed_resources: @completed_resources
-      }.to_yaml
+    # Save build state to cache file
+    def save_database_state
+      IO.write file, @build.to_h.to_yaml
     end
 
-    def reset_compiler_state = reset_file :compiler_state_file
-
-    # Load status of last build from the PRICK.STATES view (that builds on the
-    # PRICK.BUILDS table)
-    def load_build_state
-      @build = conn.struct "select * from prick.states limit 1"
+    # Load status of last build from the database
+    def get_database_state
+      @build = user_conn.struct "select * from prick.states limit 1"
+      @environment = @build.environment
     end
 
-    # Save status of last build to the PRICK.BUILDS table
-    def save_build_state(status: nil)
-      user_conn.insert "prick.builds",
-          name: name,
-          environment: environment,
-          version: version,
-          branch: branch,
-          rev: rev(kind: :short),
-          clean: clean?,
-          status: status,
-          prick_version: prick_version,
-          created_at: created_at,
-          compile_duration: compile_duration,
-          execute_duration: execute_duration
+    # Save status of last build to the database and the database state file
+    def set_database_state(status: nil)
+      @build = OpenStruct.new \
+        name: name,
+        environment: environment, # FIXME FIXME FIXME
+        version: version,
+        branch: branch,
+        rev: rev(kind: :short),
+        clean: clean?,
+        status: status,
+        prick_version: prick_version,
+        created_at: created_at,
+        compile_duration: compile_duration,
+        execute_duration: execute_duration
+
+      id = user_conn.insert "prick.builds", **@build.to_h
+      @build.id = id
+      save_database_state
     end
 
-    def load_state = @load_files.each { |attr| load_file(attr) }
-    def save_state(**opts) = @save_files.each { |attr| save_file(attr, **opts) }
-    def reset_state() reset_database_state; reset_compiler_state end
+#   def sync_database_state
+#   end
 
   private
     attr_writer :verbose, :dryrun, :log
@@ -305,17 +307,12 @@ module Prick
     # Map from state file attribute to list of fields
     STATE_FILES = {
       project_file: [:name, :title, :prick_version],
-      database_state_file: [:database, :username, :environment],
       version_file: [:version]
+      state_file: [:database]
     }
 
-    # List of active state file attributes (Symbol). Active state files are
-    # both loaded and saved, while inactive files are only saved
-    attr_reader :active_files
-
     # Return absolute path of val if defined, default is
-    # '#@project_dir/default'. Returns nil if false. Used to initialize *_file
-    # attributes
+    # '<project_dir>/<default-arguments>'. Used to initialize *_file attributes
     def file_attr(val, *default) = val.nil? ? File.join(*default) : File.absolute_path(val)
 
     def load_file(attr)
@@ -342,77 +339,3 @@ module Prick
 end
 
 
-
-
-__END__
-
-    def load_compiler_state_file
-      data = File.exist?(compiler_state_file) ? YAML.load_extended(compiler_state_file) : {}
-      @timestamp ||= Time.parse(data[:timestamp] || "1970-01-01 00:00:00 UTC")
-      @completed_resources = data[:completed_resources] || []
-    end
-
-    def save_compiler_state_file
-      File.write state_file, {
-        timestamp: Time.now.strftime("%Y-%m-%d %H:%M:%S %Z"),
-        completed_resources: @completed_resources
-      }.to_yaml
-    end
-
-__END__
-
-
-    PROJECT_FILE_FIELDS = {
-      title: :PROJECT_TITLE,
-      name: :PROJECT_NAME,
-      prick_version: :PRICK_VERSION,
-    }
-
-    STATE_FILE_FIELDS = {
-      database: :PRICK_DATABASE,
-      username: :PRICK_USERNAME,
-      environment: :PRICK_ENVIRONMENT,
-    }
-
-    VERSION_FILE_FIELDS = {
-      version: :PROJECT_VERSION
-    }
-
-
-  def self.load_project = load_file PROJECT_FILE, PROJECT_FILE_FIELDS
-  def self.save_project(**opts) = save_file PROJECT_FILE, PROJECT_FILE_FIELDS, **opts
-
-  def self.load_version = load_file VERSION_FILE, VERSION_FILE_FIELDS
-  def self.save_version(**opts) = save_file VERSION_FILE, VERSION_FILE_FIELDS, **opts
-
-  def self.load_state = load_file STATE_FILE, STATE_FILE_FIELDS
-  def self.save_state(**opts) = save_file STATE_FILE, STATE_FILE_FIELDS, **opts
-
-
-
-
-      @project_file = project_file || File.join(prick_dir, PROJECT_FILENAME)
-      @state_file = proj
-
-
-      , @environment_file,
-      @reflections_file, @state_file, @fox_state_file =
-          project_file, environment_file, reflections_file, state_file, fox_state_file
-
-      @project_loaded = @state_loaded = @environment_loaded = false
-
-      if @project_file && File.exist?(@project_file)
-        load_project_file
-        load_state_file if @state_file && File.exist?(@state_file)
-      end
-
-      # FIXME The environment file should be loaded on-demand but it is hard to
-      # do when the environments are accessed through a class-interface
-      load_environment_file if @environment_file && File.exist?(@environment_file)
-    end
-
-
-
-
-  end
-end

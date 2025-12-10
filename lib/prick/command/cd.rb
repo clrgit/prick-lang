@@ -10,7 +10,7 @@ module Prick::Command
       super \
           "cd", opts, args,
           database: database
-      settings.username = Database.owner(database)
+      settings.username = Database.owner(database) # Requires db access so have to go after super
     end
 
     def run

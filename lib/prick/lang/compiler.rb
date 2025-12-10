@@ -34,10 +34,10 @@ module Prick::Lang
     def self.instance = @@INSTANCE
 
     # Database environment
-    forward_to :state, :database, :username, :environment
+    forward_to :settings, :database, :username, :environment
 
     # Runtime options
-    forward_to :state, :dryrun?, :verbose?, :log?
+    forward_to :settings, :dryrun?, :verbose?, :log?
 
     # Source and environment
     attr_reader :dir # Current user directory when the compiler was invoked
@@ -61,11 +61,13 @@ module Prick::Lang
     def idr = @converter.idr # Idr::Program. Initialized by #convert and updated by #analyze
     def units = @generator.units # [Unit::Node]. Initialized by #generate
 
+    # Timestamp of last run
+    attr_reader :timestamp # Time - time of last successful run. Default epoch
+
     # State data TODO: Move to database
     #
     # State data have default values that are overwriten by #load_compiler_state
     def state_file = settings.compiler_state_file
-    attr_reader :timestamp # Time - time of last successful run. Default epoch
     attr_reader :completed_resources # [uid] - Completed resource
 
     attr_reader :meta_tables
@@ -106,6 +108,8 @@ module Prick::Lang
       @requires = []
       @contexts = [] # Stack of [Idr::Resource, Idr::Block] tuples
       @schemas = [] # Stack of Idr::Schema objects
+
+      load_state
     end
 
     #
@@ -303,6 +307,27 @@ module Prick::Lang
       @contexts.pop
       @schemas.pop if context.is_a? Idr::Schema
     end
+
+    #
+    # S T A T E
+    #
+
+    # Load completed resources from compiler state file. It is not an error if
+    # the file is absent
+    def load_state
+      data = File.exist?(state_file) ? YAML.load_extended(state_file) : {}
+      @completed_resources = data[:completed_resources] || []
+    end
+
+    # Write completed resource to compiler state file
+    def save_state
+      File.write state_file, {
+        completed_resources: @completed_resources
+      }.to_yaml
+    end
+
+    # Remove the compiler state file if present
+    def reset_state = FileUtils.rm_f state_file
 
     #
     # D U M P

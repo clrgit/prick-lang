@@ -16,35 +16,23 @@ SPEC = %(
     The superuser to connect as when doing RDBMS operations. Default is the
     user executing the command
 
-  -C,directory=DIR
-    Switch to directory before doing anything else. Used in debug
+  -d,database=DATABASE
+    Override current database. This makes prick ignore its state file
 
   --timestamp=TIMESTAMP
-    Override timestamp from the compiler state file
+    Override timestamp from the database state
 
   +x,exclude=SCHEMA,
     Comma-separated list of excluded schemas
 
-  --environment-file=FILE
-    Environment file. Default is '#{Prick::SCHEMA_DIRNAME}/#{Prick::DEFAULT_ENVIRONMENT_FILENAME}'
+  -l,log
+    Log commands to stderr
 
-  --reflections-file=FILE
-    Reflections file. Default is '#{Prick::SCHEMA_DIRNAME}/#{Prick::DEFAULT_REFLECTIONS_FILENAME}'
-
-  --database-state-file=FILE
-    Prick database state file. Default is '#{Prick::STATE_DIRNAME}::#{Prick::DEFAULT_DATABASE_STATE_FILENAME}'
-
-  --compiler-state-file=FILE
-    Prick compiler state file. Default is '#{Prick::STATE_DIRNAME}::#{Prick::DEFAULT_COMPILER_STATE_FILENAME}'
-
-  --fox-state-file=FILE
-    Fox state file. Default is '#{Prick::STATE_DIRNAME}/#{Prick::DEFAULT_FOX_STATE_FILENAME}'
+  -C,directory=DIR
+    Switch to directory before doing anything else. Used in debug
 
   --dump=tokens|ast|idr|links|deps|marks|units|state,
     Dump debug. Default is 'ast'
-
-  -l,log
-    Log commands to stderr
 
   -D,dryrun
     Do not do any changes
@@ -55,6 +43,10 @@ SPEC = %(
 
   -T,trace
     Enable tracer. Used for debugging
+
+
+  --reflections-file=EFILE
+    Reflections file. Default is '#{Prick::SCHEMA_DIRNAME}/#{Prick::REFLECTIONS_FILENAME}'
 
 
   init! --name=NAME --title=TITLE -- [DIR]
@@ -155,7 +147,7 @@ case cmd
       break if arg !~ /^#{Prick::Lang::Token::TARGET_PATTERN}$/
       targets << args.shift
     end
-    targets = [Prick::Lang::Compiler::DEFAULT_TARGET] if targets.empty?
+    targets = [Prick::Lang::Compiler::TARGET] if targets.empty?
 
     # TODO: Load prick.yml
 

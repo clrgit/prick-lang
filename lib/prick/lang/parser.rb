@@ -195,7 +195,7 @@ module Prick::Lang
     end
 
     def parse_dir
-      parse_prick_file File.join(peek_token.path, Prick::DEFAULT_SOURCE_FILENAME)
+      parse_prick_file File.join(peek_token.path, Prick::SOURCE_FILENAME)
     end
 
     def parse_prick_file(path = nil)

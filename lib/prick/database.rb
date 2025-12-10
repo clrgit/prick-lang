@@ -3,7 +3,7 @@ module Prick
   module Database
     include Prick
 
-    forward_to_class "Prick.settings", :username, :superuser, :system_conn, :super_conn, :user_conn
+    forward_to_class "Prick.settings", :superuser, :system_conn, :user_conn
 
     #
     # R D B M S   M E T H O D S
@@ -16,13 +16,10 @@ module Prick
       conn.rdbms.exist? database
     end
 
-    # Return owner of the given database
-    def self.owner(database)
-      conn.rdbms.owner database
-    end
-
     # Create database. Create owner too if absent
-    def self.create(database, owner)
+    def self.create(database)
+      owner = database # Owner always has the same name as the database
+
       # Create owner if absent
       if !system_conn.role.exist? owner
         # FIXME Should not be created as superuser but that requires that prick
@@ -37,7 +34,8 @@ module Prick
 
     # Ensure that an empty database exists with no users except the owner.
     # Existing databases are hollowed-out to not kick other user sessions
-    def self.ensure(database, owner)
+    def self.ensure(database)
+      owner = database # Owner always has the same name as the database
       if system_conn.rdbms.exist? database
         system_conn.role.drop system_conn.role.list(database: database)
         system_conn.rdbms.empty! database
@@ -49,7 +47,7 @@ module Prick
     # Drop database and optionally owner. Owner is not dropped if equal to
     # #superuser
     def self.drop(database, owner: false)
-      owner = owner ? self.owner(database) : nil
+      owner = owner ? database : nil
       system_conn.rdbms.drop database
       system_conn.role.drop owner if owner && owner != superuser
     end
