@@ -36,9 +36,6 @@ module Prick
     # not the per-database directory database_cache_dir
     attr_reader :dirs
 
-#   # Each project subdirectory. :bin_dir, :schema_dir, ...
-#   attr_reader *Prick::PROJECT_DIR_ATTRS
-
     #
     # F I L E S
     #
@@ -233,7 +230,11 @@ module Prick
         load_prick_state
       end
 
-      # Assign settings that depends on the database
+      # Load state files. Absent files are ignored
+      load_project
+      load_version
+
+      # Per-database settings
       if @database
         @dirs.database_cache = File.join(Prick::CACHE_DIRNAME, @database)
 
@@ -241,11 +242,10 @@ module Prick
         @database_state_file = file_attr database_state_file, dirs.database_cache, Prick::DATABASE_STATE_FILENAME
         @compiler_state_file = file_attr compiler_state_file, dirs.database_cache, Prick::COMPILER_STATE_FILENAME
         @fox_state_file = file_attr fox_state_file, dirs.database_cache, Prick::FOX_STATE_FILENAME
-      end
 
-      # Load state files. Absent files are ignored
-      load_project
-      load_version
+        # Load database state. Compiler and fox states are loaded elsewhere
+        load_database_state
+      end
 
       # Assign additional attributes
       attrs.each { |attr, value| self.send(:"#{attr}=", value) }
@@ -261,6 +261,9 @@ module Prick
     def load_version = load_file :version_file
     def save_version(**opts) = save_file :version_file, **opts
 
+    def load_prick_state = load_file :prick_state_file
+    def save_prick_state(**opts) = save_file :prick_state_file, **opts
+
     def load_environments
       return nil if environment_file.nil? || !File.exist?(environment_file)
       hash = YAML.load_extended environment_file
@@ -268,9 +271,11 @@ module Prick
       @environment_loaded = true
     end
 
-    def load_prick_state = load_file :prick_state_file
-    def save_prick_state(**opts) = save_file :prick_state_file, **opts
-    def reset_prick_state = reset_file :prick_state_file
+    # Load database state from file
+    def load_database_state
+      load_file :database_state_file
+    end
+
 
     # Write build state to cache file
     def write_database_state
@@ -303,6 +308,14 @@ module Prick
       write_database_state
     end
 
+#   def reset_database_state
+#     @environment = nil
+#     @clean = nil
+#     @status = nil
+#     @compile_duration = nil
+#     @execute_duration = nil
+#   end
+
     #
     # I O
     #
@@ -316,7 +329,8 @@ module Prick
     STATE_FILES = {
       project_file: [:name, :title, :prick_version],
       version_file: [:version],
-      prick_state_file: [:database]
+      prick_state_file: [:database],
+      database_state_file: OpenStruct
     }
 
     # Return absolute path of val if defined, default is
@@ -328,7 +342,12 @@ module Prick
       file = self.send(attr)
       return nil if file.nil? || !File.exist?(file)
       h = YAML.load_extended(file)
-      STATE_FILES[attr].each { |field| self.instance_variable_set(:"@#{field}", h[field]) }
+      case data = STATE_FILES[attr]
+        when Array; data.each { |field| self.instance_variable_set(:"@#{field}", h[field]) }
+        when Class; data.new(h)
+      else
+        internal "Unspecified file '#{attr}'"
+      end
     end
 
     def save_file(attr, **opts)
@@ -336,12 +355,6 @@ module Prick
       return nil if file.nil?
       data = STATE_FILES[attr].map { |field| [field, opts.key?(field) ? opts[field] : self.send(field)] }.to_h
       IO.write file, data.to_yaml
-    end
-
-    def reset_file(attr)
-      file = self.send(attr)
-      return nil if file.nil?
-      FileUtils.rm_f file
     end
   end
 end

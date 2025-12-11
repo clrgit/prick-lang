@@ -53,12 +53,16 @@ SPEC = %(
   term!
     Delete a prick project, its files, and all associated users
 
-  setup! -- [USERNAME] DATABASE [ENVIRONMENT]
+  setup! -f,force -- [DATABASE] ENVIRONMENT
     Setup a new database owned by username and with the given environment. The
-    environment argument is given preference over username
+    default database name is the environment, eg. 'prick setup dev' for a
+    database named 'dev' using the 'dev' environment
 
   teardown! --keep-owner -- DATABASE
     Teardown a database and associated users
+
+  info!
+    Print some info
 
   set [database|username|environment] VALUE
     Change database environment

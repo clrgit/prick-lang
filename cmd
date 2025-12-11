@@ -34,6 +34,9 @@ case "$CMD" in
     teardown)
         eval $TIMECMD bundle exec exe/prick-lang -C $PROJECT teardown ${@:-$PROJECT}
         ;;
+    info)
+        eval $TIMECMD bundle exec exe/prick-lang -C $PROJECT info $@
+        ;;
     cd)
         eval $TIMECMD bundle exec exe/prick-lang -C $PROJECT cd $@
         ;;

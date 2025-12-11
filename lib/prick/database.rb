@@ -13,7 +13,7 @@ module Prick
 
     # Return true if the database exists
     def self.exist?(database)
-      conn.rdbms.exist? database
+      system_conn.rdbms.exist? database
     end
 
     # Create database. Create owner too if absent
@@ -33,7 +33,8 @@ module Prick
     end
 
     # Ensure that an empty database exists with no users except the owner.
-    # Existing databases are hollowed-out to not kick other user sessions
+    # Existing databases are hollowed-out instead re-created to not kick
+    # existing sessions
     def self.ensure(database)
       owner = database # Owner always has the same name as the database
       if system_conn.rdbms.exist? database

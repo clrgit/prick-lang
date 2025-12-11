@@ -148,9 +148,11 @@ module Prick
 
   def self.error(msg) = ShellOpts.error msg
   def self.failure(msg) = ShellOpts.failure msg
+  def self.internal(msg) = raise InternalError, msg
 
   def error(msg) = Prick.error msg
   def failure(msg) = Prick.failure msg
+  def internal(msg) = Prick.internal msg
 
 private
   @@state = nil

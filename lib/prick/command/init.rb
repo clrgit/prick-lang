@@ -17,16 +17,15 @@ module Prick::Command
           ShellOpts.error "Won't overwrite existing project"
 
       # Initialize Prick
-      super(
-        "init", opts, args,
-        project_dir: project_dir,
-        name: opts.subcommand!.name || project_dirname,
-        title: opts.subcommand!.title || project_dirname.capitalize,
-        prick_version: Prick::VERSION,
-        version: '0.0.0',
-        load_files: [],
-        save_files: [:project_file]
-      )
+      super \
+          opts, args,
+          project_dir: project_dir,
+          name: opts.subcommand!.name || project_dirname,
+          title: opts.subcommand!.title || project_dirname.capitalize,
+          prick_version: Prick::VERSION,
+          version: '0.0.0',
+          load_files: [],
+          save_files: [:project_file]
     end
 
     def run

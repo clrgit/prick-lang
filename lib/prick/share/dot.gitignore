@@ -1,4 +1,5 @@
 
 # State files
 /var
+.prick.state.yml
 

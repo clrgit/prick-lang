@@ -8,8 +8,9 @@ module Prick::Command
     attr_reader :args
     attr_reader :attrs
 
-    def initialize(cmd, opts, args, project_dir: nil, **attrs, &block)
-      @cmd, @opts, @args, @attrs = cmd, opts, args, attrs
+    def initialize(opts, args, project_dir: nil, **attrs, &block)
+      @cmd = self.class.to_s.sub(/^.*::/, "").downcase
+      @opts, @args, @attrs = opts, args, attrs
 
       # Initialize prick and set options
       Prick.initialize(
@@ -33,6 +34,7 @@ module Prick::Command
       when "init"; Prick::Command::Init.new(opts, args)
       when "setup"; Prick::Command::Setup.new(opts, args)
       when "teardown"; Prick::Command::Teardown.new(opts, args)
+      when "info"; Prick::Command::Info.new(opts, args)
       when "cd"; Prick::Command::CD.new(opts, args)
       when "pwd"; Prick::Command::PWD.new(opts, args)
       when "build", "make"; Prick::Command::BuildMake.new(cmd, opts, args)
@@ -45,6 +47,7 @@ end
 require_relative './command/init.rb'
 require_relative './command/setup.rb'
 require_relative './command/teardown.rb'
+require_relative './command/info.rb'
 require_relative './command/cd.rb'
 require_relative './command/pwd.rb'
 require_relative './command/build-make.rb'
