@@ -274,7 +274,7 @@ module Prick
 
     # Write build state to cache file
     def write_database_state
-      IO.write database_state_file, @database_state.to_h.to_yaml
+      IO.write database_state_file, @database_state.to_h.transform_keys(&:to_s).to_yaml
     end
 
     # Load status of last build from the database and set environment
