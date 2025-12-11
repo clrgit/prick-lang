@@ -25,11 +25,14 @@ SPEC = %(
   +x,exclude=SCHEMA,
     Comma-separated list of excluded schemas
 
+  -C,directory=DIR
+    Switch to directory before doing anything else. Used in debug
+
   -l,log
     Log commands to stderr
 
-  -C,directory=DIR
-    Switch to directory before doing anything else. Used in debug
+  --reflections-file=EFILE
+    Reflections file. Default is '#{Prick::SCHEMA_DIRNAME}/#{Prick::REFLECTIONS_FILENAME}'
 
   --dump=tokens|ast|idr|links|deps|marks|units|state,
     Dump debug. Default is 'ast'
@@ -43,11 +46,6 @@ SPEC = %(
 
   -T,trace
     Enable tracer. Used for debugging
-
-
-  --reflections-file=EFILE
-    Reflections file. Default is '#{Prick::SCHEMA_DIRNAME}/#{Prick::REFLECTIONS_FILENAME}'
-
 
   init! --name=NAME --title=TITLE -- [DIR]
     Create a prick project. DIR is created if needed, using '.' as default

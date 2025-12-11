@@ -18,7 +18,8 @@ module Prick::Command
     def run
       Database.ensure database
       Database.init
-      settings.save_build_state
+      FileUtils.mkdir_p settings.dirs.database_cache
+      settings.save_prick_state
       settings.save_database_state
     end
   end

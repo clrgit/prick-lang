@@ -32,17 +32,40 @@ module Prick
   # prick.environment.yml
   # .prick.state.yml # Contains only database name
   #
-  # var
-  #   cache
-  #     <database>
+  # bin/
+  #
+  # lib/
+  #
+  # libexec/
+  #
+  # schema/
+  #   prick/
+  #     prick.sql
+  #     version.yml
+  #
+  # var/
+  #   lib/
+  #
+  #   cache/
+  #     <database>/
   #       state.yml
   #       compiler.state.yml
   #       fox.state.yml
   #
-  #   log
+  #   log/
   #     prick.log
-  #     <database>
+  #     <database>/
   #       <project>-<host>-<database>-<timestamp>.log
+  #
+  #   spool/
+  #
+  #   backup/
+  #
+  #   dump/
+  #
+  # spec/
+  #
+  # tmp/
   #
 
   # Relative paths to subdirectories
@@ -67,8 +90,8 @@ module Prick
   # Project subdirectories ([Symbol]), used to initialize Settings#dirs. Keep
   # in sync with project *_DIRNAMES!
   PROJECT_DIR_ATTRS = [
-      :bin, :schema, :schema_prick, :test, :lib, :libexec, :var, :log, :cache,
-      :spool, :backup, :dump, :tmp
+      :bin, :schema, :schema_prick, :test, :lib, :libexec, :var, :varlib, :log,
+      :cache, :spool, :backup, :dump, :tmp
   ]
 
   # Project filename
@@ -77,22 +100,22 @@ module Prick
   # Version filename
   VERSION_FILENAME = "version.yml"
 
-  # Default environment filename
+  # Prick environment filename
   ENVIRONMENT_FILENAME = "prick.environment.yml"
 
   # Default reflections filename
   REFLECTIONS_FILENAME = "reflections.yml"
 
-  # Default prick state filename
+  # Prick state filename
   PRICK_STATE_FILENAME = ".prick.state.yml"
 
-  # Default database state file
+  # Database state file
   DATABASE_STATE_FILENAME = "state.yml"
 
-  # Default compiler state filename
+  # Compiler state filename
   COMPILER_STATE_FILENAME = "compiler.state.yml"
 
-  # Default fox state filename
+  # Fox state filename
   FOX_STATE_FILENAME = "fox.state.yml"
 
   # Prick SQL file. Lives in the schema/prick directory and builds the prick schema

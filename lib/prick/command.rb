@@ -17,8 +17,6 @@ module Prick::Command
         **attrs.merge({
           database: opts.database,
           superuser: opts.superuser || ENV['USER'],
-          prick_state_file: opts.prick_state_file,
-          environment_file: opts.environment_file,
           reflections_file: opts.reflections_file,
           verbose: opts.verbose?,
           dryrun: opts.dryrun?,
