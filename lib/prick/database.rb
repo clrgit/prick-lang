@@ -41,7 +41,7 @@ module Prick
         system_conn.role.drop system_conn.role.list(database: database)
         system_conn.rdbms.empty! database
       else
-        create database, owner
+        create database
       end
     end
 
@@ -62,7 +62,7 @@ module Prick
     # Return true if current database is an initialized prick database
     def self.prick?
 #     db_conn.schema.exist_relation? "prick", "states"
-      user_conn.schema.exist_relation? "prick", "states"
+      super_conn.schema.exist_relation? "prick", "states"
     end
 
     # Initialize database

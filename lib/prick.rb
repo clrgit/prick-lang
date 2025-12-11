@@ -112,6 +112,9 @@ module Prick
   # Database state file
   DATABASE_STATE_FILENAME = "state.yml"
 
+  # Database state file glob. Matches all database state files in var/cache/*
+  DATABASE_STATE_FILE_GLOB = File.join(CACHE_DIRNAME, "*", DATABASE_STATE_FILENAME)
+
   # Compiler state filename
   COMPILER_STATE_FILENAME = "compiler.state.yml"
 

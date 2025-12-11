@@ -64,10 +64,13 @@ SPEC = %(
   info!
     Print some info
 
-  set [database|username|environment] VALUE
+  list! -l,long -- [database|environments|users]
+    List databases
+
+  set -- [database|username|environment] VALUE
     Change database environment
 
-  cd! DATABASE
+  cd! -- DATABASE
     Change Database
 
   pwd!

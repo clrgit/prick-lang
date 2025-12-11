@@ -3,7 +3,7 @@ module Prick::Command
   class Setup < Command
     forward_to :settings, :database, :username, :environment
 
-    # Setup existing databases too
+    # Setup database even if it exists
     attr_reader :force
 
     # Command line syntax
@@ -23,6 +23,7 @@ module Prick::Command
       FileUtils.rm_rf settings.dirs.database_cache # To remove all existing state files
       FileUtils.mkdir_p settings.dirs.database_cache
       settings.save_prick_state
+      settings.set_database_state
       settings.save_database_state
     end
   end

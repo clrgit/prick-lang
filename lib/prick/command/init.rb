@@ -23,9 +23,7 @@ module Prick::Command
           name: opts.subcommand!.name || project_dirname,
           title: opts.subcommand!.title || project_dirname.capitalize,
           prick_version: Prick::VERSION,
-          version: '0.0.0',
-          load_files: [],
-          save_files: [:project_file]
+          version: '0.0.0'
     end
 
     def run
