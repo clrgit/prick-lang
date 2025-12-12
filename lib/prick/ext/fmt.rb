@@ -59,7 +59,6 @@ module Fmt
     puts
 
     table.each.with_index { |row, rownum|
-#     for index, sign, width, type, value in signs.zip(indexes, signs, widths, types, row) # FIXME doesn't work?
       print "\033[1m" if rownum == bold
 
       for i in (0...headers.size)

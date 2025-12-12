@@ -323,7 +323,7 @@ module Prick::Lang
     def save_state
       File.write state_file, {
         completed_resources: @completed_resources
-      }.to_yaml
+      }.to_yaml_extended
     end
 
     # Remove the compiler state file if present

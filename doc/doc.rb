@@ -100,7 +100,7 @@ DESCR = %(
     Merge command
       The merge command consist of the following steps
 
-          build new version
+          build new version with max IDs from the target database
           copy and clear seed tables
           load new production merge data (excl. meta)
           merge seed tables and maintain ID tables
@@ -182,11 +182,12 @@ DESCR = %(
           Delete existing data using prick.merge_records and copy source. This
           is the fastest strategy but the table should be read-only in the
           production environment and may not be referred to by ID except from
-          other seed tables
+          other copy tables
 
       sync
           Like copy but IDs are preserved for existing records so they can
-          be referred by ID in the target database
+          be referred by ID in the target database. New records get an ID
+          bigger than any existing so we need max_ids
 
       prepare
           Like sync but register obsolete targets instead of deleting them.
@@ -199,7 +200,7 @@ DESCR = %(
 
       sync TABLE KEY [ID-TABLE]
       sync TABLE KEY '|' SQL
-          Synchronize (a subset of) table using KEY as identity. ID-TABLE is a
+          Synchronize (a subset of) records using KEY as identity. ID-TABLE is a
           table of IDs (default prick.merge_records), SQL is a multiline SQL
           expression that yields an array of IDs
 
