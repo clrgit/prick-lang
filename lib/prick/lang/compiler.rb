@@ -36,6 +36,9 @@ module Prick::Lang
     # Database environment
     forward_to :settings, :database, :username, :environment
 
+    # Connection
+    def conn = settings.user_conn
+
     # Runtime options
     forward_to :settings, :dryrun?, :verbose?, :log?
 
@@ -64,10 +67,9 @@ module Prick::Lang
     # Timestamp of last run
     attr_reader :timestamp # Time - time of last successful run. Default epoch
 
-    # State data TODO: Move to database
+    # State data
     #
     # State data have default values that are overwriten by #load_compiler_state
-    def state_file = settings.compiler_state_file
     attr_reader :completed_resources # [uid] - Completed resource
 
     attr_reader :meta_tables
@@ -315,20 +317,17 @@ module Prick::Lang
     # Load completed resources from compiler state file. It is not an error if
     # the file is absent
     def load_state
-      data = File.exist?(state_file) ? YAML.load_extended(state_file) : {}
-      @completed_resources = data[:completed_resources] || []
+      @completed_resources = conn.values %(select uid from prick.resources)
     end
 
     # Write completed resource to compiler state file
     def save_state
-      File.write state_file, {
-        completed_resources: @completed_resources
-      }.to_yaml_extended
+      reset_state
+      conn.insert "prick.resources", [:uid], @completed_resources
     end
 
-    # Remove the compiler state file if present
-    def reset_state = FileUtils.rm_f state_file
-
+    # Remove the compiler state if present
+    def reset_state = conn.exec "delete from prick.resources"
     #
     # D U M P
     #

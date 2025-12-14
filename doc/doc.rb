@@ -136,7 +136,8 @@ DESCR = %(
     Table types
       meta
           Meta tables are used to create schema objects (schemas / tables
-          / functions / etc.) and are non-empty after the 'this' phase
+          / functions / etc.) and are non-empty after the 'this' phase. They
+          are constant after that
 
           Meta table may not be referred to by ID except by other meta
           tables (this can be checked). They are excluded from the
@@ -145,16 +146,35 @@ DESCR = %(
 
       seed
           Seed tables are non-empty after the 'seed' phase (and not a meta
-          table). Prick auto-detects seeds tables and compares it to the tables
-          in the merge section to warn about unhandled tables
+          table). Prick auto-detects seeds tables and compares them to the
+          tables in the merge section to warn about unhandled tables
 
-          Records in seed tables that use the sync or prepare strategies
-          may be referenced to by ID from the rest of the target database
-          (this can be checked) but it is an error if a to-be-deleted
-          record is still referenced. The migration should take care of that
-          before data are merged
+          Records in seed tables that use the sync or prepare strategies may be
+          referenced to by ID from the rest of the target database (this can be
+          checked) but it is a non-detected error if a to-be-deleted record is
+          still referenced. The migration should take care of that before data
+          are merged
+
+          Seed tables comes in different flavors that are auto-detected:
+
+            Copy tables
+              Copy tables are copied directly. They may not be referenced by
+              ID. Copy tables are merged using the 'copy' method
+
+            Key tables
+              Key tables have a unique key in addition to the ID. They can use
+              the 'sync' or 'prepare' merge strategies (in addition to 'copy')
+              that preserves the ID so that they can be referred to by that
+              from other tables
+
+            Link tables
+              Link tables (between seed tables) does not contain an alternate
+              unique key and may not be referenced at all (link tables never
+              are). On merge all existing records are deleted before the seed
+              phase
 
     Table types
+
       Seed tables
         Regular seed tables have a unique field in addition to the primary key
         but that's not true for link tables. The categories key and link tables
@@ -168,10 +188,10 @@ DESCR = %(
       Link tables
         Link tables require special handling because they don't contain an
         alternate unique key. They may not be referred to at all (link tables
-        never are). Link tables are generated with IDs starting at the first free
-        ID in the production database
+        never are). Link tables are generated with IDs starting at the first
+        free ID in the production database
 
-        Link table records are tracked in mumble and are deleted on merge.
+        Link table records are tracked in seed_records and are deleted on merge.
         Build records are then appended to the target table
 
     Merge strategies
@@ -185,9 +205,10 @@ DESCR = %(
           other copy tables
 
       sync
-          Like copy but IDs are preserved for existing records so they can
-          be referred by ID in the target database. New records get an ID
-          bigger than any existing so we need max_ids
+          Like copy but IDs are preserved for existing records so they can be
+          referred by ID from other tables. New records get an ID bigger
+          than any existing so we need max_ids. We also need to be able to
+          identify old records so we need to keep track of them too
 
       prepare
           Like sync but register obsolete targets instead of deleting them.
@@ -221,6 +242,19 @@ DESCR = %(
       Seed tables are registered in prick.merge_tables and their records in
       prick.merge_records. The ID tables are initially defined in the 'seed'
       phase and then maintained in the 'merge' phase
+
+        seed_tables
+
+        seed_records
+
+        max_ids
+
+
+    Phases
+      before-seed
+
+      after-seed
+        Register max-ids of all tables
 
   Random stuff
       Procedure make-seed-for-migration
