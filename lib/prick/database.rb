@@ -79,7 +79,8 @@ module Prick
       }
     end
 
-    def self.status(database)
+    def self.sync_serials
+      user_conn.proc :"prick.sync_serials"
     end
   end
 end

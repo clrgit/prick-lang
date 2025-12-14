@@ -133,7 +133,7 @@ module Prick
 
   # List of SQL files that defines objects in the prick schema. Only prick.sql
   # is mandatory
-  PRICK_BUILD_FILENAMES = %w(prick.sql tables.sql views.sql functions.sql)
+  PRICK_BUILD_FILENAMES = %w(prick.sql tables.sql functions.sql views.sql)
 
   # Settings object
   def self.settings = @@settings

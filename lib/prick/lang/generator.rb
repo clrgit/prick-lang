@@ -19,7 +19,7 @@ module Prick::Lang
 
     def initialize
       @units = []
-      CATEGORIES.values.each { self.instance_variable_set(:"@#{_1}", []) } # assign *_units variables
+      CATEGORIES.values.each { self.instance_variable_set(:"@#{_1}", []) } # initialize *_units variables
     end
 
     def generate

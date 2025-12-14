@@ -328,6 +328,7 @@ module Prick::Lang
 
     # Remove the compiler state if present
     def reset_state = conn.exec "delete from prick.resources"
+
     #
     # D U M P
     #
