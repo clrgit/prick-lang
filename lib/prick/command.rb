@@ -38,7 +38,8 @@ module Prick::Command
       when "list"; Prick::Command::List.new(opts, args)
       when "cd"; Prick::Command::CD.new(opts, args)
       when "pwd"; Prick::Command::PWD.new(opts, args)
-      when "build", "make"; Prick::Command::BuildMake.new(cmd, opts, args)
+      when "build"; Prick::Command::Build.new(opts, args)
+      when "make"; Prick::Command::Make.new(opts, args)
     else
       ShellOpts.failure "'#{cmd}' command is not implemented yet"
     end

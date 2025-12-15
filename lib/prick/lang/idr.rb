@@ -112,7 +112,16 @@ module Prick::Lang
 #       head.deps << node.tail
 #       node.tail.reqs << self
         head.deps << node
-        node.reqs << self
+
+#       node.reqs << self
+        node.reqs << head # FIXME MØSTISK
+        p :BING
+        check_deps
+      end
+
+      def check_deps
+        deps.all? { |dep| dep.reqs.include?(self) } or raise "deps/reqs mismatch"
+        children.each { |child| child.check_deps }
       end
 
       def Idr.transitive_closure(nodes, method: nil)
@@ -150,6 +159,11 @@ module Prick::Lang
 
     # Artificial node that creates a schema
     class SchemaCommand < Command
+    end
+
+    # Artificial node that detects meta tables (before any seed has been
+    # loaded)
+    class DetectMetaCommand < Command
     end
 
     class FileCommand < Command
@@ -254,6 +268,9 @@ module Prick::Lang
     class CheckCommand < NopCommand
     end
 
+    class DetectMetaCommand < Command
+    end
+
     #
     # R E S O U R C E
     #
@@ -303,7 +320,7 @@ module Prick::Lang
       ATTRS = KINDS.map(&:downcase)
       PHASES = KINDS.map { |kind| [kind, [kind.downcase, :"#{kind.downcase}="]] }.to_h
 
-      def kind = ast.kind # Symbol
+      def kind = ast.kind # Upcase Symbol
       def read_attr = kind.downcase # Reader method in parent object
       def write_attr = :"#{kind.downcase}=" # Writer method in parent object
     end
@@ -371,6 +388,7 @@ module Prick::Lang
       def initialize(ast)
         super(nil, ast)
         @schemas = []
+        @meta_command = DetectMetaCommand.new(self, nil)
       end
     end
 

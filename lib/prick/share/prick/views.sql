@@ -1,4 +1,10 @@
-drop view if exists prick.curr_max_ids cascade;
+
+-- Contains only the newest record from builds
+create view states as
+  select *
+  from builds
+  where created_at = (select max(created_at) from builds)
+;
 
 create view prick.curr_serials as
   with serials as (

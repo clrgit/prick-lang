@@ -13,25 +13,30 @@ module Prick::Lang
 
     def execute
       for unit in units
-        case idr = unit.node
-          when Idr::SqlCommand
-            sql_command(idr.source.value)
-          when Idr::FoxCommand
-            fox_command(idr.path)
-          when Idr::FileCommand
-            file_command(idr.path)
-          when Idr::ExternalCommand
-            idr.kind == :EXEC ? exec_command(idr.source.value) : eval_command(idr.source.value)
-          when Idr::CopyCommand
-            copy_command idr.tables.map(&:value)
-          when Idr::SyncCommand
-            sync_command idr.table, idr.key, idr.id_table || idr.source.value
-          when Idr::PrepareCommand
-            prepare_command idr.table, idr.key, idr.id_table || idr.source.value
-          when Idr::MarkCommand
-            mark_command idr.uid
+        case unit
+          when Unit::DetectMeta
+            detect_meta_command
           else
-            puts "Oops #{unit.node.class}"
+            case idr = unit.node
+              when Idr::SqlCommand
+                sql_command(idr.source.value)
+              when Idr::FoxCommand
+                fox_command(idr.path)
+              when Idr::FileCommand
+                file_command(idr.path)
+              when Idr::ExternalCommand
+                idr.kind == :EXEC ? exec_command(idr.source.value) : eval_command(idr.source.value)
+              when Idr::CopyCommand
+                copy_command idr.tables.map(&:value)
+              when Idr::SyncCommand
+                sync_command idr.table, idr.key, idr.id_table || idr.source.value
+              when Idr::PrepareCommand
+                prepare_command idr.table, idr.key, idr.id_table || idr.source.value
+              when Idr::MarkCommand
+                mark_command idr.uid
+              else
+                puts "Oops #{unit.node.class}"
+            end
         end
       end
     end
@@ -42,7 +47,14 @@ module Prick::Lang
       run { db.commit }
     end
 
-    # Operations
+    # Unit operations
+    def detect_meta_command
+      commit_command
+      log "DETECT META"
+      db.proc :"prick.detect_meta"
+    end
+
+    # Idr operations
     def exec_command(cmd)
       commit_command
       log "EXEC", cmd

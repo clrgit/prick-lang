@@ -48,7 +48,7 @@ module Prick::Lang
     def inspect() = "<#{self.class}>"
 
     def dump(marks: false)
-      puts "Nodes"; indent {
+      puts "Nodes (D - dirty, B - built, I - included, X - excluded, * - rebuild)"; indent {
         idr.nodes.sort_by(&:serial).each { |node|
           deps = node.deps.empty? ? 'nil' : node.deps.map(&:serial).map(&:inspect).join(", ")
           reqs = node.reqs.empty? ? '' : node.reqs.map(&:serial).map(&:inspect).join(", ")

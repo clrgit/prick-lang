@@ -58,6 +58,8 @@ private
 
     compiler.convert
     compiler.analyzer.analyze link: false
+    compiler.idr.check_deps # FIXME HERE HERE HERE
+    exit
     compiler.idr.dump if kinds.delete "idr"
     return if kinds.empty?
 

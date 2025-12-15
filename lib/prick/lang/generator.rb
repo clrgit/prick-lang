@@ -24,7 +24,7 @@ module Prick::Lang
 
     def generate
       # Build graph
-      @graph = nodes.map { |unit| [unit, unit.deps] }.to_h
+      @graph = nodes.map { |node| [node, node.deps] }.to_h
 
       # Sort nodes
       tsorted_nodes = topological_sort
@@ -73,6 +73,7 @@ module Prick::Lang
     attr_reader :graph # {Node=>[Node]} Hash from node to list of dependencies
 
     def build_units(nodes)
+      detect_meta_unit = nil
       nodes.each { |node|
         next if !node.send(mode_method)
         case node
@@ -84,8 +85,15 @@ module Prick::Lang
             ;
           when Idr::Command
             @units << Unit::Command.new(node)
+          when Idr::Phase
+            p node.kind
+            if node.kind == :SEED && detect_meta_unit.nil?
+              detect_meta_unit = Unit::DetectMeta.new(node)
+              @units << detect_meta_unit
+            end
           when Idr::Resource
             ;
+
         else
           raise
         end

@@ -1,5 +1,6 @@
 
 module Prick::Command
+  # Common code for Build and Make classes. They differ only in the #cmd value
   class BuildMake < Command
     BUILTIN_VARIABLES = [:database, :username, :environment, :version, :prick_version ]
 
@@ -9,11 +10,8 @@ module Prick::Command
 #   Override timestamp from the compiler state file
 #
 
-    def initialize(cmd, opts, args)
-      super \
-          cmd, opts, args,
-          load_files: [:environment_file, :database_state_file],
-          save_files: [:database_state_file]
+    def initialize(opts, args)
+      super opts, args
 
       # Define builtin variables and extract additional variables from command line
       variables = BUILTIN_VARIABLES.map { |attr| [attr, settings.send(attr)] }.to_h
@@ -38,6 +36,15 @@ module Prick::Command
           exclude: opts.exclude,
           variables: variables
       )
+
+      # Handle dump option. 'units' is the default
+      if opts.dump?
+        kinds = opts.dump || "units"
+        (unknowns = kinds - Prick::Lang::DUMP_KINDS) or
+            ShellOpts.error "Illegal value for --dump '#{unknowns.first}'"
+        Prick::Lang.dump(compiler, kinds)
+        exit
+      end
     end
 
     def run
@@ -61,6 +68,12 @@ module Prick::Command
 #     Prick::Lang.dump(compiler, kinds)
 #     exit
 #   end
+  end
+
+  class Build < BuildMake
+  end
+
+  class Make < BuildMake
   end
 end
 

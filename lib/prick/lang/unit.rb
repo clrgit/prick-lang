@@ -45,6 +45,10 @@ module Prick::Lang
     class Meta < Node
       def dumpunit = node.dumpline
     end
+
+    class DetectMeta < Node
+      def dumpunit = puts "DETECT META"
+    end
   end
 end
 

@@ -64,8 +64,8 @@ module Prick::Lang
     def idr = @converter.idr # Idr::Program. Initialized by #convert and updated by #analyze
     def units = @generator.units # [Unit::Node]. Initialized by #generate
 
-    # Timestamp of last run
-    attr_reader :timestamp # Time - time of last successful run. Default epoch
+    # Timestamp of last successful run
+    attr_reader :timestamp # Time - time of last successful run. Default EPOCH
 
     # State data
     #
@@ -87,7 +87,8 @@ module Prick::Lang
       constrain mode, :build, :make
       constrain timestamp, Time, nil
       constrain exclude, [String]
-      constrain variables, { Symbol => [String, Semver] }
+      constrain variables.keys, [Symbol]
+      constrain variables.values, [String, Semver, nil]
 
 #     @@INSTANCE.nil? or raise ArgumentError, "Compiler is a singleton" # Interferes with testing
       @@INSTANCE = self
@@ -97,7 +98,7 @@ module Prick::Lang
       @mode = mode
       @sources = []
       @targets = targets
-      @timestamp = timestamp
+      @timestamp = timestamp || settings.database_state.created_at
       @exclude = exclude
       @variables = variables
       @parser = Parser.new
@@ -121,8 +122,6 @@ module Prick::Lang
     def compile(&block)
       t0 = Time.now
       ShellOpts.verb "Compiling '#{file}'"
-
-      Dir.chdir settings.schema_dir # FIXME HACK
 
       indent(verbose?) {
         settings.load_compiler_state
@@ -170,8 +169,10 @@ module Prick::Lang
     # initialization. Eg. #parse needs @variables
 
     def parse(file = nil, lines = nil)
-      @file ||= file
-      @parser.parse(self.file, lines)
+      Dir.chdir settings.dirs.schema do
+        @file ||= file
+        @parser.parse(self.file, lines)
+      end
     end
 
     def convert
@@ -318,6 +319,7 @@ module Prick::Lang
     # the file is absent
     def load_state
       @completed_resources = conn.values %(select uid from prick.resources)
+      @timestamp = conn.value?("select max(created_at) from prick.builds where status = true") || EPOCH_TIMESTAMP
     end
 
     # Write completed resource to compiler state file
