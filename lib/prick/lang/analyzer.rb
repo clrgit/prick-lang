@@ -119,6 +119,13 @@ module Prick::Lang
       }
     end
 
+    # Assign phases
+    def assign_phases
+      idr.trees(Idr::Phase).each { |phase|
+        phase.nodes.each { |node| node.phase = phase.kind }
+      }
+    end
+
     # Assign Node#schema schema
     def assign_schema
       idr.nodes(Idr::Schema).each { |schema|

@@ -9,8 +9,8 @@ module Prick::Lang
     # Units by phase
     attr_reader :init_units
     attr_reader :this_units
-    attr_reader :seed_units
     attr_reader :term_units
+    attr_reader :seed_units
     attr_reader :auth_units
     attr_reader :merge_units
 
@@ -93,7 +93,6 @@ module Prick::Lang
             end
           when Idr::Resource
             ;
-
         else
           raise
         end
@@ -182,8 +181,14 @@ module Prick::Lang
 
     def categorize_units
       units.each { |unit|
-        attr = CATEGORIES[unit.phase]
-        self.send(attr) << unit
+        puts
+        p unit.node.class
+        p unit.node.parent.class
+        if unit.phase
+          attr = CATEGORIES[unit.phase]
+          p attr
+          self.send(attr) << unit
+        end
       }
     end
   end

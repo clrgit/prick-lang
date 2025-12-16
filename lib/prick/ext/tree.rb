@@ -51,6 +51,12 @@ module Tree
     self.instance_variable_set(var, child)
   end
 
+  def upfind(&block)
+    return self if yield(self)
+    parent&.upfind(&block)
+  end
+
+
   def each(&block)
     yield(self)
     @children.each { |node| node.each(&block) }

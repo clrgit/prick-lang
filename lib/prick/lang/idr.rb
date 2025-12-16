@@ -180,15 +180,12 @@ module Prick::Lang
     #
 
     class Command < Node
+      # Commands belong to a phase
+      attr_reader :phase
     end
 
     # Artificial node that creates a schema
     class SchemaCommand < Command
-    end
-
-    # Artificial node that detects meta tables (before any seed has been
-    # loaded)
-    class DetectMetaCommand < Command
     end
 
     class FileCommand < Command
@@ -216,6 +213,11 @@ module Prick::Lang
     # place to add dependencies
     class NopCommand < Command
       def initialize(parent, ast = nil) = super(parent, ast)
+    end
+
+    # Artificial node that detects meta tables (before any seed has been
+    # loaded)
+    class DetectMetaCommand < NopCommand
     end
 
     # Marks the end of a resource and is automatically added to blocks of all
@@ -292,9 +294,6 @@ module Prick::Lang
     class CheckCommand < NopCommand
     end
 
-    class DetectMetaCommand < Command
-    end
-
     #
     # R E S O U R C E
     #
@@ -347,6 +346,16 @@ module Prick::Lang
       def kind = ast.kind # Upcase Symbol
       def read_attr = kind.downcase # Reader method in parent object
       def write_attr = :"#{kind.downcase}=" # Writer method in parent object
+    end
+
+    # TODO
+    # Drop/create schemas
+    class SetupPhase < Phase
+    end
+
+    # TODO
+    # Registers meta tables
+    class MetaPhase < Phase
     end
 
     # Default empty phase. Added to the Idr by the analyzer for undefined phases
@@ -414,7 +423,7 @@ module Prick::Lang
       def initialize(ast)
         super(nil, ast)
         @schemas = []
-        @meta_command = DetectMetaCommand.new(self, nil)
+#       @meta_command = DetectMetaCommand.new(self) # FIXME Move to analyzer
       end
     end
 
