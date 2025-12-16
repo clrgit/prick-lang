@@ -1,5 +1,4 @@
 
-
 module Prick::Lang
   module Idr
     # Idr nodes are either Command objects, Resource objects, or transient
@@ -78,19 +77,18 @@ module Prick::Lang
       def head = self
 
       # Last node. Default equal to self but resources sets it to the last node
-      # in the block. This is the node to refer to if an another object depends
-      # on this node
+      # in the block
       def tail = self
 
-      # List of nodes that this node depends on. The list may only be
+      # List of nodes that this node directly depends on. The list may only be
       # manipulated using #depend_on
       attr_reader :deps
 
-      # List of nodes that requires this node. The list may only be
+      # List of nodes that requires this node directly. The list may only be
       # manipulated using #depend_on
       attr_reader :reqs
 
-      # Used in debug. May be removed
+      # Unique integer ID. Used in debug, may be removed
       attr_reader :serial
 
       def initialize(parent, ast)
@@ -105,23 +103,50 @@ module Prick::Lang
         @built = false
         @exclude = false
         @include = false
+
+#       info
+      end
+
+      def info
+        puts "#{self.classname} #{serial}"
+        indent {
+          puts "deps: #{deps.map(&:serial)}"
+          puts "reqs: #{reqs.map(&:serial)}"
+        }
       end
 
       # Make self depend on node
       def depend_on(node)
-#       head.deps << node.tail
-#       node.tail.reqs << self
-        head.deps << node
-
-#       node.reqs << self
-        node.reqs << head # FIXME MØSTISK
-        p :BING
-        check_deps
+        self.deps << node
+        node.reqs << self
       end
 
       def check_deps
-        deps.all? { |dep| dep.reqs.include?(self) } or raise "deps/reqs mismatch"
+        puts "#check_deps #{serial}"
+#       puts "#check_deps"
+#       indent {
+#         self.info
+#         self.deps.each(&:info)
+#       puts
+
+#       puts "a"
+
+        deps.all? { |dep|
+#         dep.reqs.include?(self)
+          if !dep.reqs.include?(self)
+            puts "FAILURE"
+            puts
+            dep.info
+            false
+          else
+            true
+          end
+
+        } or raise "deps/reqs mismatch"
+
+#       puts "b"
         children.each { |child| child.check_deps }
+#       }
       end
 
       def Idr.transitive_closure(nodes, method: nil)
@@ -193,23 +218,22 @@ module Prick::Lang
       def initialize(parent, ast = nil) = super(parent, ast)
     end
 
-    # Marks the end of a resource
-    #
-    # the phase and is automatically added to blocks of all resources. It
-    # serves as an anchor when chaining and the executor uses it to tell when
-    # an object is fully built and doesn't need rebuilding when using 'prick
-    # make'. Phases and functions are also marked but this is not used
+    # Marks the end of a resource and is automatically added to blocks of all
+    # resources. It serves as an anchor when chaining and the executor uses it
+    # to tell when an object is fully built and doesn't need rebuilding when
+    # using 'prick make'. Phases and functions are also marked but this is not
+    # used
     class MarkCommand < NopCommand
       def uid = parent.uid
     end
 
     class RequireCommand < NopCommand
       attr_accessor :uid # UID of required node
-      attr_reader :node # Required node
-      def node=(node)
-        depend_on(node)
-        @node = node
-      end
+      attr_accessor :node # Required node
+#     def node=(node)
+#       depend_on(node)
+#       @node = node
+#     end
 
       def initialize(parent, ast, uid = nil)
         constrain parent, Idr::Resource
@@ -282,10 +306,10 @@ module Prick::Lang
       attr_accessor :block # [Node]
       def uid = [parent&.uid, ident].compact.join(".")
 
-      def head = block.first
+#     def head = block.first
       def tail = block.last
-      def deps = head.deps
-      def reqs = tail.reqs
+#     def deps = head.deps
+#     def reqs = tail.reqs
 
       # These specializations also hits the tail node itself
       def built!() super; tail.built! end
@@ -353,11 +377,13 @@ module Prick::Lang
       attr_reader :meta_commands # [MetaCommand]
       def meta_tables = meta_commands.map(&:table) # [String] Only used in dump
 
-      def head = init.head
+#     def head = init.head
 #     def tail = auth.tail
 #     def tail = merge.tail
       def tail = term.tail
-      def deps = init.deps
+#     def deps = init.deps
+
+#     def anchor = term.tail
 
       def exclude = schema_command.exclude
 

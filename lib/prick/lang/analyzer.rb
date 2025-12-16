@@ -27,7 +27,7 @@ module Prick::Lang
     #   link=nil -> run assign+link
     #
     def analyze(link: nil)
-      if link.nil? || !link
+      if link.nil? || !link # Assign
         assign_this_phase
         assign_default_phases
         add_mark_nodes
@@ -35,7 +35,7 @@ module Prick::Lang
         collect_meta
         resolve_references
       end
-      if link.nil? || link
+      if link.nil? || link # Link
         link_block_nodes
         link_phases
         link_program_phases
@@ -111,8 +111,8 @@ module Prick::Lang
       }
     end
 
-    # Add a Mark NOP node to all blocks. This node becomes the #tail node of
-    # the containing node (and the #head node too if the block is empty)
+    # Add a Mark node to all blocks. This node becomes the #tail node of
+    # the containing node
     def add_mark_nodes
       idr.nodes(Idr::Resource).each { |resource|
         resource.block << Idr::MarkCommand.new(resource)
@@ -137,16 +137,18 @@ module Prick::Lang
       idr.nodes(Idr::RequireCommand).each { |require_|
         compiler.present?(require_.uid) or error(require_, "Can't find resource '#{require_.uid}'")
         require_.node = compiler.resources[require_.uid].tail
+        require_.depend_on require_.node
       }
     end
 
-    # Link up nodes in resource blocks. The first node has no previous node
+    # Link up nodes in resource blocks. The first node has the containing node
+    # as the previous node
     def link_block_nodes
       idr.nodes(Idr::Resource).each { |resource|
-        prev = nil
+        prev = resource.head
         resource.block.each { |node|
           node.depend_on prev if prev
-          prev = node
+          prev = node.tail
         }
       }
     end
@@ -154,11 +156,11 @@ module Prick::Lang
     # Link up phases internally in schemas and programs
     def link_phases
       ([program] + program.schemas).each { |schema|
-        schema.this.depend_on schema.init
-        schema.term.depend_on schema.this
-        schema.seed.depend_on schema.term
-        schema.auth.depend_on schema.seed
-#       schema.merge.depend_on schema.auth
+        schema.this.depend_on schema.init.tail
+        schema.term.depend_on schema.this.tail
+        schema.seed.depend_on schema.term.tail
+        schema.auth.depend_on schema.seed.tail
+#       schema.merge.depend_on schema.auth.tail
       }
     end
 
@@ -166,11 +168,11 @@ module Prick::Lang
     def link_program_phases
       program.schemas.each { |schema|
         schema.init.depend_on program.init if schema != program
-        program.this.depend_on schema.this
-        program.term.depend_on schema.term
-        program.seed.depend_on schema.seed
-        program.auth.depend_on schema.auth
-        program.merge.depend_on schema.merge
+        program.this.depend_on schema.this.tail
+        program.term.depend_on schema.term.tail
+        program.seed.depend_on schema.seed.tail
+        program.auth.depend_on schema.auth.tail
+        program.merge.depend_on schema.merge.tail
       }
     end
 

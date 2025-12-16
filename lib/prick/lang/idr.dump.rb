@@ -2,6 +2,32 @@
 module Prick::Lang
   using String::Text
   module Idr
+    #
+    # Dumping references
+    #
+    class Node
+      def strrefname = self.classname
+
+      def dumprefnode
+        deps_str = deps.empty? ? 'nil' : deps.map(&:serial).join(', ')
+        reqs_str = "[#{reqs.map(&:serial).join(', ')}]"
+        puts "#{strrefname} #{serial} -> #{deps_str} #{reqs_str}"
+      end
+
+      def dumpref
+        dumprefnode
+        indent { children.each(&:dumpref) }
+      end
+    end
+
+    class MarkCommand; def strrefname = "MARK #{uid}" end
+    class Resource; def strrefname = ident end
+    class Program; def strrefname = "<main>" end
+
+    #
+    # Dumping mess
+    #
+
     class Node
       PARTS = []
 
@@ -238,4 +264,11 @@ module Prick::Lang
     end
   end
 end
+
+
+
+
+
+
+
 
