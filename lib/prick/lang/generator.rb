@@ -6,6 +6,9 @@ module Prick::Lang
     # Generated units
     attr_reader :units # [Unit]. Initialized by #generate
 
+    # Generated schemas
+    attr_reader :schemas
+
     # Units by phase
     attr_reader :init_units
     attr_reader :this_units
@@ -14,8 +17,8 @@ module Prick::Lang
     attr_reader :auth_units
     attr_reader :merge_units
 
-    def nodes = analyzer.reachable_nodes
-    def schemas = analyzer.reachable_schemas
+#   # Nodes included by the compiler mode (:build/:make)
+#   def nodes = analyzer.reachable_nodes
 
     def initialize
       @units = []
@@ -23,14 +26,22 @@ module Prick::Lang
     end
 
     def generate
+      nodes = analyzer.reachable_nodes
+
       # Build graph
       @graph = nodes.map { |node| [node, node.deps] }.to_h
 
       # Sort nodes
       tsorted_nodes = topological_sort
 
+      # Select nodes for the current compiler mode (:build/:make)
+      selected_nodes = tsorted_nodes.select { _1.send(mode_method) }
+
+      # Find schemas
+      @schemas = selected_nodes.map(&:schema).uniq
+
       # Build units
-      build_units tsorted_nodes
+      @units = build_units selected_nodes
 
       # Sort units into phases. This initializes the #*_units attributes
       categorize_units
@@ -73,33 +84,28 @@ module Prick::Lang
     attr_reader :graph # {Node=>[Node]} Hash from node to list of dependencies
 
     def build_units(nodes)
-      detect_meta_unit = nil
+      units = []
       nodes.each { |node|
-        next if !node.send(mode_method)
         case node
           when Idr::MarkCommand
-            @units << Unit::Mark.new(node)
+            units << Unit::Mark.new(node)
           when Idr::MetaCommand
-            @units << Unit::Meta.new(node)
+            units << Unit::Meta.new(node)
           when Idr::DetectMetaCommand
-            @units << Unit::DetectMeta.new(node)
+            units << Unit::DetectMeta.new(node)
           when Idr::NopCommand
             ;
           when Idr::Command
-            @units << Unit::Command.new(node)
+            units << Unit::Command.new(node)
           when Idr::Phase
             ;
-#           p node.kind
-#           if node.kind == :SEED && detect_meta_unit.nil?
-#             detect_meta_unit = Unit::DetectMeta.new(node)
-#             @units << detect_meta_unit
-#           end
           when Idr::Resource
             ;
         else
           raise
         end
       }
+      units
     end
 
     def transitive_closure(nodes)
@@ -166,6 +172,7 @@ module Prick::Lang
         end
       end
 
+      # FIXME FIXME FIXME WTF?
       if result.size != @graph.keys.size
         puts "result: #{result.map(&:serial)}"; indent {
           result.each(&:dumpline)
@@ -184,14 +191,8 @@ module Prick::Lang
 
     def categorize_units
       units.each { |unit|
-        puts
-        p unit.class
-        p unit.node.class
-        p unit.node.parent.class
-        p unit.phase
         if unit.phase
           attr = CATEGORIES[unit.phase]
-          p attr
           self.send(attr) << unit
         end
       }

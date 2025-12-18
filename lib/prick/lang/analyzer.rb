@@ -17,7 +17,7 @@ module Prick::Lang
     end
 
     attr_reader :reachable_nodes
-    attr_reader :reachable_schemas
+#   attr_reader :reachable_schemas
 
     # Analyze IDR. The link flag controls which part of the process are
     # executed. It is used to dump the Idr at different stages
@@ -30,7 +30,6 @@ module Prick::Lang
       if link.nil? || !link # Assign
         assign_this_phase
         assign_default_phases
-#       add_mark_nodes
         add_phase_nodes
         add_detect_meta_nodes
         assign_schema
@@ -169,16 +168,10 @@ module Prick::Lang
           node.depend_on prev.tail
           prev = node.tail
         }
-
-#       prev = nil
-#       resource.block.each { |node|
-#         node.depend_on prev if prev
-#         prev = node.tail
-#       }
       }
     end
 
-    # Link up phases internally in schemas and programs
+    # Link phases internally in schemas and programs
     def link_phases
       ([program] + program.schemas).each { |schema|
         schema.this.depend_on schema.init
@@ -214,6 +207,8 @@ module Prick::Lang
 
     # Mark nodes defined in dirty build files
     def mark_dirty_build
+      # FIXME FIXME FIXME This is where the source column in the resources table is used !!!
+
       # Find dirty prick files
       dirty_sources = compiler.sources.select { is_dirty? _1.file.path }
 
@@ -230,9 +225,7 @@ module Prick::Lang
     # Mark nodes that are already built. Note that completed_resources may be
     # nil. This happens when the compiler state file is absent
     def mark_built_nodes
-      compiler.completed_resources&.each { |uid|
-        compiler.resources[uid]&.built!
-      }
+      compiler.completed_resources&.each { |uid| compiler.resources[uid]&.built!  }
     end
 
     # Exclude nodes (schemas) from the command line
@@ -257,12 +250,10 @@ module Prick::Lang
     def select_nodes
       # Find reachable nodes and schemas
       @reachable_nodes = program.nodes(&:included?)
-      @reachable_schemas = @reachable_nodes.map(&:schema).uniq # Expensive
+#     @reachable_schemas = @reachable_nodes.map(&:schema).uniq # Expensive
     end
   end
 end
-
-
 
 
 

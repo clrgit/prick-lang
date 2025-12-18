@@ -196,7 +196,7 @@ module Prick::Lang
     end
 
     class DetectMetaCommand
-      def dumpline = puts "META DETECT"
+      def dumpline = puts "DETECT META"
     end
 
     class NopCommand

@@ -168,6 +168,7 @@ module Prick::Lang
     # unable to run individually because the main process is responsible for
     # initialization. Eg. #parse needs @variables
 
+    # Parse source file into Ast
     def parse(file = nil, lines = nil)
       Dir.chdir settings.dirs.schema do
         @file ||= file
@@ -175,18 +176,22 @@ module Prick::Lang
       end
     end
 
+    # Convert Ast to Idr
     def convert
       @converter.convert
     end
 
+    # Analyze Idr
     def analyze(link: nil)
       @analyzer.analyze(link: link)
     end
 
+    # Generate units
     def generate
       @generator.generate
     end
 
+    # Execute units
     def execute
       @executer.execute
     end
