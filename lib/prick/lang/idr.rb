@@ -430,6 +430,9 @@ module Prick::Lang
 
 #     def anchor = term.tail
 
+      # Assigned by the analyzer
+      attr_accessor :schema_deps
+
       def exclude = schema_command.exclude
 
       # Get/set phase by name
@@ -448,7 +451,12 @@ module Prick::Lang
         @schema_command = self.is_a?(Program) ? NopCommand.new(self) : SchemaCommand.new(self, ast)
         @procedures = []
         @meta_commands = []
+        @schema_deps = nil
       end
+
+      # Programs are schemas but it is often useful to be able to exclude
+      # program objects using a predicate
+      def program? = false
     end
 
     class Program < Schema
@@ -456,11 +464,14 @@ module Prick::Lang
       def uid = nil
 #     def uid = "public"
       attr_reader :schemas
+
       def initialize(ast)
         super(nil, ast)
         @schemas = []
 #       @meta_command = DetectMetaCommand.new(self) # FIXME Move to analyzer
       end
+
+      def program? = true
     end
 
     #

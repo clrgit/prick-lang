@@ -16,15 +16,22 @@ module Prick::Lang
         end
     end
 
+    # List of known schemas (excl. Program)
+#   def schemas = @schemas.to_a
+#   attr_reader :schemas
+
+    # Nodes included by the compiler while taking explicitly included/excluded
+    # nodes into account
     attr_reader :reachable_nodes
+
 #   attr_reader :reachable_schemas
 
     # Analyze IDR. The link flag controls which part of the process are
-    # executed. It is used to dump the Idr at different stages
+    # executed, it is used to dump the Idr at different stages
     #
     #   link=true -> run link only
     #   link=false -> run assign only
-    #   link=nil -> run assign+link
+    #   link=nil -> run assign+link (the default)
     #
     def analyze(link: nil)
       if link.nil? || !link # Assign
@@ -35,6 +42,7 @@ module Prick::Lang
         assign_schema
         collect_meta
         resolve_references
+        assign_schema_deps
       end
       if link.nil? || link # Link
         link_block_nodes
@@ -86,6 +94,9 @@ module Prick::Lang
           puts "#{uid} -> #{node.tail.serial}"
         }
       }
+
+      puts "Schema"
+
     end
 
   private
@@ -138,7 +149,7 @@ module Prick::Lang
       }
     end
 
-    # Assign Node#schema schema
+    # Register schemas and assign Node#schema
     def assign_schema
       idr.nodes(Idr::Schema).each { |schema|
         schema.nodes.each { |node| node.schema = schema }
@@ -193,6 +204,21 @@ module Prick::Lang
 #       program.merge.depend_on schema.merge
       }
     end
+
+    # Computer schema-schema dependencies. Note that this may form a cyclic
+    # graph
+    def assign_schema_deps
+      idr.trees(Idr::Schema).each { |schema|
+        schemas = Set.new
+        schema.nodes.each { |node|
+          node.deps.each { |dep|
+            schemas.add(dep.schema)
+          }
+        }
+        schema.schema_deps = schemas.to_a - [schema]
+      }
+    end
+
 
     # Helper function
     def is_dirty?(path) = File.exist?(path) && File.mtime(path) > compiler.timestamp

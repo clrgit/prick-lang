@@ -86,7 +86,6 @@ module Prick::Lang
     end
 
     def parse_stmt
-      p peek&.kind
       case peek&.kind
         when :SCHEMA; parse_decl(Ast::Schema, read)
         when :PROCEDURE; parse_decl(Ast::Procedure, read)
@@ -159,10 +158,8 @@ module Prick::Lang
     end
 
     def parse_require
-      p peek
       require_ = Ast::Require.new(read)
       require_.references = parse_references
-      p peek
       require_
     end
 
@@ -562,7 +559,7 @@ module Prick::Lang
 
     # Single-component reference used in declarations. It parsed as a Reference object
     # because we later want to compute the uid
-    def parse_name = Token::IDENTS.include?(peek(eol: true)&.kind) ? Ast::Reference.new(read) : nil
+    def parse_name = Token::IDENTS.include?(peek&.kind) ? Ast::Reference.new(read) : nil
     def parse_name? = Ast::Reference.new(readpred :is_ident?, expect: "name" )
 
     def parse_reference?() = Token::REFS.include?(peek(eol: true)&.kind) ? Ast::Reference.new(read) : nil

@@ -6,8 +6,15 @@ module Prick::Lang
     # Generated units
     attr_reader :units # [Unit]. Initialized by #generate
 
-    # Generated schemas
-    attr_reader :schemas
+    # Generated schemas. These schemas are reset and then defined
+    attr_reader :build_schemas
+
+    # Schemas that are defined but not rebuilt and not invalid
+    attr_reader :preserve_schemas
+
+    # Invalidated schemas. These schemas depends on #schemas but are not
+    # themselves rebuilt
+    attr_reader :invalid_schemas
 
     # Units by phase
     attr_reader :init_units
@@ -37,8 +44,21 @@ module Prick::Lang
       # Select nodes for the current compiler mode (:build/:make)
       selected_nodes = tsorted_nodes.select { _1.send(mode_method) }
 
-      # Find schemas
-      @schemas = selected_nodes.map(&:schema).uniq
+      # Find schemas to rebuild
+      @build_schemas = selected_nodes.map(&:schema).compact.uniq.reject(&:program?)
+
+      # Find schemas depending on rebuild schemas but not included by them
+      @invalid_schemas = find_invalid_schemas
+
+      # Find preserved schemas
+      @preserve_schemas = idr.schemas - @build_schemas - @invalid_schemas
+
+
+      # Find invalidated schemas
+
+      # Find schmas to clear (schemas depending on rebuilt schemas but not
+      # included by them)
+#     @invalid_schemas = ...
 
       # Build units
       @units = build_units selected_nodes
@@ -67,8 +87,14 @@ module Prick::Lang
 #   end
 
     def dump
-      puts "Schemas"; indent {
-        schemas.each &:dumpunit
+      puts "Preserve schemas"; indent {
+        preserve_schemas.each &:dumpunit
+      }
+      puts "Build schemas"; indent {
+        build_schemas.each &:dumpunit
+      }
+      puts "Invalid schemas"; indent {
+        invalid_schemas.each &:dumpunit
       }
       puts "Phases"; indent {
         for kind, rd in CATEGORIES
@@ -82,6 +108,11 @@ module Prick::Lang
 
   private
     attr_reader :graph # {Node=>[Node]} Hash from node to list of dependencies
+
+    def find_invalid_schemas
+      transitive_closure(idr.schemas, &:schema_deps) - build_schemas
+#     (transitive_closure(build_schemas, &reqs) - build_schemas)
+    end
 
     def build_units(nodes)
       units = []
@@ -108,15 +139,29 @@ module Prick::Lang
       units
     end
 
-    def transitive_closure(nodes)
-      stack = nodes.map { |uid| compiler.resources[uid] }
+    def transitive_closure(nodes, &block)
+      stack = nodes.dup
       seen = Set.new
       while node = stack.pop
         seen << node
-        stack.concat node.deps
+        stack.concat yield(node)
       end
       seen.to_a
     end
+
+#   def transitive_closure(nodes, method: :deps)
+#     general_transitive_closure(nodes.map { |uid| compiler.resources[uid] }, &method)
+#   end
+
+#   def transitive_closure(nodes, method: :deps)
+#     stack = nodes.map { |uid| compiler.resources[uid] }
+#     seen = Set.new
+#     while node = stack.pop
+#       seen << node
+#       stack.concat node.send(method)
+#     end
+#     seen.to_a
+#   end
 
     def topological_sort
       l = ->(node) {
