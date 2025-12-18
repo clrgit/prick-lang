@@ -39,6 +39,12 @@ module Prick::Lang
     end
 
     class Mark < Node
+      forward_to :node, :kind
+
+      def initialize(node, **opts)
+        constrain node, Idr::MarkCommand
+        super(node, **opts)
+      end
       def dumpunit = node.dumpline
     end
 
@@ -47,7 +53,7 @@ module Prick::Lang
     end
 
     class DetectMeta < Node
-      def dumpunit = puts "DETECT META"
+      def dumpunit = node.dumpline
     end
   end
 end

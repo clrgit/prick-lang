@@ -12,36 +12,43 @@ module Prick::Lang
     end
 
     def execute
-      for unit in units
-        case unit
+      for @unit in units
+        case @unit
           when Unit::DetectMeta
+            @idr = nil
             detect_meta_command
           else
-            case idr = unit.node
+            case @idr = @unit.node
               when Idr::SqlCommand
-                sql_command(idr.source.value)
+                sql_command(@idr.source.value)
               when Idr::FoxCommand
-                fox_command(idr.path)
+                fox_command(@idr.path)
               when Idr::FileCommand
-                file_command(idr.path)
+                file_command(@idr.path)
               when Idr::ExternalCommand
-                idr.kind == :EXEC ? exec_command(idr.source.value) : eval_command(idr.source.value)
+                idr.kind == :EXEC ? exec_command(@idr.source.value) : eval_command(@idr.source.value)
               when Idr::CopyCommand
-                copy_command idr.tables.map(&:value)
+                copy_command @idr.tables.map(&:value)
               when Idr::SyncCommand
-                sync_command idr.table, idr.key, idr.id_table || idr.source.value
+                sync_command @idr.table, @idr.key, @idr.id_table || @idr.source.value
               when Idr::PrepareCommand
-                prepare_command idr.table, idr.key, idr.id_table || idr.source.value
+                prepare_command @idr.table, @idr.key, @idr.id_table || @idr.source.value
               when Idr::MarkCommand
-                mark_command idr.uid
+                mark_command
               else
-                puts "Oops #{unit.node.class}"
+                puts "Oops #{@unit.node.class}"
             end
         end
       end
     end
 
   private
+    # Current unit
+    attr_reader :unit
+
+    # Current idr
+    attr_reader :idr
+
     def commit_command
       log "COMMIT"
       run { db.commit }
@@ -103,8 +110,8 @@ module Prick::Lang
       system("pg-merge prepare ...")
     end
 
-    def mark_command(uid)
-      log "MARK #{uid}"
+    def mark_command
+      log "#{idr.kind} #{idr.uid}"
     end
 
     def run(&block)

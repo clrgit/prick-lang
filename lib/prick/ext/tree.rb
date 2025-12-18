@@ -114,7 +114,7 @@ module Tree
 
 
 #private
-  def klass_expr(klasses) = klasses.empty? ? [Tree] : klasses
+  def klass_expr(klasses) = klasses.empty? ? [Tree] : klasses.flatten
 
 # def pairs_impl(acc) nodes.map { |
 #

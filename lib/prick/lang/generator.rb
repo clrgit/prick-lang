@@ -32,7 +32,7 @@ module Prick::Lang
       # Build units
       build_units tsorted_nodes
 
-      # Sort units into phases
+      # Sort units into phases. This initializes the #*_units attributes
       categorize_units
 
       @units
@@ -81,16 +81,19 @@ module Prick::Lang
             @units << Unit::Mark.new(node)
           when Idr::MetaCommand
             @units << Unit::Meta.new(node)
+          when Idr::DetectMetaCommand
+            @units << Unit::DetectMeta.new(node)
           when Idr::NopCommand
             ;
           when Idr::Command
             @units << Unit::Command.new(node)
           when Idr::Phase
-            p node.kind
-            if node.kind == :SEED && detect_meta_unit.nil?
-              detect_meta_unit = Unit::DetectMeta.new(node)
-              @units << detect_meta_unit
-            end
+            ;
+#           p node.kind
+#           if node.kind == :SEED && detect_meta_unit.nil?
+#             detect_meta_unit = Unit::DetectMeta.new(node)
+#             @units << detect_meta_unit
+#           end
           when Idr::Resource
             ;
         else
@@ -182,8 +185,10 @@ module Prick::Lang
     def categorize_units
       units.each { |unit|
         puts
+        p unit.class
         p unit.node.class
         p unit.node.parent.class
+        p unit.phase
         if unit.phase
           attr = CATEGORIES[unit.phase]
           p attr

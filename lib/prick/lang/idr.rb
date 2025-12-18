@@ -73,11 +73,15 @@ module Prick::Lang
       end
 
       # First node. Default equal to self but resources sets it to the first
-      # node in the block
+      # artificial HEAD node in the block. The head node collects the node's
+      # requirements, in resources it is used so we're able to insert a node
+      # before all other nodes but after requirements
       def head = self
 
-      # Last node. Default equal to self but resources sets it to the last node
-      # in the block
+      # Last node. Default equal to self but resources sets it to the last
+      # artificial TAIL node in the block. The tail node is the target of other
+      # object's requirements, in resources it is used so we're able to insert
+      # a node after all other nodes but before other object's requirements
       def tail = self
 
       # List of nodes that this node directly depends on. The list may only be
@@ -117,8 +121,8 @@ module Prick::Lang
 
       # Make self depend on node
       def depend_on(node)
-        self.deps << node
-        node.reqs << self
+        self.head.deps << node.tail
+        node.tail.reqs << self.head
       end
 
       def check_deps
@@ -209,24 +213,35 @@ module Prick::Lang
     class CallCommand < Command
     end
 
-    # No OPeration command. Have no function except to serve as anchor or a
-    # place to add dependencies
+    # Artificial node that detects meta tables (before any seed has been
+    # loaded)
+    class DetectMetaCommand < Command
+      def initialize(parent) = super(parent, nil)
+    end
+
+    # No OPeration command. Have no function except to serve as anchors for
+    # requirements and dependencies
     class NopCommand < Command
       def initialize(parent, ast = nil) = super(parent, ast)
     end
 
-    # Artificial node that detects meta tables (before any seed has been
-    # loaded)
-    class DetectMetaCommand < NopCommand
-    end
-
-    # Marks the end of a resource and is automatically added to blocks of all
-    # resources. It serves as an anchor when chaining and the executor uses it
-    # to tell when an object is fully built and doesn't need rebuilding when
-    # using 'prick make'. Phases and functions are also marked but this is not
-    # used
+    # Articial nodes that marks the beginning and end of a block. They're used in
+    # Phases and serves and anchor points for requirements and dependencies
     class MarkCommand < NopCommand
       def uid = parent.uid
+      def kind = raise
+    end
+
+    # Marks the beginning of a resource and is automatically added to
+    # blocks of all resources by the analyzer
+    class HeadCommand < MarkCommand
+      def kind = :HEAD
+    end
+
+    # Marks the end of a resource and is automatically added to
+    # blocks of all resources by the analyzer
+    class TailCommand < MarkCommand
+      def kind = :TAIL
     end
 
     class RequireCommand < NopCommand
@@ -299,16 +314,20 @@ module Prick::Lang
     #
 
     # Can be a schema, phase, provide, or function
+    #
+    # A Resource may contain a block but Schemas have their blocks transferred to
+    # the 'this' phase by the analyzer
+    #
     class Resource < Node
       def klass = self.class
       attr_reader :ident # String
       attr_accessor :block # [Node]
       def uid = [parent&.uid, ident].compact.join(".")
 
-#     def head = block.first
+      def head = block.first
       def tail = block.last
-#     def deps = head.deps
-#     def reqs = tail.reqs
+      def deps = head.deps
+      def reqs = tail.reqs
 
       # These specializations also hits the tail node itself
       def built!() super; tail.built! end
@@ -338,6 +357,10 @@ module Prick::Lang
       end
     end
 
+    # The block of a phase is assigned a HEAD and a TAIL node by the analyzer
+    # that is used to anchor requirements. By having these artificial nodes we
+    # can insert code after a phase's requirements but before the regular code
+    # in the phase and vice-versa at the end of the block
     class Phase < Resource
       KINDS = [:INIT, :THIS] + Token::PHASES.reject { _1 == :INIT }
       ATTRS = KINDS.map(&:downcase)
@@ -346,6 +369,13 @@ module Prick::Lang
       def kind = ast.kind # Upcase Symbol
       def read_attr = kind.downcase # Reader method in parent object
       def write_attr = :"#{kind.downcase}=" # Writer method in parent object
+
+      # Add node as first element after head
+      def prepend(node) = block.insert(1, node)
+
+      # Add node as the last element before tail. This will fail if block
+      # doesn't contain at least one node (the analyzer ensures that)
+      def append(node) = block.insert(-2, node)
     end
 
     # TODO
@@ -389,7 +419,13 @@ module Prick::Lang
 #     def head = init.head
 #     def tail = auth.tail
 #     def tail = merge.tail
-      def tail = term.tail
+      def head = this.head
+      def tail = this.tail
+#     def tail = term.tail
+
+#     def deps = head.deps
+#     def reqs = tail.deps
+
 #     def deps = init.deps
 
 #     def anchor = term.tail

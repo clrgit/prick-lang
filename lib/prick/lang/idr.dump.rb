@@ -20,7 +20,7 @@ module Prick::Lang
       end
     end
 
-    class MarkCommand; def strrefname = "MARK #{uid}" end
+    class MarkCommand; def strrefname = "#{kind} #{uid}" end
     class Resource; def strrefname = ident end
     class Program; def strrefname = "<main>" end
 
@@ -195,6 +195,10 @@ module Prick::Lang
       def dumpdep = puts "REQ #{uid}"
     end
 
+    class DetectMetaCommand
+      def dumpline = puts "META DETECT"
+    end
+
     class NopCommand
       def dumpline = puts "NOP #{parent.uid || parent.class}"
     end
@@ -202,9 +206,9 @@ module Prick::Lang
     class MarkCommand
       def dumpline
         if parent.is_a?(Idr::Schema)
-          puts "MARK #{parent.uid || "public"}"
+          puts "#{kind} #{parent.uid || "public"}"
         else
-          puts "MARK #{parent.uid || parent.class}"
+          puts "#{kind} #{parent.uid || parent.class}"
         end
       end
       def dumpdep = dumpline
