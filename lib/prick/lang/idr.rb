@@ -416,22 +416,13 @@ module Prick::Lang
       attr_reader :meta_commands # [MetaCommand]
       def meta_tables = meta_commands.map(&:table) # [String] Only used in dump
 
-#     def head = init.head
-#     def tail = auth.tail
-#     def tail = merge.tail
+      # Redefine #head and #tail to point a the this-phase
       def head = this.head
       def tail = this.tail
-#     def tail = term.tail
 
-#     def deps = head.deps
-#     def reqs = tail.deps
-
-#     def deps = init.deps
-
-#     def anchor = term.tail
-
-      # Assigned by the analyzer
+      # List of schemas that this schema depends on or requires. Assigned by the analyzer
       attr_accessor :schema_deps
+      attr_accessor :schema_reqs
 
       def exclude = schema_command.exclude
 
@@ -451,7 +442,8 @@ module Prick::Lang
         @schema_command = self.is_a?(Program) ? NopCommand.new(self) : SchemaCommand.new(self, ast)
         @procedures = []
         @meta_commands = []
-        @schema_deps = nil
+        @schema_deps = []
+        @schema_reqs = []
       end
 
       # Programs are schemas but it is often useful to be able to exclude

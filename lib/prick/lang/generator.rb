@@ -1,4 +1,12 @@
 module Prick::Lang
+  # TODO:
+  #   * 'make A.seed' should trigger detect meta in an incremental fashion
+  #   * Any seed phase should rebuild the seed of dependent schemas (or what)
+  #   * The seed phase is global for all preserved and built schemas
+  #     (invalidated schemas are ignored). Seed data are deleted before the
+  #     seed phase
+  #   * TODO: Should collect all fox statements in the seed phase
+
   class Generator < CompilerProcess
     # Map from phase kind to attr_reader method
     CATEGORIES = Idr::Phase::PHASES.map { |kind, (rd,wr)| [kind, "#{rd}_units".to_sym] }.to_h
@@ -14,7 +22,7 @@ module Prick::Lang
 
     # Invalidated schemas. These schemas depends on #schemas but are not
     # themselves rebuilt
-    attr_reader :invalid_schemas
+    attr_reader :invalidate_schemas
 
     # Units by phase
     attr_reader :init_units
@@ -23,9 +31,6 @@ module Prick::Lang
     attr_reader :seed_units
     attr_reader :auth_units
     attr_reader :merge_units
-
-#   # Nodes included by the compiler mode (:build/:make)
-#   def nodes = analyzer.reachable_nodes
 
     def initialize
       @units = []
@@ -48,17 +53,10 @@ module Prick::Lang
       @build_schemas = selected_nodes.map(&:schema).compact.uniq.reject(&:program?)
 
       # Find schemas depending on rebuild schemas but not included by them
-      @invalid_schemas = find_invalid_schemas
+      @invalidate_schemas = find_invalid_schemas
 
       # Find preserved schemas
-      @preserve_schemas = idr.schemas - @build_schemas - @invalid_schemas
-
-
-      # Find invalidated schemas
-
-      # Find schmas to clear (schemas depending on rebuilt schemas but not
-      # included by them)
-#     @invalid_schemas = ...
+      @preserve_schemas = idr.schemas - @build_schemas - @invalidate_schemas
 
       # Build units
       @units = build_units selected_nodes
@@ -82,10 +80,6 @@ module Prick::Lang
     #   mark dirty using #uses hierarchy if requested
     #   process reachable nodes
 
-#   def make
-#     inverted_graph = nodes.map { |unit| [unit, unit.deps] }.to_h
-#   end
-
     def dump
       puts "Preserve schemas"; indent {
         preserve_schemas.each &:dumpunit
@@ -93,8 +87,8 @@ module Prick::Lang
       puts "Build schemas"; indent {
         build_schemas.each &:dumpunit
       }
-      puts "Invalid schemas"; indent {
-        invalid_schemas.each &:dumpunit
+      puts "Invalidate schemas"; indent {
+        invalidate_schemas.each &:dumpunit
       }
       puts "Phases"; indent {
         for kind, rd in CATEGORIES
@@ -110,8 +104,7 @@ module Prick::Lang
     attr_reader :graph # {Node=>[Node]} Hash from node to list of dependencies
 
     def find_invalid_schemas
-      transitive_closure(idr.schemas, &:schema_deps) - build_schemas
-#     (transitive_closure(build_schemas, &reqs) - build_schemas)
+      transitive_closure(build_schemas, &:schema_reqs) - build_schemas
     end
 
     def build_units(nodes)
@@ -140,28 +133,14 @@ module Prick::Lang
     end
 
     def transitive_closure(nodes, &block)
-      stack = nodes.dup
+      queue = nodes.dup
       seen = Set.new
-      while node = stack.pop
+      while node = queue.shift
         seen << node
-        stack.concat yield(node)
+        queue.concat yield(node)
       end
       seen.to_a
     end
-
-#   def transitive_closure(nodes, method: :deps)
-#     general_transitive_closure(nodes.map { |uid| compiler.resources[uid] }, &method)
-#   end
-
-#   def transitive_closure(nodes, method: :deps)
-#     stack = nodes.map { |uid| compiler.resources[uid] }
-#     seen = Set.new
-#     while node = stack.pop
-#       seen << node
-#       stack.concat node.send(method)
-#     end
-#     seen.to_a
-#   end
 
     def topological_sort
       l = ->(node) {

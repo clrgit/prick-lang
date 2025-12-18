@@ -215,7 +215,8 @@ module Prick::Lang
             schemas.add(dep.schema)
           }
         }
-        schema.schema_deps = schemas.to_a - [schema]
+        schema.schema_deps += schemas.to_a - [schema]
+        schemas.each { |s| s.schema_reqs << schema }
       }
     end
 
