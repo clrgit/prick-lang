@@ -91,12 +91,14 @@ module Prick::Lang
 
   private
 
-    # Assign Schema#this phases by stealing the schema's block
+    # Assign Schema#this phases by stealing the schema's block. The phase is
+    # added to the resource repository
     def assign_this_phase
       idr.nodes(Idr::Schema).each { |schema|
         schema.this.retach(schema.block)
         schema.this.block = schema.block
         schema.block = []
+        compiler.add(schema.this)
       }
     end
 
@@ -240,9 +242,6 @@ module Prick::Lang
 
     # Include targets
     def mark_included_nodes
-      p compiler.targets
-      p compiler.resources.keys
-      exit
       compiler.targets.map { compiler.resources[_1] }.each(&:include!)
     end
 
