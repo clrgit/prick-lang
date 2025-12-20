@@ -16,6 +16,7 @@ require_relative './lang/ast.dump.rb'
 require_relative './lang/idr.rb'
 require_relative './lang/idr.dump.rb'
 require_relative './lang/unit.rb'
+require_relative './lang/unit.dump.rb'
 
 module Prick::Lang
   class TokenizerError < Error; end

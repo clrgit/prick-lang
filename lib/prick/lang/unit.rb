@@ -2,59 +2,50 @@
 module Prick::Lang
   module Unit
     class Node
-      attr_reader :node # IdrNode
-      def phase = node.parent.kind
+      include ClassFunctions
+    end
 
-      def initialize(node, exclude = false)
-        constrain node, Idr::Node
-        @node = node
-      end
+    class SetupCommand < Node
 
-      def dumpunit
-#       print "#{phase} "
-        node.dumpunit
-      end
+    end
 
-      def dumpline = node.dump
-      def dumpdep = node.dump
-      def dump = dumpline
-#     def dump = puts "#{phase} #{node.token.kind} #{node.token.text}"
-      def dump = puts "#{node.token.kind} #{node.token.text}"
+    class SchemaCommand < SetupCommand
+      attr_reader :command # :create, :clear, :drop
     end
 
     class SearchPath < Node
-      def dumpline = puts "set search_path to '#{node.schema.ident || "public"}'"
-      def dumpdep = puts "set search_path to '#{node.schema.ident || "public"}'"
+      attr_reader :schema # Idr::Schema
+      def initialize(schema) @schema = schema end
     end
 
-    class Command < Node
-      def is_schema_command? = node.is_a?(Idr::SchemaCommand)
-
-      def dumpunit
-        case node
-          when Idr::MarkCommand; node.dumpline
-          else super
-        end
-      end
-    end
-
-    class Mark < Node
-      forward_to :node, :kind
-
-      def initialize(node, **opts)
-        constrain node, Idr::MarkCommand
-        super(node, **opts)
-      end
-      def dumpunit = node.dumpline
-    end
-
-    class Meta < Node
-      def dumpunit = node.dumpline
+    class ClearSchemaSeed < Node
     end
 
     class DetectMeta < Node
-      def dumpunit = node.dumpline
+    end
+
+    class IdrNode < Node
+      attr_reader :node # Idr::Node
+      forward_to :node, :schema, :require_search_path?, :change_search_path?
+
+      def initialize(node)
+        constrain node, Idr::Node
+        @node = node
+      end
+    end
+
+    class Command < IdrNode
+    end
+
+    # Mark a resource as built by inserting a record in prick.resources. It is
+    # generated from tail nodes
+    class Mark < IdrNode
+      def resource = node.uid
+    end
+
+    class Meta < IdrNode
     end
   end
 end
+
 

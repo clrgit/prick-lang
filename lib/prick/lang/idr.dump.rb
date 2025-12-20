@@ -106,8 +106,11 @@ module Prick::Lang
     end
 
     class FileCommand
-      def dumpline = puts "FILE #{path} #{self.classname}"
+      def dumpline = puts "#{kind} #{path}"
       def dumpunit = puts "#{token&.kind || 'nil'} #{path}"
+
+#     def dumpline = puts "FILE #{path} #{self.classname}"
+#     def dumpunit = puts "#{token&.kind || 'nil'} #{path}"
     end
 
 #   class FoxCommand
@@ -115,7 +118,7 @@ module Prick::Lang
 #     def dumpunit = puts "#{token&.kind || 'nil'} #{path}"
 #   end
 
-    class FoxCommand
+    class FoxFileCommand
       def dumpline = puts "FOX #{path}"
       def dumpunit = dumpline
     end
@@ -128,7 +131,7 @@ module Prick::Lang
         if ast.source&.multiline?
           puts "#{lead}"; indent { puts source }
         else
-          puts "#{lead} <#{source}"
+          puts "#{lead} #{source}"
         end
       end
 

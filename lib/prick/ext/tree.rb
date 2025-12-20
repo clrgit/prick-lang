@@ -83,7 +83,6 @@ module Tree
     acc
   end
 
-
   # Return nodes of any of the given classes and for which expr yields true.
   # The expression defaults to true and all classes are considered by default
   def nodes(*klass, &expr)

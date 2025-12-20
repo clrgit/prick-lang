@@ -13,15 +13,21 @@ module Prick::Lang
 
     def execute
       for @unit in units
+        @idr = nil
         case @unit
           when Unit::DetectMeta
-            @idr = nil
             detect_meta_command
+          when Unit::ResetSchema
+            reset_schema_command
+          when Unit::DropSchema
+            drop_schema_command
+          when Unit::SearchPath
+            search_path_command
           else
             case @idr = @unit.node
               when Idr::SqlCommand
                 sql_command(@idr.source.value)
-              when Idr::FoxCommand
+              when Idr::FoxFileCommand
                 fox_command(@idr.path)
               when Idr::FileCommand
                 file_command(@idr.path)
@@ -30,9 +36,11 @@ module Prick::Lang
               when Idr::CopyCommand
                 copy_command @idr.tables.map(&:value)
               when Idr::SyncCommand
-                sync_command @idr.table, @idr.key, @idr.id_table || @idr.source.value
+#               sync_command @idr.table, @idr.key, @idr.id_table || @idr.source.value
+                sync_command
               when Idr::PrepareCommand
-                prepare_command @idr.table, @idr.key, @idr.id_table || @idr.source.value
+#               prepare_command @idr.table, @idr.key, @idr.id_table || @idr.source.value
+                prepare_command
               when Idr::MarkCommand
                 mark_command
               else
@@ -61,6 +69,10 @@ module Prick::Lang
       db.proc :"prick.detect_meta"
     end
 
+    def reset_schema_command
+
+    end
+
     # Idr operations
     def exec_command(cmd)
       commit_command
@@ -87,7 +99,7 @@ module Prick::Lang
     def fox_command(filename)
       commit_command
       log "FOX #{filename}"
-      run { system("fox -d #{prick_database} -U #{prick_username} \#{files}") }
+      run { system("fox -d #{prick_database} -U #{prick_username} \#{files}") } # FIXME
     end
 
     def copy_command(tables)

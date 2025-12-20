@@ -7,14 +7,28 @@ module Prick::Lang
       include Tree
       include ClassFunctions
 
-      attr_reader :ast # Ast::Node
+      # Unique integer ID. Used in debug, may be removed
+      attr_reader :serial
+
+      # Ast::Node, may be nil
+      attr_reader :ast
+
+      # Token, fails if ast is nil
       forward_to :ast, :token
 
       # Prick file where this node is defined
       def deffile = token.file
 
-      # Schema this node belongs to. Assigned by the analyzer
+      # Schema (or Program) this node belongs to. Assigned by the analyzer
       attr_accessor :schema
+
+      # True iff the node require the schema as search_path
+      def require_search_path? = false
+
+      # True iff the node is able to change the search_path. This is true for
+      # SQL files, inline SQL may not change the search path but there is no
+      # check for that
+      def change_search_path? = false
 
       # True if the node has changed since last run. Initially false but
       # #dirty! sets it to true
@@ -34,14 +48,10 @@ module Prick::Lang
       def included? = @included
 
       # Return true if the node should be included when using 'prick build'
-      def build?
-        included? && !excluded?
-      end
+      def build? = included? && !excluded?
 
       # Return true if the node should be included when using 'prick build'
-      def make?
-        included? && !excluded? && (dirty? || !built?)
-      end
+      def make? = included? && !excluded? && (dirty? || !built?)
 
       # Set #built? to true transitively
       def built!
@@ -91,9 +101,6 @@ module Prick::Lang
       # List of nodes that requires this node directly. The list may only be
       # manipulated using #depend_on
       attr_reader :reqs
-
-      # Unique integer ID. Used in debug, may be removed
-      attr_reader :serial
 
       def initialize(parent, ast)
         constrain parent, Idr::Resource, nil
@@ -184,37 +191,46 @@ module Prick::Lang
     #
 
     class Command < Node
-      # Commands belong to a phase
-      attr_reader :phase
+      # The phase this command belongs to. Initialized by the analyzer
+      attr_accessor :phase
     end
 
-    # Artificial node that creates a schema
+    # Artificial node that creates a schema. TODO Yt
     class SchemaCommand < Command
     end
 
     class FileCommand < Command
-      alias_method :file, :ast # Ast::File
-      def path = ast.value
-      def fox? = self.class == FoxCommand
-    end
+      KINDS = Token::FILE_EXTS.map(&:upcase).map(&:to_sym)
 
-    class FoxCommand < FileCommand
+      alias_method :file, :ast # Ast::File
+      def kind = file.extname.upcase.to_sym
+      def path = ast.value
+
+      def require_search_path? = [:SQL, :PSQL].include?(kind)
+      def change_search_path? = [:SQL, :PSQL].include?(kind)
     end
 
     class SqlCommand < Command
       forward_to :ast, :source, :kind
+      def require_search_path? = true
     end
 
     class ExternalCommand < Command
+      # kind can be :EVAL or :EXEC
       forward_to :ast, :source, :kind
       def path = ast.dir
+
+      def require_search_path? = kind == :EVAL
+      def change_search_path? = kind == :EVAL
     end
 
     class CallCommand < Command
+      def require_search_path? = true
     end
 
     # Artificial node that detects meta tables (before any seed has been
-    # loaded)
+    # loaded). There is ever only one of these nodes, it is added to the end of
+    # the program TERM block
     class DetectMetaCommand < Command
       def initialize(parent) = super(parent, nil)
     end
@@ -225,11 +241,11 @@ module Prick::Lang
       def initialize(parent, ast = nil) = super(parent, ast)
     end
 
-    # Articial nodes that marks the beginning and end of a block. They're used in
-    # Phases and serves and anchor points for requirements and dependencies
+    # Abstract base class for articial nodes that marks the beginning or end of
+    # a block. They serve as anchor points for requirements and dependencies
     class MarkCommand < NopCommand
       def uid = parent.uid
-      def kind = raise
+      def kind = raise # Either :HEAD or :TAIL
     end
 
     # Marks the beginning of a resource and is automatically added to
@@ -362,6 +378,7 @@ module Prick::Lang
     # can insert code after a phase's requirements but before the regular code
     # in the phase and vice-versa at the end of the block
     class Phase < Resource
+      # Order is execution-order of phases: init, this, term, seed, auth, merge
       KINDS = [:INIT, :THIS] + Token::PHASES.reject { _1 == :INIT }
       ATTRS = KINDS.map(&:downcase)
       PHASES = KINDS.map { |kind| [kind, [kind.downcase, :"#{kind.downcase}="]] }.to_h
@@ -416,9 +433,8 @@ module Prick::Lang
       attr_reader :meta_commands # [MetaCommand]
       def meta_tables = meta_commands.map(&:table) # [String] Only used in dump
 
-      # Redefine #head and #tail to point a the this-phase
-      def head = this.head
-      def tail = this.tail
+      # Forward #head and #tail to the this-phase
+      forward_to :this, :head, :tail
 
       # List of schemas that this schema depends on or requires. Assigned by the analyzer
       attr_accessor :schema_deps
@@ -430,8 +446,8 @@ module Prick::Lang
       def get_phase(ident) = self.send(ident)
       def set_phase(ident, value) = self.send(:"#{ident}=", value)
 
-      # Only used in idr.dump
-      def phases = Phase::ATTRS.map { |phase| [phase, self.send(phase)] }.to_h
+      # Map from phase kind (upcase Symbol) to list of commands
+      def phases = Phase::ATTRS.map { |phase| [phase.upcase, self.send(phase)] }.to_h
 
       def initialize(parent, ast)
         constrain parent, Idr::Resource, nil

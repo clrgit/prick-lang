@@ -217,7 +217,7 @@ module Prick::Lang
 
     class Command < Stmt; end
 
-    # Sequence of .sql/.psql files
+    # Files with a Token::FILE_EXTS extension
     class FileCommand < Command
       part :file, File
     end

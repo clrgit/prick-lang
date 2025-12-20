@@ -11,7 +11,8 @@ module Prick::Lang
     #
     #   if ./file.any?
     #
-    EXTS = %w(sql psql rb fox) + [Prick::SOURCE_EXT]
+    FILE_EXTS = %w(sql psql rb fox) # Files that are evaluated
+    EXTS = FILE_EXTS + [Prick::SOURCE_EXT]
 
     # Tokens. Maps from token kind to string or nil
     TOKENS = {

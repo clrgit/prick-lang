@@ -40,6 +40,7 @@ module Prick::Lang
         add_phase_nodes
         add_detect_meta_nodes
         assign_schema
+        assign_phases
         collect_meta
         resolve_references
         assign_schema_deps
@@ -135,17 +136,11 @@ module Prick::Lang
 
     # Add detect meta node at the end of the program term phase
     def add_detect_meta_nodes
-      idr.trees(Idr::Phase).select { _1.kind == :TERM }.each { |phase|
+      idr.nodes(Idr::Phase).select { _1.kind == :TERM }.each { |phase|
+#     idr.trees(Idr::Phase).select { _1.kind == :TERM }.each { |phase|
         if phase.kind == :TERM && phase.parent == idr
           phase.block.append Idr::DetectMetaCommand.new(phase)
         end
-      }
-    end
-
-    # Assign phases
-    def assign_phases
-      idr.trees(Idr::Phase).each { |phase|
-        phase.nodes.each { |node| node.phase = phase.kind }
       }
     end
 
@@ -153,6 +148,15 @@ module Prick::Lang
     def assign_schema
       idr.nodes(Idr::Schema).each { |schema|
         schema.nodes.each { |node| node.schema = schema }
+      }
+    end
+
+    # Assign Command#phase
+    def assign_phases
+      idr.nodes(Idr::Schema).each { |schema|
+        schema.phases.each { |kind, phase|
+          phase.block.each { |command| command.phase = kind }
+        }
       }
     end
 

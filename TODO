@@ -1,4 +1,5 @@
 
+o Merge fox commands
 o Fix --version option (it can't find version.rb?)
 o Remove meta keyword
 o Add functions

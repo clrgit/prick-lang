@@ -33,7 +33,7 @@ module Prick::Lang
     def warning(*args) = error(*args, warning: true)
 
     def internal_error(*args)
-      pretty_error InternalError, "INTERNAL ERROR: #{args.join}"
+      pretty_error InternalError, "INTERNAL ERROR" + (args.empty? ? "" : args.join)
     end
 
     def unexpected_error(arg = nil, expected, got)

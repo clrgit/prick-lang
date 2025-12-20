@@ -8,33 +8,30 @@ module Prick::Lang
   #   * TODO: Should collect all fox statements in the seed phase
 
   class Generator < CompilerProcess
-    # Map from phase kind to attr_reader method
-    CATEGORIES = Idr::Phase::PHASES.map { |kind, (rd,wr)| [kind, "#{rd}_units".to_sym] }.to_h
+    # Unit phases. This is the phases from the Idr plus an initial setup phase
+    # that is used to create/drop schemas
+    PHASES = [:SETUP] + Idr::Phase::KINDS
 
-    # Generated units
-    attr_reader :units # [Unit]. Initialized by #generate
+#   # Map from phase kind to #*_units method
+#   CATEGORIES = Idr::Phase::PHASES.map { |kind, (rd,wr)| [kind, "#{rd}_units".to_sym] }.to_h
+
+    # Units by phase in dependency order
+    attr_reader :phases # {:PHASE=>[Unit]}
+
+    # All units in execution order
+    attr_reader :units # [Unit]
 
     # Generated schemas. These schemas are reset and then defined
-    attr_reader :build_schemas
+    attr_reader :build_schemas # [Schema]
 
     # Schemas that are defined but not rebuilt and not invalid
-    attr_reader :preserve_schemas
+    attr_reader :preserve_schemas # [Schema]
 
     # Invalidated schemas. These schemas depends on #schemas but are not
     # themselves rebuilt
-    attr_reader :invalidate_schemas
-
-    # Units by phase
-    attr_reader :init_units
-    attr_reader :this_units
-    attr_reader :term_units
-    attr_reader :seed_units
-    attr_reader :auth_units
-    attr_reader :merge_units
+    attr_reader :invalidate_schemas # [Schema]
 
     def initialize
-      @units = []
-      CATEGORIES.values.each { self.instance_variable_set(:"@#{_1}", []) } # initialize *_units variables
     end
 
     def generate
@@ -49,6 +46,9 @@ module Prick::Lang
       # Select nodes for the current compiler mode (:build/:make)
       selected_nodes = tsorted_nodes.select { _1.send(mode_method) }
 
+      # Build units and assign to phases. Initializes @units and @phases
+      assign_phases selected_nodes
+
       # Find schemas to rebuild
       @build_schemas = selected_nodes.map(&:schema).compact.uniq.reject(&:program?)
 
@@ -58,13 +58,11 @@ module Prick::Lang
       # Find preserved schemas
       @preserve_schemas = idr.schemas - @build_schemas - @invalidate_schemas
 
-      # Build units
-      @units = build_units selected_nodes
+      # Join phases in execution order
+      assign_units
 
-      # Sort units into phases. This initializes the #*_units attributes
-      categorize_units
-
-      @units
+      # Define setup phase
+      assign_setup_phase
     end
 
     # if running-make
@@ -91,12 +89,14 @@ module Prick::Lang
         invalidate_schemas.each &:dumpunit
       }
       puts "Phases"; indent {
-        for kind, rd in CATEGORIES
-          next if kind == :META
-          puts kind; indent {
-            self.send(rd).each &:dumpunit
+        for phase in PHASES
+          puts phase; indent {
+            @phases[phase].each &:dumpunit
           }
         end
+      }
+      puts "Units"; indent {
+        units.each(&:dump)
       }
     end
 
@@ -107,29 +107,61 @@ module Prick::Lang
       transitive_closure(build_schemas, &:schema_reqs) - build_schemas
     end
 
-    def build_units(nodes)
-      units = []
+    # Note that nodes are sorted in dependency order by may straddle phase
+    # boundaries
+    def assign_phases(nodes)
+      @phases = PHASES.map { |kind| [kind, []] }.to_h
       nodes.each { |node|
-        case node
-          when Idr::MarkCommand
-            units << Unit::Mark.new(node)
-          when Idr::MetaCommand
-            units << Unit::Meta.new(node)
-          when Idr::DetectMetaCommand
-            units << Unit::DetectMeta.new(node)
-          when Idr::NopCommand
-            ;
-          when Idr::Command
-            units << Unit::Command.new(node)
-          when Idr::Phase
-            ;
-          when Idr::Resource
-            ;
-        else
-          raise
-        end
+        unit =
+            case node
+              when Idr::MarkCommand
+                next if node.kind != :TAIL
+                Unit::Mark.new(node)
+              when Idr::MetaCommand
+                Unit::Meta.new(node)
+              when Idr::DetectMetaCommand
+                Unit::DetectMeta.new(node)
+              when Idr::NopCommand
+                next
+              when Idr::Command
+                Unit::Command.new(node)
+              when Idr::Phase
+                next
+              when Idr::Resource
+                next
+            else
+              raise
+            end
+        @phases[node.phase] << unit
       }
-      units
+    end
+
+    def assign_units
+      current_schema = nil
+      @units = []
+      PHASES.each { |kind|
+        @phases[kind].each { |unit|
+          if unit.is_a?(Unit::IdrNode)
+            this_schema = unit.node.schema
+            if unit.node.require_search_path? && this_schema != current_schema
+              @units << Unit::SearchPath.new(this_schema) if !this_schema.program?
+              current_schema = this_schema
+            end
+            @units << unit
+            if unit.node.change_search_path?
+              current_schema = nil
+            end
+          end
+        }
+      }.flatten
+    end
+
+    def assign_setup_phase
+      @invalidate_schemas.each { |schema|
+#       Unit::DropSchema
+#       p schema
+      }
+#     exit
     end
 
     def transitive_closure(nodes, &block)
@@ -213,14 +245,14 @@ module Prick::Lang
       result.reverse
     end
 
-    def categorize_units
-      units.each { |unit|
-        if unit.phase
-          attr = CATEGORIES[unit.phase]
-          self.send(attr) << unit
-        end
-      }
-    end
+#   def assign_units
+#     units.each { |unit|
+#       if unit.phase
+#         attr = CATEGORIES[unit.phase]
+#         self.send(attr) << unit
+#       end
+#     }
+#   end
   end
 end
 
