@@ -21,7 +21,7 @@ module Prick::Lang
     # All units in execution order
     attr_reader :units # [Unit]
 
-    # Generated schemas. These schemas are reset and then defined
+    # Generated schemas. These schemas are reset and then redefined
     attr_reader :build_schemas # [Schema]
 
     # Schemas that are defined but not rebuilt and not invalid
@@ -80,18 +80,18 @@ module Prick::Lang
 
     def dump
       puts "Preserve schemas"; indent {
-        preserve_schemas.each &:dumpunit
+        puts preserve_schemas.map(&:ident)
       }
       puts "Build schemas"; indent {
-        build_schemas.each &:dumpunit
+        puts build_schemas.map(&:ident)
       }
       puts "Invalidate schemas"; indent {
-        invalidate_schemas.each &:dumpunit
+        puts invalidate_schemas.map(&:ident)
       }
       puts "Phases"; indent {
         for phase in PHASES
           puts phase; indent {
-            @phases[phase].each &:dumpunit
+            @phases[phase].each &:dump
           }
         end
       }
@@ -107,7 +107,7 @@ module Prick::Lang
       transitive_closure(build_schemas, &:schema_reqs) - build_schemas
     end
 
-    # Note that nodes are sorted in dependency order by may straddle phase
+    # Note that nodes are sorted in dependency order but may straddle phase
     # boundaries
     def assign_phases(nodes)
       @phases = PHASES.map { |kind| [kind, []] }.to_h
@@ -157,10 +157,14 @@ module Prick::Lang
     end
 
     def assign_setup_phase
-      @invalidate_schemas.each { |schema|
+      phase = @phases[:SETUP]
+      phase.concat \
+          @invalidate_schemas.map { |schema| Unit::SchemaCommand.new(schema, :drop) },
+          @build_schemas.map { |schema| Unit::SchemaCommand.new(schema, :recreate) }
+
 #       Unit::DropSchema
 #       p schema
-      }
+#     }
 #     exit
     end
 

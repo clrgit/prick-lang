@@ -10,18 +10,25 @@ module Prick::Lang
     end
 
     class SchemaCommand < SetupCommand
-      attr_reader :command # :create, :clear, :drop
-    end
+      COMMANDS = [:recreate, :drop]
 
-    class SearchPath < Node
-      attr_reader :schema # Idr::Schema
-      def initialize(schema) @schema = schema end
+      attr_reader :schema # Idr::schema
+      attr_reader :command # :recreate, :drop
+
+      def initialize(schema, command)
+        @schema, @command = schema, command
+      end
     end
 
     class ClearSchemaSeed < Node
     end
 
     class DetectMeta < Node
+    end
+
+    class SearchPath < Node
+      attr_reader :schema # Idr::Schema
+      def initialize(schema) @schema = schema end
     end
 
     class IdrNode < Node

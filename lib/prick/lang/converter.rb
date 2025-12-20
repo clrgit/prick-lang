@@ -75,27 +75,12 @@ module Prick::Lang
           ast.tables.map { |ref| Idr::MetaCommand.new(compiler.context, ref, ref.value) }
     end
 
-#   IDR_FILE_COMMANDS = {
-#     "sql" => Idr::SqlFileCommand,
-#     "psql" => Idr::PSqlFileCommand,
-#     "fox" => Idr::FoxFileCommand,
-#     "rb" => Idr::RubyFileCommand
-#   }
-
     def convert_command(ast)
       constrain ast, Ast::FileCommand, Ast::SqlCommand, Ast::ExternalCommand, Ast::CallCommand,
                      Ast::CopyCommand, Ast::SyncCommand, Ast::PrepareCommand, Ast::HandleCommand
       compiler.block.concat \
           case ast
             when Ast::FileCommand; [Idr::FileCommand.new(compiler.context, ast.file)]
-
-
-#             klass = IDR_FILE_COMMANDS[ast.file.extname] or internal_error
-
-#             case ast.file.extname
-#               when "sql"; Idr::SqlFileCommand
-#             klass = (ast.file.extname == "fox" ? Idr::FoxCommand : Idr::FileCommand)
-#             [klass.new(compiler.context, ast.file)]
             when Ast::SqlCommand; [Idr::SqlCommand.new(compiler.context, ast)]
             when Ast::ExternalCommand; [Idr::ExternalCommand.new(compiler.context, ast)]
             when Ast::CallCommand; [Idr::CallCommand.new(compiler.context, ast)]
