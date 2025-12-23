@@ -253,10 +253,9 @@ module Prick::Lang
 #     program.nodes(Idr::Resource, Idr::ProvideCommand).each { |cmd| cmd.dirty! if cmd.ast&.dirty?  }
     end
 
-    # Mark nodes that are already built. Note that completed_resources may be
-    # nil. This happens when the compiler state file is absent
+    # Mark nodes that are already built
     def mark_built_nodes
-      compiler.completed_resources&.each { |uid| compiler.resources[uid]&.built!  }
+      compiler.completed_resources.each { |uid| compiler.resources[uid]&.built!  }
     end
 
     # Exclude nodes (schemas) from the command line

@@ -12,9 +12,6 @@ module Prick::Lang
     # that is used to create/drop schemas
     PHASES = [:SETUP] + Idr::Phase::KINDS
 
-#   # Map from phase kind to #*_units method
-#   CATEGORIES = Idr::Phase::PHASES.map { |kind, (rd,wr)| [kind, "#{rd}_units".to_sym] }.to_h
-
     # Units by phase in dependency order
     attr_reader :phases # {:PHASE=>[Unit]}
 
@@ -47,7 +44,7 @@ module Prick::Lang
       selected_nodes = tsorted_nodes.select { _1.send(mode_method) }
 
       # Build units and assign to phases. Initializes @units and @phases
-      assign_phases selected_nodes
+      build_units selected_nodes
 
       # Find schemas to rebuild
       @build_schemas = selected_nodes.map(&:schema).compact.uniq.reject(&:program?)
@@ -58,11 +55,11 @@ module Prick::Lang
       # Find preserved schemas
       @preserve_schemas = idr.schemas - @build_schemas - @invalidate_schemas
 
+      # Define setup phase
+      initialize_setup_phase
+
       # Join phases in execution order
       assign_units
-
-      # Define setup phase
-      assign_setup_phase
     end
 
     # if running-make
@@ -109,31 +106,57 @@ module Prick::Lang
 
     # Note that nodes are sorted in dependency order but may straddle phase
     # boundaries
-    def assign_phases(nodes)
+    def build_units(nodes)
       @phases = PHASES.map { |kind| [kind, []] }.to_h
+      unit_classes = { SQL: Unit::Sql, PSQL: Unit::PSql, FOX: Unit::Fox, RB: Unit::Ruby }
       nodes.each { |node|
         unit =
             case node
-              when Idr::MarkCommand
-                next if node.kind != :TAIL
-                Unit::Mark.new(node)
-              when Idr::MetaCommand
-                Unit::Meta.new(node)
+              when Idr::FileCommand
+                unit_classes[node.kind].new(node.path)
+              when Idr::SqlCommand
+                Unit::Sql.new node.source
+              when Idr::ExternalCommand
+                Unit::Bash.new node.kind, node.source
+              when Idr::CallCommand
+                Unit::Call.new node.procs
               when Idr::DetectMetaCommand
-                Unit::DetectMeta.new(node)
-              when Idr::NopCommand
-                next
-              when Idr::Command
-                Unit::Command.new(node)
-              when Idr::Phase
-                next
-              when Idr::Resource
+                Unit::DetectMeta.new
+              when Idr::TailCommand
+                Unit::Mark.new node.uid
+              when Idr::MetaCommand
+                Unit::Meta.new node.table
+              when Idr::CopyCommand
+                Unit::Copy.new node.tables
+              when Idr::SyncCommand
+                Unit::Sync.new node.table, node.key, node.id_table, node.source.value
+              when Idr::PrepareCommand
+                Unit::Sync.new node.table, node.key, node.id_table, node.source.value
+              when Idr::HandleCommand
+                Unit::Handle.new node.tables
+              when Idr::NopCommand, Idr::Phase, Idr::Resource
                 next
             else
-              raise
+              raise ArgumentError
             end
         @phases[node.phase] << unit
       }
+    end
+
+    # Invalidate should
+    #   drop the schema
+    #   clear its entries in prick.* tables
+    #
+
+
+    def invalidate_schema
+    end
+
+    def initialize_setup_phase
+      phase = @phases[:SETUP]
+      phase.concat \
+          @invalidate_schemas.map { |schema| Unit::Db.new(schema, :drop) },
+          @build_schemas.map { |schema| Unit::Db.new(schema, :recreate) }
     end
 
     def assign_units
@@ -141,7 +164,8 @@ module Prick::Lang
       @units = []
       PHASES.each { |kind|
         @phases[kind].each { |unit|
-          if unit.is_a?(Unit::IdrNode)
+#         if unit.is_a?(Unit::IdrNode)
+          if !unit.is_a? Unit::Db # FIXME
             this_schema = unit.node.schema
             if unit.node.require_search_path? && this_schema != current_schema
               @units << Unit::SearchPath.new(this_schema) if !this_schema.program?
@@ -151,21 +175,11 @@ module Prick::Lang
             if unit.node.change_search_path?
               current_schema = nil
             end
+          else
+            @units << unit
           end
         }
       }.flatten
-    end
-
-    def assign_setup_phase
-      phase = @phases[:SETUP]
-      phase.concat \
-          @invalidate_schemas.map { |schema| Unit::SchemaCommand.new(schema, :drop) },
-          @build_schemas.map { |schema| Unit::SchemaCommand.new(schema, :recreate) }
-
-#       Unit::DropSchema
-#       p schema
-#     }
-#     exit
     end
 
     def transitive_closure(nodes, &block)
@@ -259,59 +273,4 @@ module Prick::Lang
 #   end
   end
 end
-
-__END__
-
-    # Create schema command should be moved to the start
-    # The executor should handle schemas
-
-    # TODO: All links should refer to completion nodes (or provides)
-    #
-    # TODO
-    #   Understand layered build
-    #     program init
-    #     all init
-    #     all self
-    #     all seed
-    #     all final
-    #     program self
-    #     program seed
-    #     program final
-    #     all auth
-    #     program auth
-    #
-    #   When we build something, the target's level (init/self/seed/final/auth/merge)
-    #   propagates to required objects. Eg. if a require b and we build the
-    #   self phase of a previously compiled self phase of b is enough to
-    #   satisfy the requirement
-    #
-    #   Should generate a .prick.completed.yml file with the format
-    #
-    #     - schema:
-    #         name: my_schema
-    #         phase: init|self|seed|final|auth|merge|property
-    #
-    #   The executor can reuse a whole schema or continue compiling from a
-    #   property but when an error happens, the entire schema is invalidated
-    #
-    #   Q: How to elimitate nodes when continuing from a property?
-    #   A: Use the transitive closure
-    #
-    #   N: The executer should control the generator because it determines which
-    #   targets should be rebuilt when running 'prick make'. The state of the
-    #   last compilation is read from .prick.completed.yml and the transitive
-    #   closuere of completed targets are eliminated from the build set
-    #     N: No. We read .prick.completed.yml from the compiler and feeds it into
-    #        #generate using the :exclude argument
-    #     N: The compiler should then also detect changed files when running
-    #        'prick make'
-    #
-    #   N: Schemas are also be invalidated when a .prick file or any referred
-    #   file changes
-    #
-    #   N: We need to know all files involved
-    #
-    #   P: We need a 'make' command to be able to update auto-generated files
-    #     N: We can revert to 'prick build' when an auto-generated file changes
-    #
 

@@ -2,6 +2,7 @@ module Prick::Lang
   module Unit
     class Node
       def dump(*rest) = _dump(*rest)
+
     protected
       def _dump(*rest) = puts self.classname + (rest.empty? ? "" : " " + rest.join)
     end

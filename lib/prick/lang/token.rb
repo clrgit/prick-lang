@@ -1,9 +1,17 @@
 
 module Prick::Lang
   class Token
-    # List of recognized file types. File types are reserved words and can't be
-    # used as object name or even as values. That makes it possible to distinguish
-    # between referencing a resource or referencing a known file type
+    # List of recognized file types
+    #
+    #   sql - Pure SQL
+    #   psql - psql(1) source
+    #   fox - Fox file
+    #   rb - Ruby script. Project settings is transferred in bash environment
+    #        variables
+    #
+    # File types are reserved words and can't be used as object name or even as
+    # values. That makes it possible to distinguish between referencing a
+    # resource or referencing a known file type
     #
     #   if file.sql? || ./file.any?
     #

@@ -71,7 +71,7 @@ module Prick
   # Relative paths to subdirectories
   BIN_DIRNAME = "bin"
   SCHEMA_DIRNAME = "schema"
-  SCHEMA_PRICK_DIRNAME = File.join(SCHEMA_DIRNAME, "prick")
+  PRICK_SCHEMA_DIRNAME = File.join(SCHEMA_DIRNAME, "prick")
   TEST_DIRNAME = "spec"
   LIB_DIRNAME = "lib"
   LIBEXEC_DIRNAME = "libexec"
@@ -90,7 +90,7 @@ module Prick
   # Project subdirectories ([Symbol]), used to initialize Settings#dirs. Keep
   # in sync with project *_DIRNAMES!
   PROJECT_DIR_ATTRS = [
-      :bin, :schema, :schema_prick, :test, :lib, :libexec, :var, :varlib, :log,
+      :bin, :schema, :prick_schema, :test, :lib, :libexec, :var, :varlib, :log,
       :cache, :spool, :backup, :dump, :tmp
   ]
 

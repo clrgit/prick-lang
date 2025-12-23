@@ -158,7 +158,7 @@ module Prick
     # C O N N E C T I O N S
     #
 
-    # Superuser connection to the postgres database
+    # Superuser connection to the postgres default database
     def system_conn = @system_conn ||= PgConn.new("postgres", superuser)
 
     # Superuser connection to the current database
@@ -204,9 +204,12 @@ module Prick
         database: nil,
         **attrs)
 
-      # Set installation and user directories
+      # Set prick installation directories
       @prick_dir = File.dirname ShellOpts.program_path, 2
       @prick_share_dir = "#{@prick_dir}/lib/prick/share"
+      @prick_libexec_dir = "#{@prick_dir}/libexec"
+
+      # Register current directory
       @user_dir = ShellOpts.environment_path
 
       # Search for project file if not given, stop initialization if not found
@@ -221,17 +224,20 @@ module Prick
           }.to_h
       @dirs.project = @project_dir
 
-      # Assign glob
-      @database_state_file_glob = File.join dirs.project, Prick::DATABASE_STATE_FILE_GLOB
+      # Assign executable path
+      @executable_search_path = [@dirs.bin_dir, @dirs.libexec_dir, ENV['PATH']].join(':')
 
       # Assign global prick files using #file_attr helper method for brevity
       @project_file = File.join dirs.project, Prick::PROJECT_FILENAME
-      @version_file = File.join dirs.schema_prick, Prick::VERSION_FILENAME
+      @version_file = File.join dirs.prick_schema, Prick::VERSION_FILENAME
       @prick_state_file = File.join dirs.project, Prick::PRICK_STATE_FILENAME
       @environment_file = file_attr environment_file, dirs.project, Prick::ENVIRONMENT_FILENAME
       @reflections_file = file_attr reflections_file, dirs.schema, Prick::REFLECTIONS_FILENAME
       @make_file = File.join dirs.schema, Prick::SOURCE_FILENAME
-      @prick_sql_file = File.join dirs.schema_prick, Prick::PRICK_SQL_FILENAME
+      @prick_sql_file = File.join dirs.prick_schema, Prick::PRICK_SQL_FILENAME
+
+      # Assign database state glob
+      @database_state_file_glob = File.join dirs.project, Prick::DATABASE_STATE_FILE_GLOB
 
       # Load state files. Absent files are ignored
       load_project

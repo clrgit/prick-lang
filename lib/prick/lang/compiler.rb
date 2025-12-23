@@ -6,7 +6,7 @@ module Prick::Lang
 
     def compiler() @compiler ||= Compiler.instance end
 
-    forward_to :compiler, :database, :username, :environment, :verbose, :log, :dryrun
+    forward_to :compiler, :conn, :database, :username, :environment, :verbose, :log, :dryrun
 
     def mode = compiler.mode
     def mode_method() @mode_method ||= "#{mode}?".to_sym end
@@ -19,8 +19,6 @@ module Prick::Lang
     def ast() @ast ||= compiler.ast end
     def idr() @idr ||= compiler.idr end
     def units() @units ||= compiler.units end
-
-    def db() raise end
   end
 
   class Compiler
@@ -36,7 +34,7 @@ module Prick::Lang
     # Database environment
     forward_to :settings, :database, :username, :environment
 
-    # Connection
+    # Owner connection
     def conn = settings.user_conn
 
     # Runtime options
@@ -111,8 +109,6 @@ module Prick::Lang
       @requires = []
       @contexts = [] # Stack of [Idr::Resource, Idr::Block] tuples
       @schemas = [] # Stack of Idr::Schema objects
-
-      load_state
     end
 
     #
@@ -124,7 +120,7 @@ module Prick::Lang
       ShellOpts.verb "Compiling '#{file}'"
 
       indent(verbose?) {
-        settings.load_compiler_state
+        load_compiler_state
 
         time "Parsing" do
           parse
@@ -144,7 +140,7 @@ module Prick::Lang
 
         yield
 
-        settings.save_compiler_state
+        save_compiler_state
       }
 
       t1 = Time.now
@@ -322,19 +318,28 @@ module Prick::Lang
 
     # Load completed resources from compiler state file. It is not an error if
     # the file is absent
-    def load_state
+    def load_compiler_state
       @completed_resources = conn.values %(select uid from prick.resources)
       @timestamp = conn.value?("select max(created_at) from prick.builds where status = true") || EPOCH_TIMESTAMP
     end
 
+    # Remove entries in completed_resources for the given schemas. This is
+    # should be done for all schemas that are either recompiled or invalidated
+    def clean_compiler_state(*schemas)
+#     schemas.flatten!
+#
+#     conn.exec %(
+#       delete from prick.resources where
+    end
+
     # Write completed resource to compiler state file
-    def save_state
-      reset_state
+    def save_compiler_state
+      reset_compiler_state
       conn.insert "prick.resources", [:uid], @completed_resources
     end
 
     # Remove the compiler state if present
-    def reset_state = conn.exec "delete from prick.resources"
+    def reset_compiler_state = conn.exec "delete from prick.resources"
 
     #
     # D U M P

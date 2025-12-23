@@ -1,7 +1,9 @@
 
+require_relative './ext/bash.rb'
 require_relative './ext/semver.rb'
 require_relative './ext/tree.rb'
 require_relative './ext/x_array.rb'
+require_relative './ext/x_forward_to.rb'
 require_relative './ext/debug.rb' # Debug
 require_relative './ext/trace.rb' # Debug
 
@@ -34,7 +36,7 @@ module Prick::Lang
   end
 
   def self.dump(compiler, kinds)
-    compiler.load_state
+    compiler.load_compiler_state
     state = kinds.delete "state"
     if kinds.empty?
       compiler.parse compiler.file

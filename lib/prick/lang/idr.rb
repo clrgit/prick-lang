@@ -211,13 +211,13 @@ module Prick::Lang
     end
 
     class SqlCommand < Command
-      forward_to :ast, :source, :kind
+      forward_to_s :ast, :source, :kind
       def require_search_path? = true
     end
 
     class ExternalCommand < Command
       # kind can be :EVAL or :EXEC
-      forward_to :ast, :source, :kind
+      forward_to_s :ast, :source, :kind
       def path = ast.dir
 
       def require_search_path? = kind == :EVAL
@@ -225,6 +225,7 @@ module Prick::Lang
     end
 
     class CallCommand < Command
+      def procs = ast.references.map(&:uid)
       def require_search_path? = true
     end
 
@@ -302,21 +303,22 @@ module Prick::Lang
     end
 
     class CopyCommand < MergeCommand
-      forward_to :ast, :tables
+      forward_to_s :ast, :tables
     end
 
     class SyncCommand < MergeCommand
-      forward_to :ast, :table, :key, :id_table, :source
+      forward_to_s :ast, :table, :key, :id_table, :source
+
       def tables = [table]
     end
 
     class PrepareCommand < MergeCommand
-      forward_to :ast, :table, :key, :id_table, :source
+      forward_to_s :ast, :table, :key, :id_table, :source
       def tables = [table]
     end
 
     class HandleCommand < MergeCommand
-      forward_to :ast, :tables
+      forward_to_s :ast, :tables
     end
 
     # A CheckCommand is only emitted when a check command was triggered. It

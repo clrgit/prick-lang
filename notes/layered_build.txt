@@ -1,0 +1,53 @@
+    # Create schema command should be moved to the start
+    # The executor should handle schemas
+
+    # TODO: All links should refer to completion nodes (or provides)
+    #
+    # TODO
+    #   Understand layered build
+    #     program init
+    #     all init
+    #     all self
+    #     all seed
+    #     all final
+    #     program self
+    #     program seed
+    #     program final
+    #     all auth
+    #     program auth
+    #
+    #   When we build something, the target's level (init/self/seed/final/auth/merge)
+    #   propagates to required objects. Eg. if a require b and we build the
+    #   self phase of a previously compiled self phase of b is enough to
+    #   satisfy the requirement
+    #
+    #   Should generate a .prick.completed.yml file with the format
+    #
+    #     - schema:
+    #         name: my_schema
+    #         phase: init|self|seed|final|auth|merge|property
+    #
+    #   The executor can reuse a whole schema or continue compiling from a
+    #   property but when an error happens, the entire schema is invalidated
+    #
+    #   Q: How to elimitate nodes when continuing from a property?
+    #   A: Use the transitive closure
+    #
+    #   N: The executer should control the generator because it determines which
+    #   targets should be rebuilt when running 'prick make'. The state of the
+    #   last compilation is read from .prick.completed.yml and the transitive
+    #   closuere of completed targets are eliminated from the build set
+    #     N: No. We read .prick.completed.yml from the compiler and feeds it into
+    #        #generate using the :exclude argument
+    #     N: The compiler should then also detect changed files when running
+    #        'prick make'
+    #
+    #   N: Schemas are also be invalidated when a .prick file or any referred
+    #   file changes
+    #
+    #   N: We need to know all files involved
+    #
+    #   P: We need a 'make' command to be able to update auto-generated files
+    #     N: We can revert to 'prick build' when an auto-generated file changes
+    #
+
