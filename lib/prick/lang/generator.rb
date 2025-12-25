@@ -12,8 +12,12 @@ module Prick::Lang
     # that is used to create/drop schemas
     PHASES = [:SETUP] + Idr::Phase::KINDS
 
-    # Units by phase in dependency order
-    attr_reader :phases # {:PHASE=>[Unit]}
+    # Units and associated node by phase in dependency order
+    attr_reader :phases # {PHASE=>[Unit::Node]}
+
+    # Nodes by unit. Used to lookup the associated node without polluting Unit
+    # with compiler objects
+    attr_reader :nodes
 
     # All units in execution order
     attr_reader :units # [Unit]
@@ -32,10 +36,8 @@ module Prick::Lang
     end
 
     def generate
-      nodes = analyzer.reachable_nodes
-
       # Build graph
-      @graph = nodes.map { |node| [node, node.deps] }.to_h
+      @graph = analyzer.reachable_nodes.map { |node| [node, node.deps] }.to_h
 
       # Sort nodes
       tsorted_nodes = topological_sort
@@ -55,11 +57,14 @@ module Prick::Lang
       # Find preserved schemas
       @preserve_schemas = idr.schemas - @build_schemas - @invalidate_schemas
 
-      # Define setup phase
-      initialize_setup_phase
+      # Assign initial units (creates/drops schemas) and set up transaction
+      assign_initial_units
 
       # Join phases in execution order
       assign_units
+
+      # Assign final units and commit outstanding changes
+      assign_final_units
     end
 
     # if running-make
@@ -97,6 +102,8 @@ module Prick::Lang
       }
     end
 
+    def inspect = "#<Generator ...>"
+
   private
     attr_reader :graph # {Node=>[Node]} Hash from node to list of dependencies
 
@@ -108,7 +115,8 @@ module Prick::Lang
     # boundaries
     def build_units(nodes)
       @phases = PHASES.map { |kind| [kind, []] }.to_h
-      unit_classes = { SQL: Unit::Sql, PSQL: Unit::PSql, FOX: Unit::Fox, RB: Unit::Ruby }
+      @nodes = {}
+      unit_classes = { SQL: Unit::SqlFile, PSQL: Unit::PSqlFile, FOX: Unit::FoxFile, RB: Unit::RubyFile }
       nodes.each { |node|
         unit =
             case node
@@ -123,7 +131,7 @@ module Prick::Lang
               when Idr::DetectMetaCommand
                 Unit::DetectMeta.new
               when Idr::TailCommand
-                Unit::Mark.new node.uid
+                Unit::Mark.new [node.uid]
               when Idr::MetaCommand
                 Unit::Meta.new node.table
               when Idr::CopyCommand
@@ -139,6 +147,7 @@ module Prick::Lang
             else
               raise ArgumentError
             end
+        @nodes[unit] = node
         @phases[node.phase] << unit
       }
     end
@@ -152,34 +161,88 @@ module Prick::Lang
     def invalidate_schema
     end
 
-    def initialize_setup_phase
-      phase = @phases[:SETUP]
-      phase.concat \
-          @invalidate_schemas.map { |schema| Unit::Db.new(schema, :drop) },
-          @build_schemas.map { |schema| Unit::Db.new(schema, :recreate) }
+    def assign_initial_units
+#     phase = @phases[:SETUP]
+#     phase.concat \
+#         @invalidate_schemas.map { |schema| Unit::Db.new(schema.ident, :drop) },
+#         @build_schemas.map { |schema| Unit::Db.new(schema.ident, :reset) }
+      @units =
+          @invalidate_schemas.map { |schema| Unit::Db.new(schema.ident, :DROP) } +
+          @build_schemas.map { |schema| Unit::Db.new(schema.ident, :RESET) } +
+          [ Unit::Transaction.new(:BEGIN) ]
     end
 
+    # TODO Add^H^H^H ensure commits and end-of-schema (we already have that?)
+
+    # Flatten phases and insert search path commands
     def assign_units
+
       current_schema = nil
-      @units = []
+      commit_before = false
+      commit_after = false
+      current_mark = nil
+
       PHASES.each { |kind|
         @phases[kind].each { |unit|
-#         if unit.is_a?(Unit::IdrNode)
-          if !unit.is_a? Unit::Db # FIXME
-            this_schema = unit.node.schema
-            if unit.node.require_search_path? && this_schema != current_schema
-              @units << Unit::SearchPath.new(this_schema) if !this_schema.program?
+          case [!current_mark.nil?, unit.is_a?(Unit::Mark)]
+            in [false, false]; # do nothing
+            in [false, true]; current_mark = unit
+            in [true, true]; current_mark.uids.concat(unit.uids); next
+            in [true, false]; current_mark = nil
+          end
+
+          # Associated Idr node
+          node = nodes[unit]
+
+          # Insert commit node if required. A series of commit-before nodes
+          # will only yield a node for the initial commit
+          if node.require_commit_before?
+            if !commit_before
+              @units << Unit::Transaction.new(:COMMIT)
+              commit_before = true
+            end
+          else
+            commit_before = false
+          end
+
+          # Insert commit node if required. A series of commit-after nodes
+          # will only yield a node for the final commit. Note that this is
+          # triggered by the node following the last commit-after node
+          if node.require_commit_after?
+            commit_after = true
+          elsif commit_after
+            @units << Unit::Transaction.new(:COMMIT)
+            commit_after = false
+          end
+
+          # Handle schema nodes
+          if this_schema = compiler.schemas[unit.schema]
+
+            # Insert search path node if needed
+            if node.require_search_path? && this_schema != current_schema
+              @units << Unit::SearchPath.new(this_schema.ident) if !this_schema.program?
               current_schema = this_schema
             end
+
+            # Add unit
             @units << unit
-            if unit.node.change_search_path?
-              current_schema = nil
-            end
+
+            # Reset search path
+            current_schema = nil if node.change_search_path?
+
           else
             @units << unit
           end
         }
-      }.flatten
+      }
+    end
+
+    def collapse_mark_units
+      @units
+    end
+
+    def assign_final_units
+      @units << Unit::Transaction.new(:END)
     end
 
     def transitive_closure(nodes, &block)

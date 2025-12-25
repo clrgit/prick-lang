@@ -10,7 +10,6 @@ module Prick::Lang
 
     def initialize
       @evaluator = Evaluator.new
-      @schemas = [] # Stack of Ast::Schemas
     end
 
     def convert(compiler: true)
@@ -43,7 +42,6 @@ module Prick::Lang
       constrain ast, Ast::Schema
       check_context ast, Idr::Program
       schema = Idr::Schema.new(compiler.context, ast)
-      compiler.context.schemas << schema
       compiler.add(schema)
       compiler.scope(schema) { convert_stmts(ast.block) }
       []

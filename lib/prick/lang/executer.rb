@@ -5,11 +5,15 @@ module Prick::Lang
   #   Collect fox files
   #
   class Executer < CompilerProcess
-#   using String::Text
+    using String::Text
 
     attr_reader :bash # Bash::Bash object
 
     def initialize
+    end
+
+    def logger(msg)
+      puts msg.align
     end
 
     def execute
@@ -25,9 +29,9 @@ module Prick::Lang
         # Ensure logger if requested
         if settings.log? && !conn.log
           dst = StringIO.new
-          conn.log = dst
-        else
-          dst = nil
+#         conn.log = dst
+          logger = lambda { |arg| dst.puts arg.sub(/\n\s*\n/m, "\n") + ";" }
+          conn.log = logger
         end
 
         # Execute units
@@ -44,33 +48,6 @@ module Prick::Lang
     def inspect = "#<#{self.class} ...>"
 
   private
-    def execute_unit(unit)
-      case unit
-        when Unit::DbCommand
-          unit.execute
-        when Unit::SqlCommand
-          conn.exec unit.sql
-        when Unit::CallCommand
-          conn.proc unit.proc
-        when Unit::SqlFileCommand
-          conn.exec unit.read
-        when Unit::PSqlFileCommand
-          # TODO: Prepare file with errexit
-          bash.command "psql -U #{settings.username} -d #{settings.database} <#{unit.file}"
-        when Unit::FoxFileCommand
-          bash.command "fox -U #{settings.username} -d #{settings.database} \#{files}" # FIXME files
-        when Unit::RubyFileCommand
-          bash.command 'echo TODO'
-        when Unit::ExecCommand
-          bash.command unit.command
-        when Unit::EvalCommand
-          sql = bash.command unit.command
-          conn.exec sql
-      else
-        raise InternalError
-      end
-    end
-
     # Singleton bash(1) environment (Hash). It is injected into the enviroment
     # of subprocesses
     @@BASH_ENVIRONMENT = nil
@@ -89,16 +66,21 @@ module Prick::Lang
         Prick::PROJECT_DIR_ATTRS.each { |attr| hash["PRICK_#{attr.upcase}DIR"] = settings.dirs[attr] }
 
         # Simple attributes
-        attrs = [:name, :title, :version, :database, :username, :environment, :targets, :verbose?, :dryrun?, :log?]
+        attrs = [:name, :title, :version, :database, :username, :environment, :verbose?, :dryrun?, :log?]
         for attr in attrs
-          hash["PRICK_#{attr.sub("?", "").upcase}"] = settings.send(attr).to_s
+          hash["PRICK_#{attr.to_s.sub("?", "").upcase}"] = settings.send(attr).to_s
         end
 
         # Timestamp
-        hash["PRICK_TIMESTAMP"] = settings.timestamp.strftime("%F %T %Z")
+        hash["PRICK_TIMESTAMP"] = settings.created_at.strftime("%F %T %Z")
 
         # Targets
         hash["PRICK_TARGETS"] = compiler.targets.join(" ")
+
+pp hash
+
+        # Final result
+        hash
 
 #       TODO
 #       # PRICK_ENVIRONMENT_* variables. Only defined if the environment is known

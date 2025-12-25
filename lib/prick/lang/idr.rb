@@ -30,6 +30,16 @@ module Prick::Lang
       # check for that
       def change_search_path? = false
 
+      # True iff the node requires the current session to be committed to disk
+      # before it is evaluated. This is true for external commands so they can
+      # access the current state of the database using their own connection
+      def require_commit_before? = false
+
+      # True iff the node requires a commit after it has been executed. This is
+      # true for mark statements (TODO: repeated mark statements should be
+      # combined into one)
+      def require_commit_after? = false
+
       # True if the node has changed since last run. Initially false but
       # #dirty! sets it to true
       def dirty? = @dirty
@@ -211,17 +221,18 @@ module Prick::Lang
     end
 
     class SqlCommand < Command
-      forward_to_s :ast, :source, :kind
+      forward_to :ast, :source, :kind
       def require_search_path? = true
     end
 
     class ExternalCommand < Command
       # kind can be :EVAL or :EXEC
-      forward_to_s :ast, :source, :kind
+      forward_to :ast, :source, :kind
       def path = ast.dir
 
       def require_search_path? = kind == :EVAL
       def change_search_path? = kind == :EVAL
+      def require_commit_before? = true
     end
 
     class CallCommand < Command
@@ -259,6 +270,7 @@ module Prick::Lang
     # blocks of all resources by the analyzer
     class TailCommand < MarkCommand
       def kind = :TAIL
+      def require_commit_after? = true
     end
 
     class RequireCommand < NopCommand
@@ -303,22 +315,22 @@ module Prick::Lang
     end
 
     class CopyCommand < MergeCommand
-      forward_to_s :ast, :tables
+      forward_to :ast, :tables
     end
 
     class SyncCommand < MergeCommand
-      forward_to_s :ast, :table, :key, :id_table, :source
+      forward_to :ast, :table, :key, :id_table, :source
 
       def tables = [table]
     end
 
     class PrepareCommand < MergeCommand
-      forward_to_s :ast, :table, :key, :id_table, :source
+      forward_to :ast, :table, :key, :id_table, :source
       def tables = [table]
     end
 
     class HandleCommand < MergeCommand
-      forward_to_s :ast, :tables
+      forward_to :ast, :tables
     end
 
     # A CheckCommand is only emitted when a check command was triggered. It
@@ -473,7 +485,8 @@ module Prick::Lang
       def key = nil
       def uid = nil
 #     def uid = "public"
-      attr_reader :schemas
+
+      attr_reader :schemas # [Schema], initialized by the analyzer
 
       def initialize(ast)
         super(nil, ast)

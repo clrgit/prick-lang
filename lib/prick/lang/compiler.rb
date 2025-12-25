@@ -6,7 +6,7 @@ module Prick::Lang
 
     def compiler() @compiler ||= Compiler.instance end
 
-    forward_to :compiler, :conn, :database, :username, :environment, :verbose, :log, :dryrun
+    forward_to :compiler, :conn, :database, :username, :environment, :schemas, :verbose, :log, :dryrun
 
     def mode = compiler.mode
     def mode_method() @mode_method ||= "#{mode}?".to_sym end
@@ -16,9 +16,11 @@ module Prick::Lang
     def analyzer() @analyzer ||= compiler.analyzer end
     def generator() @generator ||= compiler.generator end
 
+    # Why not forward_to?
     def ast() @ast ||= compiler.ast end
     def idr() @idr ||= compiler.idr end
     def units() @units ||= compiler.units end
+    def program() = compiler.program
   end
 
   class Compiler
@@ -62,14 +64,23 @@ module Prick::Lang
     def idr = @converter.idr # Idr::Program. Initialized by #convert and updated by #analyze
     def units = @generator.units # [Unit::Node]. Initialized by #generate
 
+    # Top-level Idr Program node. Just a synonym for #idr. Intialized by the analyzer
+    alias_method :program, :idr
+
+    # Idr schemas. This excludes Ast schemas that was filtered away by the
+    # converter process. These schemas may be ignored later in the compile
+    # process, though
+    attr_reader :schemas # { String => Idr::Schema }, initialized by the analyzer
+
     # Timestamp of last successful run
     attr_reader :timestamp # Time - time of last successful run. Default EPOCH
 
-    # State data
-    #
-    # State data have default values that are overwriten by #load_compiler_state
-    attr_reader :completed_resources # [uid] - Completed resource
+    # State data. State data are read by #load_compiler_state
 
+    # Completed resources from PRICK.RESOURCES
+    attr_reader :completed_resources # [uid]
+
+    # Lists of meta and seed tables
     attr_reader :meta_tables
     attr_reader :seed_tables
 
@@ -104,11 +115,12 @@ module Prick::Lang
       @analyzer = Analyzer.new
       @generator = Generator.new
       @executer = Executer.new
+      @schemas = {}
       @resources = {}
       @unresolved = []
       @requires = []
-      @contexts = [] # Stack of [Idr::Resource, Idr::Block] tuples
-      @schemas = [] # Stack of Idr::Schema objects
+      @context_stack = [] # Stack of [Idr::Resource, Idr::Block] tuples
+      @schema_stack = [] # Stack of Idr::Schema objects
     end
 
     #
@@ -237,7 +249,7 @@ module Prick::Lang
     end
 
     # Add a present resource. It is an error if the resource is absent but not
-    # if it is unknown
+    # if it is unknown. It the resource is a schema, it is also added bo
     def add(resource, uid = nil)
       constrain resource, Idr::Resource, Idr::ProvideCommand # FIXME Any Idr node is ok
       uid ||= resource.uid
@@ -283,33 +295,33 @@ module Prick::Lang
     # Contexts
     #
 
-    # Stack of contexts and associated block. Block is usually equal to
+    # Stack of context_stack and associated block. Block is usually equal to
     # resource.block but unresolved nodes sets the resource to the parent
     # resource and the block to its own block
-    attr_accessor :contexts # [[Resource, Block]]
+    attr_accessor :context_stack # [[Resource, Block]]
 
     # Current Idr::Resource object
-    def context = @contexts.last.first
+    def context = @context_stack.last.first
 
     # Current Schema object
-    def schema = @schemas.last
+    def schema = @schema_stack.last
 
     # Current block of statements. This is usually the same as context.block
     # but unresolved nodes goes into the Unresolved object and are only later
     # moved to the parent
-    def block = @contexts.last.last
+    def block = @context_stack.last.last
 
     # Execute block with the given context. The current block can be set
     # explicitly, this is used by Analyze#build_unresolved
     def scope(context, block = context.block, &code)
       constrain context, Idr::Resource
       constrain block, Array
-      @contexts.push [context, block]
-      @schemas.push context if context.is_a? Idr::Schema
+      @context_stack.push [context, block]
+      @schema_stack.push context if context.is_a? Idr::Schema
       yield
     ensure
-      @contexts.pop
-      @schemas.pop if context.is_a? Idr::Schema
+      @context_stack.pop
+      @schema_stack.pop if context.is_a? Idr::Schema
     end
 
     #
@@ -323,10 +335,10 @@ module Prick::Lang
       @timestamp = conn.value?("select max(created_at) from prick.builds where status = true") || EPOCH_TIMESTAMP
     end
 
-    # Remove entries in completed_resources for the given schemas. This is
-    # should be done for all schemas that are either recompiled or invalidated
-    def clean_compiler_state(*schemas)
-#     schemas.flatten!
+    # Remove entries in completed_resources for the given schema_stack. This is
+    # should be done for all schema_stack that are either recompiled or invalidated
+    def clean_compiler_state(*schema_stack)
+#     schema_stack.flatten!
 #
 #     conn.exec %(
 #       delete from prick.resources where

@@ -3,8 +3,11 @@ module Prick::Lang
   class Analyzer < CompilerProcess
     using String::Text
 
-    # Top-level program object. A more informative synonym for #idr
-    def program = compiler.idr
+    # List of schemas
+    def schemas = program.schemas # [Idr::Schema]
+
+    # List of program and schemas. Assigned by #collect_schemas
+    attr_reader :schema_objects # [Idr::Schema]
 
     # Target nodes
     def targets # [Node]
@@ -35,6 +38,7 @@ module Prick::Lang
     #
     def analyze(link: nil)
       if link.nil? || !link # Assign
+        collect_schemas
         assign_this_phase
         assign_default_phases
         add_phase_nodes
@@ -97,15 +101,22 @@ module Prick::Lang
       }
 
       puts "Schema"
-
     end
 
   private
+    # Assign Program#schemas and Compiler#schemas
+    def collect_schemas
+      compiler.program.trees(Idr::Schema).each { |schema|
+        compiler.program.schemas << schema
+        compiler.schemas[schema.ident] = schema
+      }
+      @schema_objects = [program] + program.schemas
+    end
 
     # Assign Schema#this phases by stealing the schema's block. The phase is
     # added to the resource repository
     def assign_this_phase
-      idr.nodes(Idr::Schema).each { |schema|
+      schemas.each { |schema|
         schema.this.retach(schema.block)
         schema.this.block = schema.block
         schema.block = []
@@ -115,7 +126,7 @@ module Prick::Lang
 
     # Assign default phases and add them to the resource repository
     def assign_default_phases
-      idr.nodes(Idr::Schema).each { |schema|
+      schema_objects.each { |schema|
         Idr::Phase::PHASES.each { |kind, (attr, _)|
           if schema.get_phase(attr).nil?
             phase = Idr::DefaultPhase.new(schema, kind)
@@ -144,16 +155,16 @@ module Prick::Lang
       }
     end
 
-    # Register schemas and assign Node#schema
+    # Assign Node#schema. TODO Do we check for sql in main?
     def assign_schema
-      idr.nodes(Idr::Schema).each { |schema|
+      schemas.each { |schema|
         schema.nodes.each { |node| node.schema = schema }
       }
     end
 
-    # Assign Command#phase
+    # Assign Command#phase. TODO: inline in #assign_schema
     def assign_phases
-      idr.nodes(Idr::Schema).each { |schema|
+      schema_objects.each { |schema|
         schema.phases.each { |kind, phase|
           phase.block.each { |command| command.phase = kind }
         }
@@ -212,7 +223,7 @@ module Prick::Lang
     # Computer schema-schema dependencies. Note that this may form a cyclic
     # graph
     def assign_schema_deps
-      idr.trees(Idr::Schema).each { |schema|
+      schemas.each { |schema|
         schemas = Set.new
         schema.nodes.each { |node|
           node.deps.each { |dep|

@@ -19,6 +19,9 @@ module Prick
     # Prick installation directory
     attr_reader :prick_dir
 
+    # Prick installation libexec directory
+    attr_reader :prick_libexec_dir
+
     # Prick installation share directory
     attr_reader :prick_share_dir
 
@@ -37,7 +40,16 @@ module Prick
     attr_reader :dirs
 
     #
-    # F I L E S
+    # E X E C U T A B L E   S E A R C H   P A T H
+    #
+
+    # Search path for executables. Equal to $PATH prepended with the project
+    # bin and libexec directories. The prick installation libexec directory is
+    # added too
+    attr_reader :executable_search_path
+
+    #
+    # P A T H S   A N D   F I L E S
     #
 
     # Initial 'make.prick' file
@@ -207,7 +219,7 @@ module Prick
       # Set prick installation directories
       @prick_dir = File.dirname ShellOpts.program_path, 2
       @prick_share_dir = "#{@prick_dir}/lib/prick/share"
-      @prick_libexec_dir = "#{@prick_dir}/libexec"
+      @prick_libexec_dir = "#{@prick_dir}/lib/prick/share/libexec"
 
       # Register current directory
       @user_dir = ShellOpts.environment_path
@@ -225,7 +237,7 @@ module Prick
       @dirs.project = @project_dir
 
       # Assign executable path
-      @executable_search_path = [@dirs.bin_dir, @dirs.libexec_dir, ENV['PATH']].join(':')
+      @executable_search_path = [@dirs.bin, @dirs.libexec, @prick_libexec_dir, ENV['PATH']].join(':')
 
       # Assign global prick files using #file_attr helper method for brevity
       @project_file = File.join dirs.project, Prick::PROJECT_FILENAME

@@ -3,7 +3,6 @@ require_relative './ext/bash.rb'
 require_relative './ext/semver.rb'
 require_relative './ext/tree.rb'
 require_relative './ext/x_array.rb'
-require_relative './ext/x_forward_to.rb'
 require_relative './ext/debug.rb' # Debug
 require_relative './ext/trace.rb' # Debug
 
@@ -77,7 +76,8 @@ private
     return if kinds.empty?
 
     compiler.generate
-    compiler.generator.dump if kinds.delete "units"
+#   compiler.generator.dump if kinds.delete "units"
+    puts compiler.units.map(&:to_s)
   end
 
   def self.dump_tokens(tokens)

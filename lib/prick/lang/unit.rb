@@ -1,5 +1,6 @@
 
 module Prick::Lang
+  # Aka. "Instruction unit"
   module Unit
     class Node
       include ClassFunctions
@@ -12,56 +13,100 @@ module Prick::Lang
       # Bash object. Initialized by the executer
       @@BASH = nil
       def self.bash=(bash) @@BASH = bash end
-      def bash() @@BASH
+      def bash() @@BASH end
 
-      def execute() = raise
-    end
+      # The schema name of this this node (if any). Used to control the search path
+      def schema = nil # String
 
-    class Db < Node
-      COMMANDS = [:ensure, :drop]
-
-      attr_reader :schema # String
-      attr_reader :command # :ensure, :drop
-
-      def initialize(schema, command)
-        @schema, @command = schema, command
+      # Values are auto-converted to strings if not a Symbol
+      def initialize(**attrs) # attrs: {Symbol => Object w/#to_s}
+        attrs.each { |var, val|
+          self.instance_variable_set(:"@#{var}", norm(val))
+        }
       end
 
-      def execute
-        case command
-          when :ensure
-            conn.schema.drop schema, cascade: true
-            conn.schema.create schema
-          when :drop
-            conn.schema.drop schema, cascade: true
-        else
-          raise InternalError
+      # Execute the node
+      def execute() = raise
+
+      # String representation
+      def to_s = raise
+
+    private
+      # Normalize value to be either a String, Symbol, an array of those, or
+      # any object that responds to #to_s
+      def norm(v)
+        case v
+          when Symbol, String; v
+          when Array; v.map { norm(_1) }
+          else v.to_s
         end
       end
     end
 
+    class Db < Node
+      attr_reader :schema
+      attr_reader :command # Symbol - :RESET, :DROP
+
+      def initialize(schema, command) = super schema: schema, command: command
+
+      def execute
+        case command
+          when :RESET
+            conn.schema.drop schema, cascade: true
+            conn.schema.create schema
+          when :DROP
+            conn.schema.drop schema, cascade: true
+        else
+          raise ArgumentError, "Illegal command: #{command.inspect}"
+        end
+      end
+
+      def to_s = "#{command} #{schema}"
+    end
+
+    class Transaction < Node
+      attr_reader :command # Symbol - :BEGIN, :END, :COMMIT
+      def initialize(command = :commit) = super command: command
+      def execute()
+        conn.commit if command != :BEGIN
+        conn.transaction if command != :END
+      end
+      def to_s = command.to_s
+    end
+
+    class SearchPath < Node
+      attr_reader :search_path
+      def initialize(search_path) = super search_path: search_path
+      def execute() conn.search_path = search_path end
+      def to_s = "PATH #{search_path}" # TODO Move to unit.emit.rb
+    end
+
     class Mark < Node
-      attr_reader :uid
-      def initialize(uid) @uid = uid end
-      def execute = conn.insert "prick.resources", uid: uid
+      attr_reader :uids
+      def initialize(uids) = super uids: uids
+      def execute = conn.insert "prick.resources", :uids, uids
+      def to_s = "MARK #{uids.join(', ')}"
     end
 
     class Meta < Node
       attr_reader :table # qualified table name
-      def initialize(table) @table = table end
+      def initialize(table) = super table: table
       def execute = conn.proc :"prick.register_meta_table", table
+      def to_s = "META #{table}"
     end
 
     class Sql < Node
       attr_reader :sql
-      def initialize(sql) @sql = sql end
-      def execute = conn.exec sql
+      def initialize(sql) = super sql: sql
+      def execute = conn.execute sql
+      def to_s = "SQL #{sql.inspect}"
     end
 
     class Call < Sql
       attr_reader :proc
-      def initialize(proc) @proc = proc end
-      def execute = conn.proc @proc
+      def initialize(proc) = super proc: proc
+      def execute = conn.proc proc
+      def to_s = out.puts "CALL #{proc}"
     end
 
     class DetectMeta < Call
@@ -69,13 +114,15 @@ module Prick::Lang
     end
 
     class File < Node
+      def kind = classname.upcase
       attr_reader :file
-      def intialize(file) @file = file end
-      def read() IO.read(file) end # TODO Error handling
+      def initialize(file) = super file: file
+      def read = IO.read(file) # TODO Error handling
+      def to_s = "#{kind} #{file}"
     end
 
     class SqlFile < File
-      def execute = conn.exec read
+      def execute = conn.execute read
     end
 
     class PSqlFile < File
@@ -92,30 +139,34 @@ module Prick::Lang
     end
 
     class Bash < Node
-      attr_reader :kind # :EXEC or :EVAL
+      attr_reader :kind # "EXEC" or "EVAL"
       attr_reader :command
-      def initialize(kind, command) @kind, @command = kind, command end
+      def initialize(kind, command) = super kind: kind, command: command
       def execute
         sql = bash.command command
-        conn.exec sql if kind == :EVAL
+        conn.execute sql if kind == :EVAL
       end
+      def to_s = "#{kind} #{bash.command}"
     end
 
     class Copy < Node
       attr_reader :tables
-      def initialize(tables) @tables = tables end
+      def initialize(tables) = super tables: tables
       def execute = bash.command "echo TODO COPY"
+      def to_s = "COPY #{tables.join(', ')}"
     end
 
     class AbstractPrepareSync < Node
+      def kind = self.classname # "Sync" or "Prepare"
       attr_reader :table
       attr_reader :key
       attr_reader :id_table
       attr_reader :sql
 
       def initialize(table, key, id_table = nil, sql = nil)
-        @table, @key, @id_table, @sql = table, key, id_table, sql
+        super table: table, key: key, id_table: id_table, sql: sql
       end
+      def to_s = "#{kind} #{table} #{key} #{id_table || 'nil'} #{sql.inspect}"
     end
 
     class Sync < AbstractPrepareSync
@@ -128,8 +179,9 @@ module Prick::Lang
 
     class Handle < Node
       attr_reader :tables
-      def initialize(tables) @tables = tables end
+      def initialize(tables) = super tables: tables
       def execute = bash.command "echo TODO HANDLE"
+      def to_s = "HANDLE #{tables.join(', ')}"
     end
   end
 end
