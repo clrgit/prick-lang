@@ -50,7 +50,6 @@ module Prick::Lang
   private
     # Singleton bash(1) environment (Hash). It is injected into the enviroment
     # of subprocesses
-    @@BASH_ENVIRONMENT = nil
     def bash_environment
       @@BASH_ENVIRONMENT ||= begin
         # Path
@@ -77,8 +76,6 @@ module Prick::Lang
         # Targets
         hash["PRICK_TARGETS"] = compiler.targets.join(" ")
 
-pp hash
-
         # Final result
         hash
 
@@ -90,6 +87,7 @@ pp hash
       end
     end
 
+    @@BASH_ENVIRONMENT = nil
   end
 end
 

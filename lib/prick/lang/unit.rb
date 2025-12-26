@@ -84,7 +84,7 @@ module Prick::Lang
     class Mark < Node
       attr_reader :uids
       def initialize(uids) = super uids: uids
-      def execute = conn.insert "prick.resources", :uids, uids
+      def execute = conn.insert "prick.resources", [:uid], uids
       def to_s = "MARK #{uids.join(', ')}"
     end
 

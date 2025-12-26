@@ -167,9 +167,10 @@ module Prick::Lang
 #         @invalidate_schemas.map { |schema| Unit::Db.new(schema.ident, :drop) },
 #         @build_schemas.map { |schema| Unit::Db.new(schema.ident, :reset) }
       @units =
+          [ Unit::Transaction.new(:BEGIN) ] +
           @invalidate_schemas.map { |schema| Unit::Db.new(schema.ident, :DROP) } +
           @build_schemas.map { |schema| Unit::Db.new(schema.ident, :RESET) } +
-          [ Unit::Transaction.new(:BEGIN) ]
+          [ Unit::Transaction.new(:COMMIT) ]
     end
 
     # TODO Add^H^H^H ensure commits and end-of-schema (we already have that?)
