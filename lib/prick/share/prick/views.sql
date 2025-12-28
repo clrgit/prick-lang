@@ -1,5 +1,5 @@
 
--- Contains only the newest record from builds
+-- Contains only the most recent record from builds
 create view states as
   select *
   from builds

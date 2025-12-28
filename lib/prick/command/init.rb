@@ -3,6 +3,8 @@ module Prick::Command
 
   # Initialize a prick project
   class Init < Command
+    forward_to :settings, :bash
+
     # --name=NAME --title=TITLE -- [DIR]
     def initialize(opts, args)
       project_arg = args.expect(0..1) || Dir.getwd
@@ -62,12 +64,12 @@ module Prick::Command
     # copied verbatim from the installation directory
     def init_git_repo
       Dir.chdir settings.project_dir do
-        Bash.command %(
+        bash.command %(
           git init .
           git add .
           git commit -m "Initial import"
         ), fail: true
-        Bash.status == 0 or Prick.failure "Failed creating initial import"
+        bash.status == 0 or Prick.failure "Failed creating initial import"
       end
     end
 
@@ -80,12 +82,12 @@ module Prick::Command
     # Create first release including project files
     def make_git_release
       Dir.chdir settings.project_dir do
-        Bash.command %(
+        bash.command %(
           git add #{settings.project_file} #{settings.version_file}
           git commit -m "Release 0.0.0"
           git tag --message "Initial Release" v0.0.0
         ), fail: false
-        Bash.status == 0 or Prick.failure "Failed creating initial release"
+        bash.status == 0 or Prick.failure "Failed creating initial release"
       end
     end
 

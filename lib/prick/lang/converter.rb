@@ -167,7 +167,7 @@ module Prick::Lang
     # Resources can be defined after they have been marked 'unknown' so we need
     # an extra set of passes that resolve references to these resources. Only
     # after no more progress can be made, the remaining unresolved resources
-    # are marked absent and the process start again
+    # are marked absent
     #
     def convert_unresolved
       return if compiler.unresolved.empty?

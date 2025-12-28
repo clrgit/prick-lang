@@ -18,9 +18,6 @@ module Bash
     end
   end
 
-  def self.command(env, cmd, **opts) = Bash::Bash.new(env).command(cmd, **opts)
-  def self.command?(env, cmd, **opts) = Bash::Bash.new(env).command?(cmd, **opts)
-
   # Bash interface. It precompiles the environment of subprocesses
   class Bash
     # Prick environment
@@ -36,7 +33,7 @@ module Bash
     # this exception whenever a command fail but raises it only if :fail is true
     def exception() @exception end
 
-    def initialize(env)
+    def initialize(env = {})
       # Normalize array and time
       @env = env.map { |k,v| [k.to_s, v.is_a?(Time) ? v.strftime("%F %T %Z") : v.to_s] }.to_h
 
@@ -74,6 +71,8 @@ module Bash
 
         # Add arguments if present
         bashcmd = [bashcmd, *argv].join(' ') if argv
+
+        p bashcmd
 
         # Execute command using environment
         Kernel.exec(env, bashcmd)
@@ -139,7 +138,7 @@ module Bash
       pe[0].close if !stderr.nil?
 
       if @status != 0
-        @exception = Command::Error.new(cmd, @status, stdin, out, err || [])
+        @exception = ::Bash::Error.new(cmd, @status, stdin, out, err || [])
         raise @exception if fail
       else
         @exception = nil

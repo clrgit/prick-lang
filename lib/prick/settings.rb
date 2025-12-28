@@ -180,6 +180,14 @@ module Prick
     def user_conn = @user_conn ||= PgConn.new(database, username)
 
     #
+    # B A S H
+    #
+
+    # Global Bash object with only the inherited environment (ie. no PRICK_*
+    # variables)
+    def bash = @bash ||= Bash::Bash.new
+
+    #
     # R U N T I M E   O P T I O N S
     #
 
@@ -206,10 +214,11 @@ module Prick
     # We assume that we are somewhere in the project directory hierarchy if
     # :project_dir is nil.
     #
-    # If a file argument is true, the default value is used and the file will be loaded and saved. If false,
-    # it is set to nil. Note that non-existing files are ignored so set it to
-    # false only when the file is irrelevant for the current command (eg.
-    # 'prick setup' doesn't need to read the reflections file)
+    # If a file argument is true, the default value is used and the file will
+    # be loaded and saved. If false, it is set to nil. Note that non-existing
+    # files are ignored so set it to false only when the file is irrelevant for
+    # the current command (eg.  'prick setup' doesn't need to read the
+    # reflections file)
     #
     def initialize(
         project_dir: nil,
@@ -311,7 +320,8 @@ module Prick
 
     # Load database state from database
     def get_database_state
-      @database_state = user_conn.struct "select * from prick.states limit 1"
+#     @database_state = user_conn.struct "select * from prick.states limit 1"
+      @database_state = user_conn.struct "prick.states"
       @environment = @database_state.environment
     end
 
@@ -371,6 +381,7 @@ module Prick
     # '<project_dir>/<default-arguments>'. Used to initialize *_file attributes
     def file_attr(val, *default) = val.nil? ? File.join(@project_dir, *default) : File.absolute_path(val)
 
+    # Load a file. Absent files are ignored
     def load_file(attr_or_file)
       if attr_or_file.is_a?(Symbol)
         attr = attr_or_file

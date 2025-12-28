@@ -77,7 +77,7 @@ private
 
     compiler.generate
 #   compiler.generator.dump if kinds.delete "units"
-    puts compiler.units.map(&:to_s)
+    puts compiler.units.map(&:to_s) if kinds.delete "units"
   end
 
   def self.dump_tokens(tokens)

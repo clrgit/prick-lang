@@ -120,7 +120,7 @@ ShellOpts.exception = opts.exception?
 cmd = opts.subcommand!.__name__
 COMMANDS.include?(cmd) or ShellOpts::error "Illegal command #{cmd}"
 
-# Create command object
+# Create command object. This compiles the source
 command = Prick::Command.create(cmd, opts, args)
 
 # Execute

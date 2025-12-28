@@ -58,13 +58,13 @@ module Prick::Lang
       @preserve_schemas = idr.schemas - @build_schemas - @invalidate_schemas
 
       # Assign initial units (creates/drops schemas) and set up transaction
-      assign_initial_units
+      generate_initial_units
 
       # Join phases in execution order
-      assign_units
+      generate_script_units
 
       # Assign final units and commit outstanding changes
-      assign_final_units
+      generate_final_units
     end
 
     # if running-make
@@ -80,27 +80,27 @@ module Prick::Lang
     #   mark dirty using #uses hierarchy if requested
     #   process reachable nodes
 
-    def dump
-      puts "Preserve schemas"; indent {
-        puts preserve_schemas.map(&:ident)
-      }
-      puts "Build schemas"; indent {
-        puts build_schemas.map(&:ident)
-      }
-      puts "Invalidate schemas"; indent {
-        puts invalidate_schemas.map(&:ident)
-      }
-      puts "Phases"; indent {
-        for phase in PHASES
-          puts phase; indent {
-            @phases[phase].each &:dump
-          }
-        end
-      }
-      puts "Units"; indent {
-        units.each(&:dump)
-      }
-    end
+#   def dump
+#     puts "Preserve schemas"; indent {
+#       puts preserve_schemas.map(&:ident)
+#     }
+#     puts "Build schemas"; indent {
+#       puts build_schemas.map(&:ident)
+#     }
+#     puts "Invalidate schemas"; indent {
+#       puts invalidate_schemas.map(&:ident)
+#     }
+#     puts "Phases"; indent {
+#       for phase in PHASES
+#         puts phase; indent {
+#           @phases[phase].each &:dump
+#         }
+#       end
+#     }
+#     puts "Units"; indent {
+#       units.each(&:dump)
+#     }
+#   end
 
     def inspect = "#<Generator ...>"
 
@@ -161,7 +161,15 @@ module Prick::Lang
     def invalidate_schema
     end
 
-    def assign_initial_units
+    # delete from
+
+    def generate_initial_units
+      # Find resources in affected schemas
+
+
+#     p compiler.resources.keys
+#     exit
+
 #     phase = @phases[:SETUP]
 #     phase.concat \
 #         @invalidate_schemas.map { |schema| Unit::Db.new(schema.ident, :drop) },
@@ -173,11 +181,10 @@ module Prick::Lang
           [ Unit::Transaction.new(:COMMIT) ]
     end
 
-    # TODO Add^H^H^H ensure commits and end-of-schema (we already have that?)
+    # TODO Add^H^H^H ensure commits and end-of-schema (we already do that?)
 
     # Flatten phases and insert search path commands
-    def assign_units
-
+    def generate_script_units
       current_schema = nil
       commit_before = false
       commit_after = false
@@ -185,6 +192,9 @@ module Prick::Lang
 
       PHASES.each { |kind|
         @phases[kind].each { |unit|
+
+          # Collect mark commands. This is done here to be able to aggregate
+          # marks across phase boundaries
           case [!current_mark.nil?, unit.is_a?(Unit::Mark)]
             in [false, false]; # do nothing
             in [false, true]; current_mark = unit
@@ -242,7 +252,7 @@ module Prick::Lang
       @units
     end
 
-    def assign_final_units
+    def generate_final_units
       @units << Unit::Transaction.new(:END)
     end
 
@@ -327,7 +337,7 @@ module Prick::Lang
       result.reverse
     end
 
-#   def assign_units
+#   def generate_script_units
 #     units.each { |unit|
 #       if unit.phase
 #         attr = CATEGORIES[unit.phase]

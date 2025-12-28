@@ -72,12 +72,15 @@ module Prick::Lang
     # process, though
     attr_reader :schemas # { String => Idr::Schema }, initialized by the analyzer
 
-    # Timestamp of last successful run
-    attr_reader :timestamp # Time - time of last successful run. Default EPOCH
-
     # State data. State data are read by #load_compiler_state
 
-    # Completed resources from PRICK.RESOURCES
+    # Timestamp of last successful run. Default EPOCH. The timestamp for the
+    # current run (successful or nor) can be found as settings.created_at
+    attr_reader :timestamp # Time
+
+    # Completed resources from PRICK.RESOURCES. This is always the resources
+    # from the last run when prick was started. New completed resources are
+    # registered directly in database when the script is executed
     attr_reader :completed_resources # [uid]
 
     # Lists of meta and seed tables
@@ -152,7 +155,16 @@ module Prick::Lang
 
         yield
 
+#       puts "MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM"
+#       puts "#compile"
+#       p conn.tuples "prick.resources"
+
         save_compiler_state
+
+#       puts "MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM"
+#       puts "#compile"
+#       p conn.tuples "prick.resources"
+#       puts "MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM"
       }
 
       t1 = Time.now
@@ -161,10 +173,14 @@ module Prick::Lang
 
     def interpret
       compile do
-        time "Execute" do
+        time "Executing" do
           execute
         end
+#       puts "COMPILER ok here"
+#       p conn.tuples "prick.resources"
       end
+#     puts "COMPILER absent here"
+#     p conn.tuples "prick.resources"
     end
 
     #
@@ -249,7 +265,7 @@ module Prick::Lang
     end
 
     # Add a present resource. It is an error if the resource is absent but not
-    # if it is unknown. It the resource is a schema, it is also added bo
+    # if it is unknown. It the resource is a schema, it is also added FIXME ...to what?
     def add(resource, uid = nil)
       constrain resource, Idr::Resource, Idr::ProvideCommand # FIXME Any Idr node is ok
       uid ||= resource.uid
@@ -328,26 +344,30 @@ module Prick::Lang
     # S T A T E
     #
 
-    # Load completed resources from compiler state file. It is not an error if
-    # the file is absent
+    # Load completed resources from PRICK.RESOURCES and the last successful
+    # timestamp (TODO: needs much more work)
     def load_compiler_state
       @completed_resources = conn.values %(select uid from prick.resources)
       @timestamp = conn.value?("select max(created_at) from prick.builds where status = true") || EPOCH_TIMESTAMP
     end
 
-    # Remove entries in completed_resources for the given schema_stack. This is
-    # should be done for all schema_stack that are either recompiled or invalidated
-    def clean_compiler_state(*schema_stack)
+#   # Remove entries in completed_resources for the given schema_stack. This is
+#   # should be done for all schema_stack that are either recompiled or
+#   # invalidated
+#
+#   'schema_stack' <- a substitution that went wrong?
+#   def clean_compiler_state(*schema_stack)
 #     schema_stack.flatten!
 #
 #     conn.exec %(
 #       delete from prick.resources where
-    end
+#   end
 
-    # Write completed resource to compiler state file
+    # Do nothing because resources are registered as we execute the prick
+    # script and the timestamp is saved as part of
+    # Settings#save_database_state. This may change though so we keep the
+    # method
     def save_compiler_state
-      reset_compiler_state
-      conn.insert "prick.resources", [:uid], @completed_resources
     end
 
     # Remove the compiler state if present
@@ -356,6 +376,9 @@ module Prick::Lang
     #
     # D U M P
     #
+
+    # Shorten error messages
+    def inspect = "#<Compiler ...>"
 
     def dump
       puts "Compiler"

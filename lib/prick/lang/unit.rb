@@ -18,7 +18,9 @@ module Prick::Lang
       # The schema name of this this node (if any). Used to control the search path
       def schema = nil # String
 
-      # Values are auto-converted to strings if not a Symbol
+      # Initialize is given a hash from member name to value and sets each
+      # member to the given value. Values are converted to strings if not a
+      # Symbol
       def initialize(**attrs) # attrs: {Symbol => Object w/#to_s}
         attrs.each { |var, val|
           self.instance_variable_set(:"@#{var}", norm(val))
@@ -81,10 +83,14 @@ module Prick::Lang
       def to_s = "PATH #{search_path}" # TODO Move to unit.emit.rb
     end
 
+#   class ClearMark < Node
+#     attr_reader :schemas
+#   end
+
     class Mark < Node
       attr_reader :uids
-      def initialize(uids) = super uids: uids
-      def execute = conn.insert "prick.resources", [:uid], uids
+      def initialize(uids) = super uids: uids, schemas: uids.map { |uid| compiler.resources[uid] }
+      def execute = conn.insert "prick.resources", [:uid, :schema], uids.zip(schemas)
       def to_s = "MARK #{uids.join(', ')}"
     end
 

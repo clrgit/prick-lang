@@ -26,7 +26,7 @@ create procedure prick.sync_serials() as $$
   begin
     delete from prick.serials;
     insert into prick.serials (schema_name, table_name, sequence_name, value)
-        select schema_name, table_name, sequence_name, value from prick.curr_serials
+        select schema_name, table_name, sequence_name, value from prick.curr_serials;
   end;
 $$ language plpgsql;
 

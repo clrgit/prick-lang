@@ -8,41 +8,40 @@ module Prick::Lang
     using String::Text
 
     attr_reader :bash # Bash::Bash object
+    attr_reader :source # Executed postgres source if settings.log? is true
 
     def initialize
     end
 
-    def logger(msg)
-      puts msg.align
-    end
+#   logger = lambda { |arg| dst.puts arg.sub(/\n\s*\n/m, "\n") + ";" }
+#   def logger(msg) puts  msg.sub(/\n\s*\n/m, "\n") end
 
     def execute
       # We delay initialization of the Bash object until here because we can't
       # access the #compiler object from #initialize
       @bash = Bash::Bash.new(bash_environment)
+      @source = nil
 
       # Setup unit objects for #execute
       Unit::Node.conn = conn
       Unit::Node.bash = @bash
 
-      begin
-        # Ensure logger if requested
-        if settings.log? && !conn.log
-          dst = StringIO.new
-#         conn.log = dst
-          logger = lambda { |arg| dst.puts arg.sub(/\n\s*\n/m, "\n") + ";" }
-          conn.log = logger
-        end
+      # Clear PRICK.RESOURCES that are marked for rebuild
 
-        # Execute units
-        units.each(&:execute)
+      # Setup logger
+      proc = lambda { |arg| $stderr.puts arg.sub(/\n\s*\n/m, "\n") + ";" }
+      logger = settings.log? && !conn.log? ? proc : nil
 
-      ensure
-        # Reset logger if changed
-        conn.log = false if dst
-      end
-      puts "--------------------------"
-      puts dst.string
+      # Execute units
+      conn.with(log: logger) {
+        units.each { |unit|
+#         p conn.tuples "prick.resources"
+          unit.execute
+        }
+#       units.each(&:execute)
+      }
+#     puts "after"
+#     p conn.tuples "prick.resources"
     end
 
     def inspect = "#<#{self.class} ...>"

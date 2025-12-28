@@ -463,6 +463,9 @@ module Prick::Lang
       # Map from phase kind (upcase Symbol) to list of commands
       def phases = Phase::ATTRS.map { |phase| [phase.upcase, self.send(phase)] }.to_h
 
+      # Reachable resources in schema including self
+      def resources = self.nodes { |node| node.is_a? Resource } # [Resource | ProvideCommand]
+
       def initialize(parent, ast)
         constrain parent, Idr::Resource, nil
         constrain ast, Ast::Schema, Ast::Program

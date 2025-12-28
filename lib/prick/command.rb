@@ -1,11 +1,20 @@
 
 module Prick::Command
+  # Common class for prick command implementations
   class Command
     include Prick
 
+    # The name of the command. 'init', 'build', 'list', ...
     attr_reader :cmd
+
+    # Options for the command
     attr_reader :opts
+
+    # Arguments
     attr_reader :args
+
+    # Map from setting member to value. These values are written to the setting
+    # object when the command is initialized
     attr_reader :attrs
 
     def initialize(opts, args, project_dir: nil, **attrs, &block)
@@ -26,23 +35,27 @@ module Prick::Command
       )
     end
 
+    # Run the command. Should be defined in derived classes
     def run() = raise
   end
 
+
   def self.create(cmd, opts, args)
-    case cmd
-      when "init"; Prick::Command::Init.new(opts, args)
-      when "setup"; Prick::Command::Setup.new(opts, args)
-      when "teardown"; Prick::Command::Teardown.new(opts, args)
-      when "info"; Prick::Command::Info.new(opts, args)
-      when "list"; Prick::Command::List.new(opts, args)
-      when "cd"; Prick::Command::CD.new(opts, args)
-      when "pwd"; Prick::Command::PWD.new(opts, args)
-      when "build"; Prick::Command::Build.new(opts, args)
-      when "make"; Prick::Command::Make.new(opts, args)
-    else
-      ShellOpts.failure "'#{cmd}' command is not implemented yet"
-    end
+    klass =
+        case cmd
+          when "init"; Prick::Command::Init
+          when "setup"; Prick::Command::Setup
+          when "teardown"; Prick::Command::Teardown
+          when "info"; Prick::Command::Info
+          when "list"; Prick::Command::List
+          when "cd"; Prick::Command::CD
+          when "pwd"; Prick::Command::PWD
+          when "build"; Prick::Command::Build
+          when "make"; Prick::Command::Make
+        else
+          ShellOpts.failure "'#{cmd}' command is not implemented yet"
+        end
+    klass.new(opts, args)
   end
 end
 

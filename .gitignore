@@ -20,6 +20,7 @@
 /*.sql
 /dumps
 /gryf
+/project
 
 # Put your personal ignore files in /home/clr/.config/git/ignore
 

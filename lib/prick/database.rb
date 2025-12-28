@@ -70,7 +70,7 @@ module Prick
       # Run prick build files. prick.sql is mandatory, other absent files are
       # ignored
       PRICK_BUILD_FILENAMES.each { |filename|
-        file = File.join Prick::SCHEMA_PRICK_DIRNAME, filename
+        file = File.join Prick::PRICK_SCHEMA_DIRNAME, filename
         if File.exist? file
           user_conn.exec(IO.read(file))
         else
@@ -139,7 +139,7 @@ end
 #   def self.init_database(conn = user_conn, database, username, environment)
 #     conn.schema.create("prick")
 #     PRICK_BUILD_FILES.each { |file|
-#       conn.exec(IO.read("#{SCHEMA_PRICK_DIRNAME}/#{file}"))
+#       conn.exec(IO.read("#{PRICK_SCHEMA_DIRNAME}/#{file}"))
 #     }
 #
 #     # Add initial build record

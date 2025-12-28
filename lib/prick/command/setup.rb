@@ -11,13 +11,13 @@ module Prick::Command
     #
     def initialize(opts, args)
       @force = opts.subcommand!.force || false
-      environment, database = args.expect(1..2).reverse
+      environment, database = args.expect(1..2)
       database ||= environment
       super opts, args, database: database, environment: environment
     end
 
     def run
-      !Database.exist?(database) || force or error "Can't setup an existing database"
+      !Database.exist?(database) || force or error "Won't overwrite existing database #{database}"
       Database.ensure database
       Database.init
       FileUtils.rm_rf settings.dirs.database_cache # To remove all existing state files
