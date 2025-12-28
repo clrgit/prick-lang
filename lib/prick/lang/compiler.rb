@@ -62,7 +62,7 @@ module Prick::Lang
     # Data structures
     def ast = @parser.ast # Ast::Program. Initialized by #parse
     def idr = @converter.idr # Idr::Program. Initialized by #convert and updated by #analyze
-    def units = @generator.units # [Unit::Node]. Initialized by #generate
+    def units = @generator.execute_units # [Unit::Node]. Units to execute. Initialized by #generate
 
     # Top-level Idr Program node. Just a synonym for #idr. Intialized by the analyzer
     alias_method :program, :idr

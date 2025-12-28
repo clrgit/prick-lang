@@ -35,10 +35,8 @@ module Prick::Lang
       # Execute units
       conn.with(log: logger) {
         units.each { |unit|
-#         p conn.tuples "prick.resources"
           unit.execute
         }
-#       units.each(&:execute)
       }
 #     puts "after"
 #     p conn.tuples "prick.resources"

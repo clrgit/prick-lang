@@ -18,11 +18,13 @@ module Prick::Lang
       # The schema name of this this node (if any). Used to control the search path
       def schema = nil # String
 
-      # Initialize a Unit using a hash from member name to value. Values are
-      # converted to strings if not a Symbol. This is done so the compiler
-      # object to string conversion only have to be done here. Eg. a Unit can
-      # be fed a Ast::Ident object without the need to first convert it to a
-      # string. Symbols are not converted to keep symbols in Unit as symbols
+      # Initialize a Unit using a hash from member name to value.
+      #
+      # Values are converted to strings if not a Symbol or nil. This is done so
+      # the compiler object to string conversion only have to be done here. Eg.
+      # a Unit can be fed a Ast::Ident object without the need to first convert
+      # it to a string. Symbols are not converted to keep symbols in Unit as
+      # symbols
       def initialize(**attrs) # attrs: {Symbol => Object w/#to_s}
         attrs.each { |var, val|
           self.instance_variable_set(:"@#{var}", norm(val))
@@ -30,7 +32,7 @@ module Prick::Lang
       end
 
       # Execute the node
-      def execute() = raise
+      def execute() = raise "Abstract method #{self.class}#execute"
 
       # String representation
       def to_s = raise
@@ -40,6 +42,7 @@ module Prick::Lang
       # any object that responds to #to_s
       def norm(v)
         case v
+          when nil; v
           when Symbol, String; v
           when Array; v.map { norm(_1) }
           else v.to_s
@@ -99,10 +102,30 @@ module Prick::Lang
 
     # Collapsed mark nodes
     class Marks < Node
-      attr_reader :marks # [Mark]
-      def initialize(mark) = super marks: [mark]
+      attr_reader :marks # [Mark], not converted to string
+      def initialize(mark)
+        super()
+        @marks = [mark]
+      end
       def execute = conn.insert "prick.resources", [:phase_name, :schema_name, :uid], marks.map(&:to_a)
-      def to_s = "MARK #{marks.map(&:uids).join(', ')}"
+      def to_s = "MARK #{marks.map(&:uid).join(', ')}"
+    end
+
+    # Clears all resources in the given phases and schemas
+    class UnMarks < Node
+      attr_reader :phases
+      attr_reader :schemas
+      def initialize(phases, schemas) = super phases: phases, schemas: schemas
+      def execute
+        sql_phases = conn.quote_list phases
+        sql_schemas = conn.quote_list schemas
+        conn.exec %(
+          delete from prick.resources
+          where phase_name in #{sql_phases} and schema_name is null
+             or schema_name in #{sql_schemas}
+        )
+      end
+      def to_s = "UNMARK #{(phases + schemas).join(', ')}"
     end
 
     class Meta < Node

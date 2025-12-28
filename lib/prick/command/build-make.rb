@@ -37,14 +37,14 @@ module Prick::Command
           variables: variables
       )
 
-#     # Handle dump option. 'units' is the default
-#     if opts.dump?
-#       kinds = opts.dump || "units"
-#       (unknowns = kinds - Prick::Lang::DUMP_KINDS) or
-#           ShellOpts.error "Illegal value for --dump '#{unknowns.first}'"
-#       Prick::Lang.dump(compiler, kinds)
-#       exit
-#     end
+      # Handle dump option. 'units' is the default
+      if opts.dump?
+        kinds = opts.dump || "units"
+        (unknowns = kinds - Prick::Lang::DUMP_KINDS) or
+            ShellOpts.error "Illegal value for --dump '#{unknowns.first}'"
+        Prick::Lang.dump(compiler, kinds)
+        exit
+      end
     end
 
     def run

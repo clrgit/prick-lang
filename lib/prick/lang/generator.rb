@@ -7,10 +7,15 @@ module Prick::Lang
   #     seed phase
   #   * TODO: Should collect all fox statements in the seed phase
 
+  # TODO: Rename #unit -> #execute_units and redefine #unit to return all units
   class Generator < CompilerProcess
     # Unit phases. This is the phases from the Idr plus an initial setup phase
     # that is used to create/drop schemas
     PHASES = [:SETUP] + Idr::Phase::KINDS
+
+    # Units initially generated from the Idr. Units that are created later are not
+    # included (eg. Unit::Marks)
+    attr_reader :units
 
     # Nodes by unit. Used to lookup the associated node without polluting Unit
     # with compiler objects
@@ -33,8 +38,8 @@ module Prick::Lang
     # themselves rebuilt
     attr_reader :invalidate_schemas # [Schema]
 
-    # All units in execution order
-    attr_reader :units # [Unit]
+    # Final set of units in execution order
+    attr_reader :execute_units # [Unit]
 
     def initialize
     end
@@ -49,7 +54,7 @@ module Prick::Lang
       # Select nodes for the current compiler mode (:build/:make)
       selected_nodes = tsorted_nodes.select { _1.send(mode_method) }
 
-      # Build units and assign to phases. Initializes @units and @phases
+      # Build units and assign to phases. Initializes @execute_units and @phases
       build_units selected_nodes
 
       # Find schemas to rebuild
@@ -61,8 +66,9 @@ module Prick::Lang
       # Find preserved schemas
       @preserve_schemas = idr.schemas - @build_schemas - @invalidate_schemas
 
+      @execute_units = []
 
-      generate_clear_units
+      generate_resource_units
 
       # Assign initial units (creates/drops schemas) and set up transaction
       generate_initial_units
@@ -121,7 +127,8 @@ module Prick::Lang
     # Note that nodes are sorted in dependency order but may straddle phase
     # boundaries
     def build_units(nodes)
-      @phases = PHASES.map { |kind| [kind, []] }.to_h
+      @phases = PHASES.map { |kind| [kind, []] }.to_h # {PHASE=>[Unit]}
+      @units = []
       @nodes = {}
       unit_classes = { SQL: Unit::SqlFile, PSQL: Unit::PSqlFile, FOX: Unit::FoxFile, RB: Unit::RubyFile }
       nodes.each { |node|
@@ -138,7 +145,7 @@ module Prick::Lang
               when Idr::DetectMetaCommand
                 Unit::DetectMeta.new
               when Idr::TailCommand
-                Unit::Mark.new [[node.phase, node.schema&.ident&.to_s, node.uid]]
+                Unit::Mark.new node.phase, node.schema&.ident, node.uid
               when Idr::MetaCommand
                 Unit::Meta.new node.table
               when Idr::CopyCommand
@@ -154,6 +161,7 @@ module Prick::Lang
             else
               raise ArgumentError
             end
+        @units << unit
         @nodes[unit] = node
         @phases[node.phase] << unit
       }
@@ -172,36 +180,40 @@ module Prick::Lang
 
     # Generate units to delete resources from PRICK.RESOURCES that will be
     # rebuilt
-    def generate_clear_units
-      # Global resources (eg. the program-level 'init' phase)
-      @global_phases = Set.new
-      @units.each { |unit|
-        if unit.is_a?(Unit::Mark) && unit.schema_name.nil?
-          unit.phases.each { |
-          @global_phases.add(unit.phases
-      }.each { |unit| unit.
+    def generate_resource_units
+#     p dirty_schemas
+#     p dirty_phases
+#     exit
 
-      # Find regular resources
-
-      p @phases.select { |k,v| !v.empty? }.keys
-      exit
-#     active_phases =
+#     # Global resources (eg. the program-level 'init' phase)
+#     phases = Set.new
+#     @units.each { |unit|
+#       phases.add(unit.phase_name) if unit.is_a?(Unit::Mark) && unit.schema_name.nil?
+#     }
+#     dirty_phases = phases.to_a
+#
+#     # Find regular resources from dirty schemas
+#     dirty_schemas = (build_schemas + invalidate_schemas
+#
+#     @execute_units << Unit::DeleteResources.new(dirty_phases, dirty_schemas)
+#     exit
 
     end
 
+    # Drop/reset schemas and delete invalid resources entries
     def generate_initial_units
-      # Find resources in affected schemas
+      # Find dirty schemas. We don't use build_schemas+invalidate_schemas
+      # because schemas outside of the build set may be dirty and have to clear
+      # its resources
+      dirty_schemas = idr.trees(Idr::Schema).select(&:dirty?).map(&:ident)
 
-#     p compiler.resources.keys
-#     exit
+      # Dirty program phases
+      dirty_phases = program.phases.values.select(&:dirty?).map(&:kind)
 
-#     phase = @phases[:SETUP]
-#     phase.concat \
-#         @invalidate_schemas.map { |schema| Unit::Db.new(schema.ident, :drop) },
-#         @build_schemas.map { |schema| Unit::Db.new(schema.ident, :reset) }
-
-      @units =
-          [ Unit::Transaction.new(:BEGIN) ] +
+      # Drop/reset dirty schemas
+      @execute_units =
+          [ Unit::Transaction.new(:BEGIN),
+            Unit::UnMarks.new(dirty_phases, dirty_schemas) ] +
           @invalidate_schemas.map { |schema| Unit::Db.new(schema.ident, :DROP) } +
           @build_schemas.map { |schema| Unit::Db.new(schema.ident, :RESET) } +
           [ Unit::Transaction.new(:COMMIT) ]
@@ -216,17 +228,21 @@ module Prick::Lang
       commit_after = false
       current_mark = nil
 
-      # Process phases and build @units array
+      # Process phases and build @execute_units array
       PHASES.each { |kind|
         @phases[kind].each { |unit|
 
           # Collect mark commands. This is done here to be able to aggregate
           # marks across phase boundaries
           case [!current_mark.nil?, unit.is_a?(Unit::Mark)]
-            in [false, false]; # Not a mark command
-            in [false, true]; current_mark = Unit::Marks.new(unit) # Create new Marks object
+            in [false, true]; current_mark = Unit::Marks.new(unit); next # Create new Marks object
             in [true, true]; current_mark.marks << unit; next # Add additional Mark object and skip rest
-            in [true, false]; current_mark = nil # Done
+            in [true, false] # Flush Marks object
+              @execute_units << Unit::Transaction.new(:COMMIT) << current_mark
+              commit_after = false
+              current_mark = nil
+              next
+            in [false, false]; # Fall-through, not a mark command
           end
 
           # Associated Idr node
@@ -236,7 +252,7 @@ module Prick::Lang
           # will only yield a node for the initial commit
           if node.require_commit_before?
             if !commit_before
-              @units << Unit::Transaction.new(:COMMIT)
+              @execute_units << Unit::Transaction.new(:COMMIT)
               commit_before = true
             end
           else
@@ -245,11 +261,12 @@ module Prick::Lang
 
           # Insert commit node if required. A series of commit-after nodes
           # will only yield a node for the final commit. Note that this is
-          # triggered by the node following the last commit-after node
+          # triggered by the node following the last commit-after node, that's
+          # why this code is place before the node is added and not after
           if node.require_commit_after?
             commit_after = true
           elsif commit_after
-            @units << Unit::Transaction.new(:COMMIT)
+            @execute_units << Unit::Transaction.new(:COMMIT)
             commit_after = false
           end
 
@@ -258,29 +275,29 @@ module Prick::Lang
 
             # Insert search path node if needed
             if node.require_search_path? && this_schema != current_schema
-              @units << Unit::SearchPath.new(this_schema.ident) if !this_schema.program?
+              @execute_units << Unit::SearchPath.new(this_schema.ident) if !this_schema.program?
               current_schema = this_schema
             end
 
             # Add unit
-            @units << unit
+            @execute_units << unit
 
             # Reset search path
             current_schema = nil if node.change_search_path?
 
           else
-            @units << unit
+            @execute_units << unit
           end
         }
       }
     end
 
     def collapse_mark_units
-      @units
+      @execute_units
     end
 
     def generate_final_units
-      @units << Unit::Transaction.new(:END)
+      @execute_units << Unit::Transaction.new(:END)
     end
 
     def transitive_closure(nodes, &block)

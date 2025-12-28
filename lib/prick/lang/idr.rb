@@ -60,7 +60,7 @@ module Prick::Lang
       # Return true if the node should be included when using 'prick build'
       def build? = included? && !excluded?
 
-      # Return true if the node should be included when using 'prick build'
+      # Return true if the node should be included when using 'prick make'
       def make? = included? && !excluded? && (dirty? || !built?)
 
       # Set #built? to true transitively
@@ -428,6 +428,7 @@ module Prick::Lang
     end
 
     # Default empty phase. Added to the Idr by the analyzer for undefined phases
+    # TODO: Rename to something else
     class DefaultPhase < Phase
       attr_reader :kind
       def initialize(parent, kind)

@@ -76,8 +76,9 @@ private
     return if kinds.empty?
 
     compiler.generate
-#   compiler.generator.dump if kinds.delete "units"
     puts compiler.units.map(&:to_s) if kinds.delete "units"
+
+    kinds.empty? or raise ArgumentError
   end
 
   def self.dump_tokens(tokens)
