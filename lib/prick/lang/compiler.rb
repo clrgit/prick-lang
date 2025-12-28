@@ -267,7 +267,7 @@ module Prick::Lang
     # Add a present resource. It is an error if the resource is absent but not
     # if it is unknown. It the resource is a schema, it is also added FIXME ...to what?
     def add(resource, uid = nil)
-      constrain resource, Idr::Resource, Idr::ProvideCommand # FIXME Any Idr node is ok
+      constrain resource, Idr::ResourceUID # [Resource, ProvideCommand] FIXME Any Idr node is ok
       uid ||= resource.uid
       if !@resources[uid].nil?
         if @resources[uid]

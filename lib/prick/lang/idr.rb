@@ -196,6 +196,11 @@ module Prick::Lang
       @@SERIAL = 0
     end
 
+    # Common module for ProvideCommand and Resource. Note that Program has a nil uid
+    module ResourceUID
+      attr_reader :uid
+    end
+
     #
     # C O M M A N D S
     #
@@ -303,7 +308,7 @@ module Prick::Lang
     end
 
     class ProvideCommand < NopCommand
-      attr_accessor :uid
+      include ResourceUID
       def initialize(parent, ast, uid)
         super(parent, ast)
         @uid = uid
@@ -349,10 +354,13 @@ module Prick::Lang
     # the 'this' phase by the analyzer
     #
     class Resource < Node
+      include ResourceUID
+      # Redefine ResourceUID. TODO: Why not in #initialize?
+      def uid = [parent&.uid, ident].compact.join(".")
+
       def klass = self.class
       attr_reader :ident # String
       attr_accessor :block # [Node]
-      def uid = [parent&.uid, ident].compact.join(".")
 
       def head = block.first
       def tail = block.last
@@ -464,7 +472,7 @@ module Prick::Lang
       def phases = Phase::ATTRS.map { |phase| [phase.upcase, self.send(phase)] }.to_h
 
       # Reachable resources in schema including self
-      def resources = self.nodes { |node| node.is_a? Resource } # [Resource | ProvideCommand]
+      def resources = self.nodes { |node| node.is_a? ResourceUID } # [Resource | ProvideCommand]
 
       def initialize(parent, ast)
         constrain parent, Idr::Resource, nil

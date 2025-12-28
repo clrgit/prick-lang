@@ -18,9 +18,11 @@ module Prick::Lang
       # The schema name of this this node (if any). Used to control the search path
       def schema = nil # String
 
-      # Initialize is given a hash from member name to value and sets each
-      # member to the given value. Values are converted to strings if not a
-      # Symbol
+      # Initialize a Unit using a hash from member name to value. Values are
+      # converted to strings if not a Symbol. This is done so the compiler
+      # object to string conversion only have to be done here. Eg. a Unit can
+      # be fed a Ast::Ident object without the need to first convert it to a
+      # string. Symbols are not converted to keep symbols in Unit as symbols
       def initialize(**attrs) # attrs: {Symbol => Object w/#to_s}
         attrs.each { |var, val|
           self.instance_variable_set(:"@#{var}", norm(val))
@@ -83,15 +85,24 @@ module Prick::Lang
       def to_s = "PATH #{search_path}" # TODO Move to unit.emit.rb
     end
 
-#   class ClearMark < Node
-#     attr_reader :schemas
-#   end
-
     class Mark < Node
-      attr_reader :uids
-      def initialize(uids) = super uids: uids, schemas: uids.map { |uid| compiler.resources[uid] }
-      def execute = conn.insert "prick.resources", [:uid, :schema], uids.zip(schemas)
-      def to_s = "MARK #{uids.join(', ')}"
+      attr_reader :phase_name
+      attr_reader :schema_name
+      attr_reader :uid
+      def initialize(phase_name, schema_name, uid)
+        super phase_name: phase_name, schema_name: schema_name, uid: uid
+      end
+#     def execute = conn.insert "prick.resources", [:phase_name, :schema_name, :uid], marks
+      def to_a = [phase_name, schema_name, uid]
+      def to_s = "MARK #{uid}"
+    end
+
+    # Collapsed mark nodes
+    class Marks < Node
+      attr_reader :marks # [Mark]
+      def initialize(mark) = super marks: [mark]
+      def execute = conn.insert "prick.resources", [:phase_name, :schema_name, :uid], marks.map(&:to_a)
+      def to_s = "MARK #{marks.map(&:uids).join(', ')}"
     end
 
     class Meta < Node

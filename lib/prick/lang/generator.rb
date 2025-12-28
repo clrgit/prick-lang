@@ -12,15 +12,16 @@ module Prick::Lang
     # that is used to create/drop schemas
     PHASES = [:SETUP] + Idr::Phase::KINDS
 
-    # Units and associated node by phase in dependency order
-    attr_reader :phases # {PHASE=>[Unit::Node]}
-
     # Nodes by unit. Used to lookup the associated node without polluting Unit
     # with compiler objects
-    attr_reader :nodes
+    attr_reader :nodes # {Unit => Node}
 
-    # All units in execution order
-    attr_reader :units # [Unit]
+    # Units and associated node by phase in dependency order. Note that all
+    # phases are present even if they have no nodes
+    attr_reader :phases # {PHASE=>[Unit::Node]}
+
+#   # Active phases (phases that have nodes that will be built)
+#   attr_reader :active_phases # [PHASE]
 
     # Generated schemas. These schemas are reset and then redefined
     attr_reader :build_schemas # [Schema]
@@ -31,6 +32,9 @@ module Prick::Lang
     # Invalidated schemas. These schemas depends on #schemas but are not
     # themselves rebuilt
     attr_reader :invalidate_schemas # [Schema]
+
+    # All units in execution order
+    attr_reader :units # [Unit]
 
     def initialize
     end
@@ -56,6 +60,9 @@ module Prick::Lang
 
       # Find preserved schemas
       @preserve_schemas = idr.schemas - @build_schemas - @invalidate_schemas
+
+
+      generate_clear_units
 
       # Assign initial units (creates/drops schemas) and set up transaction
       generate_initial_units
@@ -131,7 +138,7 @@ module Prick::Lang
               when Idr::DetectMetaCommand
                 Unit::DetectMeta.new
               when Idr::TailCommand
-                Unit::Mark.new [node.uid]
+                Unit::Mark.new [[node.phase, node.schema&.ident&.to_s, node.uid]]
               when Idr::MetaCommand
                 Unit::Meta.new node.table
               when Idr::CopyCommand
@@ -163,9 +170,27 @@ module Prick::Lang
 
     # delete from
 
+    # Generate units to delete resources from PRICK.RESOURCES that will be
+    # rebuilt
+    def generate_clear_units
+      # Global resources (eg. the program-level 'init' phase)
+      @global_phases = Set.new
+      @units.each { |unit|
+        if unit.is_a?(Unit::Mark) && unit.schema_name.nil?
+          unit.phases.each { |
+          @global_phases.add(unit.phases
+      }.each { |unit| unit.
+
+      # Find regular resources
+
+      p @phases.select { |k,v| !v.empty? }.keys
+      exit
+#     active_phases =
+
+    end
+
     def generate_initial_units
       # Find resources in affected schemas
-
 
 #     p compiler.resources.keys
 #     exit
@@ -174,6 +199,7 @@ module Prick::Lang
 #     phase.concat \
 #         @invalidate_schemas.map { |schema| Unit::Db.new(schema.ident, :drop) },
 #         @build_schemas.map { |schema| Unit::Db.new(schema.ident, :reset) }
+
       @units =
           [ Unit::Transaction.new(:BEGIN) ] +
           @invalidate_schemas.map { |schema| Unit::Db.new(schema.ident, :DROP) } +
@@ -190,16 +216,17 @@ module Prick::Lang
       commit_after = false
       current_mark = nil
 
+      # Process phases and build @units array
       PHASES.each { |kind|
         @phases[kind].each { |unit|
 
           # Collect mark commands. This is done here to be able to aggregate
           # marks across phase boundaries
           case [!current_mark.nil?, unit.is_a?(Unit::Mark)]
-            in [false, false]; # do nothing
-            in [false, true]; current_mark = unit
-            in [true, true]; current_mark.uids.concat(unit.uids); next
-            in [true, false]; current_mark = nil
+            in [false, false]; # Not a mark command
+            in [false, true]; current_mark = Unit::Marks.new(unit) # Create new Marks object
+            in [true, true]; current_mark.marks << unit; next # Add additional Mark object and skip rest
+            in [true, false]; current_mark = nil # Done
           end
 
           # Associated Idr node
