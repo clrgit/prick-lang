@@ -68,8 +68,6 @@ module Prick::Lang
 
       @execute_units = []
 
-      generate_resource_units
-
       # Assign initial units (creates/drops schemas) and set up transaction
       generate_initial_units
 
@@ -131,12 +129,11 @@ module Prick::Lang
       @units = []
       @nodes = {}
       unit_classes = { SQL: Unit::SqlFile, PSQL: Unit::PSqlFile, FOX: Unit::FoxFile, RB: Unit::RubyFile }
-      p node.class
       nodes.each { |node|
         unit =
             case node
               when Idr::FileCommand
-                unit_classes[node.kind].new(node.path)
+                unit_classes[node.kind].new(node.path) or raise InternalError
               when Idr::SqlCommand
                 Unit::Sql.new node.source
               when Idr::ExternalCommand
@@ -168,39 +165,6 @@ module Prick::Lang
       }
     end
 
-    # Invalidate should
-    #   drop the schema
-    #   clear its entries in prick.* tables
-    #
-
-
-    def invalidate_schema
-    end
-
-    # delete from
-
-    # Generate units to delete resources from PRICK.RESOURCES that will be
-    # rebuilt
-    def generate_resource_units
-#     p dirty_schemas
-#     p dirty_phases
-#     exit
-
-#     # Global resources (eg. the program-level 'init' phase)
-#     phases = Set.new
-#     @units.each { |unit|
-#       phases.add(unit.phase_name) if unit.is_a?(Unit::Mark) && unit.schema_name.nil?
-#     }
-#     dirty_phases = phases.to_a
-#
-#     # Find regular resources from dirty schemas
-#     dirty_schemas = (build_schemas + invalidate_schemas
-#
-#     @execute_units << Unit::DeleteResources.new(dirty_phases, dirty_schemas)
-#     exit
-
-    end
-
     # Drop/reset schemas and delete invalid resources entries
     def generate_initial_units
       # Find dirty schemas. We don't use build_schemas+invalidate_schemas
@@ -220,8 +184,6 @@ module Prick::Lang
           [ Unit::Transaction.new(:COMMIT) ]
     end
 
-    # TODO Add^H^H^H ensure commits and end-of-schema (we already do that?)
-
     # Flatten phases and insert search path commands
     def generate_script_units
       current_schema = nil
@@ -232,18 +194,18 @@ module Prick::Lang
       # Process phases and build @execute_units array
       PHASES.each { |kind|
         @phases[kind].each { |unit|
-
           # Collect mark commands. This is done here to be able to aggregate
           # marks across phase boundaries
           case [!current_mark.nil?, unit.is_a?(Unit::Mark)]
             in [false, true]; current_mark = Unit::Marks.new(unit); next # Create new Marks object
             in [true, true]; current_mark.marks << unit; next # Add additional Mark object and skip rest
             in [true, false] # Flush Marks object
-              @execute_units << Unit::Transaction.new(:COMMIT) << current_mark
+              @execute_units << current_mark << Unit::Transaction.new(:COMMIT)
               commit_after = false
               current_mark = nil
-              next
-            in [false, false]; # Fall-through, not a mark command
+              # fall through - current node is not a Mark
+            in [false, false]
+              ; "nop - not a mark command"
           end
 
           # Associated Idr node
@@ -291,10 +253,8 @@ module Prick::Lang
           end
         }
       }
-    end
 
-    def collapse_mark_units
-      @execute_units
+      @execute_units << current_mark << Unit::Transaction.new(:COMMIT) if current_mark
     end
 
     def generate_final_units
