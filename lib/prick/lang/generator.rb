@@ -131,6 +131,7 @@ module Prick::Lang
       @units = []
       @nodes = {}
       unit_classes = { SQL: Unit::SqlFile, PSQL: Unit::PSqlFile, FOX: Unit::FoxFile, RB: Unit::RubyFile }
+      p node.class
       nodes.each { |node|
         unit =
             case node
