@@ -4,16 +4,14 @@ module Prick::Lang
     using String::Text
     class TokenizerError < Prick::Error; end
 
-    # Source file as referred to in the source (eg. ./t.prick)
+#   # Source file as referred to in the source (eg. ./t.prick)
+#   attr_reader :file
+
+    # Absolute path to file
     attr_reader :file
 
-    # Relative path to source file. Used from parser to add paths to file
-    # objects
+    # Directory of file
     attr_reader :dir
-
-    # Path to file relative to the current directory of the user running the
-    # program
-    attr_reader :path
 
     # Reader object
     attr_reader :reader
@@ -23,13 +21,13 @@ module Prick::Lang
 
     def initialize(file, lines = nil)
       constrain file, String
+      constrain File.absolute_path?(file), true
       constrain lines, [String], nil
       @file = file
-      @path = compiler.userpath(file)
-      @dir = File.dirname(@path)
-      @lines = (lines || IO.readlines(file)).map(&:rstrip).take_while { _1 !~ /^__END__$/ }
-      @reader = Reader.new(@path, @lines)
-      @peeker = Reader.new(@path, @lines)
+      @dir = File.dirname(@file)
+      @lines = (lines || IO.readlines(@file)).map(&:rstrip).take_while { _1 !~ /^__END__$/ }
+      @reader = Reader.new(@file, @lines)
+      @peeker = Reader.new(@file, @lines)
     end
 
     forward_to :@reader, :line, :rest, :token, :error, :eof?, :eol?

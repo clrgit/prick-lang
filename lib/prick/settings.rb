@@ -3,6 +3,9 @@ require_relative './ext/x_fileutils.rb'
 require_relative './ext/x_yaml.rb'
 
 module Prick
+  # Note that all files and directories are absolute paths. If a path is
+  # initialized with a relative path, it is assumed to be relative to the
+  # current directory and then expanded to an absolute path
   class Settings
     #
     # U S E R   D I R E C T O R Y
@@ -29,14 +32,14 @@ module Prick
     # P R O J E C T   D I R E C T O R I E S
     #
 
-    # Project dir. Top-level project directory
+    # Absolute path to prick instance directory
     attr_reader :project_dir
 
     # Database cache dir
     attr_reader :database_cache_dir
 
-    # Struct with project subdirectories as members: :bin, :lib, :var, ... but
-    # not the per-database directory database_cache_dir
+    # Struct with project subdirectories as members: :bin, :lib, :var, ...
+    # (excl. database_cache_dir that exist per-database)
     attr_reader :dirs
 
     #
@@ -52,9 +55,6 @@ module Prick
     # P A T H S   A N D   F I L E S
     #
 
-    # Initial 'make.prick' file
-    attr_reader :make_file
-
     # 'prick.yml' project file
     attr_reader :project_file
 
@@ -64,6 +64,9 @@ module Prick
     # 'prick.environment environment file. Note that the file can be absent if
     # the project doesn't use environments
     attr_reader :environment_file
+
+    # Initial 'make.prick' file
+    attr_accessor :source_file
 
     # Reflections file. Default '#@schema_dir/reflections.yml'. May be nil if the
     # file is absent
@@ -217,25 +220,32 @@ module Prick
     # If a file argument is true, the default value is used and the file will
     # be loaded and saved. If false, it is set to nil. Note that non-existing
     # files are ignored so set it to false only when the file is irrelevant for
-    # the current command (eg.  'prick setup' doesn't need to read the
+    # the current command (eg. 'prick setup' doesn't need to read the
     # reflections file)
     #
     def initialize(
-        project_dir: nil,
+        project_dir: nil, # Only not-nil when running #init and the directory doesn't exist
         database: nil,
         **attrs)
+
+      constrain project_dir.nil? || File.absolute_path?(project_dir), true
+      @attrs = attrs # To make attrs available in #absfile. Not valid after initialization
 
       # Set prick installation directories
       @prick_dir = File.dirname ShellOpts.program_path, 2
       @prick_share_dir = "#{@prick_dir}/lib/prick/share"
       @prick_libexec_dir = "#{@prick_dir}/lib/prick/share/libexec"
 
-      # Register current directory
+      # The original directory before the -C option
       @user_dir = ShellOpts.environment_path
 
-      # Search for project file if not given, stop initialization if not found
-      @project_dir = project_dir || FileUtils.upfinddir(Prick::PROJECT_FILENAME) or
-          Prick.error "Can't find #{Prick::PROJECT_FILENAME}"
+      # Set project dir. Search for project file if project_dir is nil
+      if project_dir
+        @project_dir = File.absolute_path(project_dir)
+      else
+        @project_dir = FileUtils.upfinddir(Prick::PROJECT_FILENAME) or
+            Prick.error "Can't find #{Prick::PROJECT_FILENAME}"
+      end
 
       # Assign subdirectories
       @dirs = OpenStruct.new \
@@ -248,14 +258,14 @@ module Prick
       # Assign executable path
       @executable_search_path = [@dirs.bin, @dirs.libexec, @prick_libexec_dir, ENV['PATH']].join(':')
 
-      # Assign global prick files using #file_attr helper method for brevity
+      # Assign global prick files using #absfile helper method for brevity
       @project_file = File.join dirs.project, Prick::PROJECT_FILENAME
       @version_file = File.join dirs.prick_schema, Prick::VERSION_FILENAME
       @prick_state_file = File.join dirs.project, Prick::PRICK_STATE_FILENAME
-      @environment_file = file_attr environment_file, dirs.project, Prick::ENVIRONMENT_FILENAME
-      @reflections_file = file_attr reflections_file, dirs.schema, Prick::REFLECTIONS_FILENAME
-      @make_file = File.join dirs.schema, Prick::SOURCE_FILENAME
+      @environment_file = File.join dirs.project, Prick::ENVIRONMENT_FILENAME
+      @reflections_file = absfile :reflections_file, dirs.schema, Prick::REFLECTIONS_FILENAME
       @prick_sql_file = File.join dirs.prick_schema, Prick::PRICK_SQL_FILENAME
+      @source_file = absfile :source_file, dirs.project, Prick::SOURCE_FILE
 
       # Assign database state glob
       @database_state_file_glob = File.join dirs.project, Prick::DATABASE_STATE_FILE_GLOB
@@ -276,9 +286,9 @@ module Prick
         @dirs.database_cache = File.join(Prick::CACHE_DIRNAME, @database)
 
         # Assign database cache files
-        @database_state_file = file_attr database_state_file, dirs.database_cache, Prick::DATABASE_STATE_FILENAME
-        @compiler_state_file = file_attr compiler_state_file, dirs.database_cache, Prick::COMPILER_STATE_FILENAME
-        @fox_state_file = file_attr fox_state_file, dirs.database_cache, Prick::FOX_STATE_FILENAME
+        @database_state_file = absfile :database_state_file, dirs.database_cache, Prick::DATABASE_STATE_FILENAME
+        @compiler_state_file = absfile :compiler_state_file, dirs.database_cache, Prick::COMPILER_STATE_FILENAME
+        @fox_state_file = absfile :fox_state_file, dirs.database_cache, Prick::FOX_STATE_FILENAME
 
         # Load database state from file. Compiler and fox states are loaded elsewhere
         load_database_state
@@ -286,6 +296,7 @@ module Prick
 
       # Assign additional attributes
       attrs.each { |attr, value| self.send(:"#{attr}=", value) }
+
     end
 
     #
@@ -377,9 +388,13 @@ module Prick
       database_state_file: OpenStruct
     }
 
-    # Return absolute path of val if defined, default is
-    # '<project_dir>/<default-arguments>'. Used to initialize *_file attributes
-    def file_attr(val, *default) = val.nil? ? File.join(@project_dir, *default) : File.absolute_path(val)
+    # Helper method. Get value of :attr from @attrs and the entry. If value is
+    # not-nil it is expanded as an absolute path, if not the defaults are
+    # concatenated to the project directory path
+    def absfile(attr, *default)
+      val = @attrs.delete(attr) if attr
+      val.nil? ? File.join(@project_dir, *default) : File.absolute_path(val)
+    end
 
     # Load a file. Absent files are ignored
     def load_file(attr_or_file)

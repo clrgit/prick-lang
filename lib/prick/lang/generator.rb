@@ -51,10 +51,11 @@ module Prick::Lang
       # Sort nodes
       tsorted_nodes = topological_sort
 
+
       # Select nodes for the current compiler mode (:build/:make)
       selected_nodes = tsorted_nodes.select { _1.send(mode_method) }
 
-      # Build units and assign to phases. Initializes @execute_units and @phases
+      # Build units and assign to phases. Initializes @phases, @units, and @nodes
       build_units selected_nodes
 
       # Find schemas to rebuild
@@ -165,6 +166,10 @@ module Prick::Lang
       }
     end
 
+    #
+    # G E N E R A T E   M E T H O D S
+    #
+
     # Drop/reset schemas and delete invalid resources entries
     def generate_initial_units
       # Find dirty schemas. We don't use build_schemas+invalidate_schemas
@@ -233,9 +238,8 @@ module Prick::Lang
             commit_after = false
           end
 
-          # Handle schema nodes
-          if this_schema = compiler.schemas[unit.schema]
-
+          # Add search_path if required
+          if this_schema = node.schema
             # Insert search path node if needed
             if node.require_search_path? && this_schema != current_schema
               @execute_units << Unit::SearchPath.new(this_schema.ident) if !this_schema.program?
@@ -258,8 +262,17 @@ module Prick::Lang
     end
 
     def generate_final_units
+      # Remove COMMIT-END combination
+      last = @execute_units.last
+      @execute_units.pop if last.is_a?(Unit::Transaction) && last.command == :COMMIT
+
+      # Add final END commit
       @execute_units << Unit::Transaction.new(:END)
     end
+
+    #
+    # G R A P H   M E T H O D S
+    #
 
     def transitive_closure(nodes, &block)
       queue = nodes.dup
@@ -341,15 +354,6 @@ module Prick::Lang
 
       result.reverse
     end
-
-#   def generate_script_units
-#     units.each { |unit|
-#       if unit.phase
-#         attr = CATEGORIES[unit.phase]
-#         self.send(attr) << unit
-#       end
-#     }
-#   end
   end
 end
 

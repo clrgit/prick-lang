@@ -92,6 +92,7 @@ module Prick::Lang
       # Match token. This should always match because of scan. The 'error'
       # capture is supposed to match illegal text
       m = re.match(@lines[@index], @pos) or raise InternalError
+      # Args is [file, lineno, charno, line]
       args = [@path, @index + 1, m.begin(0) + 1, m.match(0)]
       if m[:error]
         @error = ErrorToken.new *args

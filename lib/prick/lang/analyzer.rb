@@ -239,6 +239,10 @@ module Prick::Lang
     # Helper function
     def is_dirty?(path) = File.exist?(path) && File.mtime(path) > compiler.timestamp
 
+
+    # FIXME FIXME FIXME
+    # Everything becomes dirty
+
     # Mark dirty (changed) files. Note that absent files are not dirty because
     # they may be generated later, if not it will cause an error when executed
     def mark_dirty_nodes
@@ -252,7 +256,7 @@ module Prick::Lang
       # FIXME FIXME FIXME This is where the source column in the resources table is used !!!
 
       # Find dirty prick files
-      dirty_sources = compiler.sources.select { is_dirty? _1.file.path }
+      dirty_sources = compiler.sources.values.select { is_dirty? _1.file.path }
 
       # Mark Ast nodes dirty
       dirty_sources.each { |source| source.dirty!  }

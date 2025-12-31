@@ -5,6 +5,9 @@ require 'shellopts'
 require_relative '../lib/prick.rb'
 require_relative '../doc/doc.rb'
 
+# Note that we can't use EFILE and similar file names are relative to the -C
+# directory
+#
 SPEC = %(
   @ Prick compiler
 
@@ -19,6 +22,10 @@ SPEC = %(
   -d,database=DATABASE
     Override current database. This makes prick ignore its state file
 
+  -f,file=FILE
+    Prick source file. Default is
+    '#{Prick::SCHEMA_DIRNAME}/#{Prick::MAKE_FILENAME}'
+
   --timestamp=TIMESTAMP
     Override timestamp from the database state
 
@@ -31,10 +38,10 @@ SPEC = %(
   -l,log
     Log commands to stderr
 
-  --reflections-file=EFILE
+  --reflections-file=FILE
     Reflections file. Default is '#{Prick::SCHEMA_DIRNAME}/#{Prick::REFLECTIONS_FILENAME}'
 
-  --dump=tokens|ast|idr|links|deps|marks|units|state,
+  --dump=tokens|ast|idr|refs|deps|units|state,
     Dump debug. Default is 'ast'
 
   -D,dryrun
@@ -91,7 +98,7 @@ SPEC = %(
   update!
     Merge sagsys online data into the database. FIXME Mikras specific
 
-  run! PROCEDURE
+  run! -- PROCEDURE
 
   save! -- meta|seed|user|data [TARGET...]
   load! -- BACKUP

@@ -98,17 +98,26 @@ module Prick::Lang
       def to_s = value.to_s
     end
 
-    # Note that File does not include prick files. Prick files are represented
-    # as SourceFile objects (that has a File part object)
+    # Files can be regular files, directories and a virtual program file but
+    # not prick files. Prick files are represented as SourceFile objects (that
+    # has a File part object)
     class File < Value
       forward_to :@token, :dirname, :filename, :extname
-      attr_reader :path # True path
-      attr_reader :value
-      def initialize(token, path = nil, dir)
+      attr_reader :path # Absolute path
+      alias_method :value, :path
+      def dirpath = @dirpath ||= ::File.dirname(path)
+
+      # @path can be given using the :path argument, if not it is the token's
+      # path if it is an absolute path. If the token path is relative, it is
+      # prefixed with the :dir argument (that must be present)
+      def initialize(token, path: nil, dir: nil)
         constrain token, FileToken, DirToken, ProgramToken
+        constrain path, String, nil
+        constrain dir, String, nil
+        constrain ::File.absolute_path?(token.path) || !path.nil? || !dir.nil?, true
+        constrain ::File.absolute_path?(dir || '/'), true
         super(token)
-        @path = path || token.path
-        @value = (@path == "/" || dir == "." ? @path : ::File.join(dir, @path))
+        @path = path || (::File.absolute_path?(token.path) ? token.path : ::File.join(dir, token.path))
       end
     end
 
@@ -169,6 +178,13 @@ module Prick::Lang
     class SourceFile < Stmt
       part :file, File
       part :block, Block
+
+      forward_to :file, :dirpath, :path, :value
+
+      def initialize(token, **file_opts)
+        super(token)
+        self.file = File.new(token, **file_opts)
+      end
     end
 
     class Provide < Stmt
@@ -203,9 +219,9 @@ module Prick::Lang
     end
 
     class Program < Decl
-      part :file, File
+      part :file, SourceFile
       def initialize(file)
-        constrain file, File
+        constrain file, SourceFile
         super file.token
         self.file = file
       end

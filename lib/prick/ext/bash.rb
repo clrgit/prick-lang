@@ -72,8 +72,6 @@ module Bash
         # Add arguments if present
         bashcmd = [bashcmd, *argv].join(' ') if argv
 
-        p bashcmd
-
         # Execute command using environment
         Kernel.exec(env, bashcmd)
       }

@@ -384,6 +384,7 @@ module Prick::Lang
     attr_reader :extname
 
     def initialize(*file_args, path, dirname, filename, extname, kind: :FILE)
+#     pp [*file_args, path, dirname, filename, extname, kind]
       super(*file_args, path, kind)
       @dirname, @filename, @extname = dirname, filename, extname
     end

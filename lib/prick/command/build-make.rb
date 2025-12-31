@@ -30,7 +30,7 @@ module Prick::Command
 
       # Create compiler object
       @compiler = Prick::Lang::Compiler.new(
-          settings.make_file, targets,
+          targets,
           mode: cmd.to_sym,
           timestamp: opts.timestamp && Time.parse(opts.timestamp),
           exclude: opts.exclude,

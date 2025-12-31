@@ -214,6 +214,11 @@ module Prick::Lang
     class SchemaCommand < Command
     end
 
+    class SqlCommand < Command
+      forward_to :ast, :source, :kind
+      def require_search_path? = true
+    end
+
     class FileCommand < Command
       KINDS = Token::FILE_EXTS.map(&:upcase).map(&:to_sym)
 
@@ -221,13 +226,9 @@ module Prick::Lang
       def kind = file.extname.upcase.to_sym
       def path = ast.value
 
+      def require_commit_before? = [:RB, :FOX].include?(kind)
       def require_search_path? = [:SQL, :PSQL].include?(kind)
       def change_search_path? = [:SQL, :PSQL].include?(kind)
-    end
-
-    class SqlCommand < Command
-      forward_to :ast, :source, :kind
-      def require_search_path? = true
     end
 
     class ExternalCommand < Command
@@ -450,11 +451,10 @@ module Prick::Lang
     end
 
     class Schema < Resource
-      attr_reader :schema_command # Command
+#     attr_reader :schema_command # Command
       attr_accessor *Phase::ATTRS # init, this, seed, term, auth, merge
       attr_reader :procedures # [Procedure]
       attr_reader :meta_commands # [MetaCommand]
-      def meta_tables = meta_commands.map(&:table) # [String] Only used in dump
 
       # Forward #head and #tail to the this-phase
       forward_to :this, :head, :tail
@@ -463,7 +463,7 @@ module Prick::Lang
       attr_accessor :schema_deps
       attr_accessor :schema_reqs
 
-      def exclude = schema_command.exclude
+#     def exclude = schema_command.exclude
 
       # Get/set phase by name
       def get_phase(ident) = self.send(ident)
@@ -481,7 +481,7 @@ module Prick::Lang
         super(parent, ast)
         @schema = self
         @this = ThisPhase.new(self, ast)
-        @schema_command = self.is_a?(Program) ? NopCommand.new(self) : SchemaCommand.new(self, ast)
+#       @schema_command = self.is_a?(Program) ? NopCommand.new(self) : SchemaCommand.new(self, ast)
         @procedures = []
         @meta_commands = []
         @schema_deps = []

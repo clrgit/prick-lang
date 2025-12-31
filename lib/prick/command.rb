@@ -27,6 +27,7 @@ module Prick::Command
         **attrs.merge({
           database: opts.database,
           superuser: opts.superuser || ENV['USER'],
+          source_file: opts.file || Prick::SOURCE_FILE,
           reflections_file: opts.reflections_file,
           verbose: opts.verbose?,
           dryrun: opts.dryrun?,
@@ -38,7 +39,6 @@ module Prick::Command
     # Run the command. Should be defined in derived classes
     def run() = raise
   end
-
 
   def self.create(cmd, opts, args)
     klass =

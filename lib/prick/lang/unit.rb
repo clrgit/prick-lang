@@ -172,10 +172,12 @@ module Prick::Lang
     class FoxFile < File
 #     def execute = bash.command "fox -U #{settings.username} -d #{settings.database} \#{files}" # FIXME files
       def execute = bash.command "echo TODO FOX"
+      def to_s = "FOX ..."
     end
 
     class RubyFile < File
       def execute = bash.command "echo TODO RUBY"
+      def to_s = "RUBY #{file}"
     end
 
     class Bash < Node

@@ -33,6 +33,10 @@ module Prick::Lang
     # Singleton instance
     def self.instance = @@INSTANCE
 
+    # Absolute path to main source file (after -C). Note that
+    # #settings.source_file is not necessarily an absolute path
+    attr_reader :source_file
+
     # Database environment
     forward_to :settings, :database, :username, :environment
 
@@ -43,10 +47,10 @@ module Prick::Lang
     forward_to :settings, :dryrun?, :verbose?, :log?
 
     # Source and environment
-    attr_reader :dir # Current user directory when the compiler was invoked
-    attr_reader :file # Start file. Only used in error messages. May be nil, initialized by #parse if so
+#   attr_reader :file # Source file relative to the current directory (after -C)
+    attr_reader :dir # Current user directory when the compiler was invoked (before -C)
     attr_reader :mode # Symbol - Either :build or :make. Default is :build
-    attr_reader :sources # [Ast::SourceFile]. List of included prick files
+    attr_reader :sources # { String => Ast::SourceFile }. Hash of included prick files
     attr_reader :targets # [String] - Target UIDs
     attr_reader :exclude # [String] - Excluded UIDs
     attr_reader :variables # {Var=>Val} - Command-line and built-in variables
@@ -76,6 +80,8 @@ module Prick::Lang
 
     # Timestamp of last successful run. Default EPOCH. The timestamp for the
     # current run (successful or nor) can be found as settings.created_at
+    #
+    # TODO: This should be registered per schema or file
     attr_reader :timestamp # Time
 
     # Completed resources from PRICK.RESOURCES. This is always the resources
@@ -88,13 +94,12 @@ module Prick::Lang
     attr_reader :seed_tables
 
     def initialize(
-        file, targets = [DEFAULT_TARGET],
+        targets = [DEFAULT_TARGET],
         mode: :build,
         timestamp: nil,
         exclude: [],
         variables: {})
 
-      constrain file, String
       constrain targets, [String]
       constrain mode, :build, :make
       constrain timestamp, Time, nil
@@ -106,9 +111,9 @@ module Prick::Lang
       @@INSTANCE = self
       @dir = Dir.getwd
       @dir_pathname = Pathname.new(@dir) # pre-computed, used in #userpath
-      @file = file
+      @source_file = File.absolute_path(settings.source_file)
       @mode = mode
-      @sources = []
+      @sources = {}
       @targets = targets
       @timestamp = timestamp || settings.database_state.created_at
       @exclude = exclude
@@ -132,7 +137,7 @@ module Prick::Lang
 
     def compile(&block)
       t0 = Time.now
-      ShellOpts.verb "Compiling '#{file}'"
+      ShellOpts.verb "Compiling '#{source_file}'"
 
       indent(verbose?) {
         load_compiler_state
@@ -192,11 +197,14 @@ module Prick::Lang
     # unable to run individually because the main process is responsible for
     # initialization. Eg. #parse needs @variables
 
-    # Parse source file into Ast
-    def parse(file = nil, lines = nil)
-      Dir.chdir settings.dirs.schema do
-        @file ||= file
-        @parser.parse(self.file, lines)
+    # Parse source into Ast. The source can be a file name and/or an array of
+    # lines. The file is not read if lines is defined
+    def parse(lines = nil)
+#     dir = File.dirname(settings.source_file)
+#     file = File.basename(settings.source_file)
+      Dir.chdir dir do
+#       @parser.parse(file, lines)
+        @parser.parse(lines)
       end
     end
 
@@ -384,20 +392,22 @@ module Prick::Lang
       puts "Compiler"
       indent {
         puts "timestamp: #{@timestamp&.strftime("%F %T %Z") || 'nil'}"
-        puts "variables"; indent { puts variables.map { |k,v| "#{k}: #{v}" } }
-        puts "sources"; indent { puts sources.map(&:file) }
-#       puts "files"; indent { puts sources }
-        puts "resources:"
-        indent {
+        pindent "variables:" do puts variables.map { |k,v| "#{k}: #{v}" } end
+        pindent "sources:" do puts sources.keys end
+        pindent "resources ('*' - dirty):" do
           resources.sort_by(&:first).each { |uid, node|
             dirty = mode == :make && node.dirty? ? "*" : nil
             puts [uid, dirty, "(#{node.classname})"].compact.join(' ') + " #{node.ast.class}"
           }
-        }
-        puts "nodes:"
+        end
+        pindent "nodes:" do
           idr.each { |node|
-            puts "#{node.ast&.token || node.classname} #{node.dirty?}"
+            dirty = (node.dirty? ? " *" : "")
+            puts node.strline + dirty
           }
+#         puts "#{node.ast&.token || node.classname} #{node.dirty? && '*'}" }
+#         idr.each { |node| puts "#{node.ast&.token || node.classname} #{node.dirty? && '*'}" }
+        end
 
 #       indent {
 #         puts "present:"; indent { puts present.map { "#{_1} (#{@resources[_1].classname})" } }

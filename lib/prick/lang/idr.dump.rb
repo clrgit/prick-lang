@@ -31,7 +31,11 @@ module Prick::Lang
     class Node
       PARTS = []
 
-      def dumpline = puts "#{self.classname} #{self.token&.text}"
+      def strname = self.class.to_s.sub(/^.*::/, "").sub(/Command.*/, "").gsub(/(?<!^)([A-Z])/, ' \1')
+      def strtext = self.token&.text
+      def strline(*args) = [strname, strtext, *args].compact.join(' ')
+
+      def dumpline(*args) = puts strline(*args)
 
       def dump(text = nil)
         puts text if text
@@ -93,20 +97,20 @@ module Prick::Lang
     end
 
     # Artificial node that creates a schema
-    class SchemaCommand
-      def dumpunit
-        puts "SQL"
-        indent {
-          puts "drop schema if exists #{schema.uid};"
-          puts "create schema #{schema.uid}"
-        }
-      end
-#     def dumpunit = puts "SQL create schema #{schema.uid}"
-      def dumpline = puts "SQL create schema #{schema.uid}"
-    end
+#   class SchemaCommand
+#     def dumpunit
+#       puts "SQL"
+#       indent {
+#         puts "drop schema if exists #{schema.uid};"
+#         puts "create schema #{schema.uid}"
+#       }
+#     end
+#     def dumpline = puts "SQL create schema #{schema.uid}"
+#   end
 
     class FileCommand
-      def dumpline = puts "#{kind} #{path}"
+      def strname = kind
+      def strtext = path
       def dumpunit = puts "#{token&.kind || 'nil'} #{path}"
 
 #     def dumpline = puts "FILE #{path} #{self.classname}"
@@ -119,7 +123,8 @@ module Prick::Lang
 #   end
 
     class FoxFileCommand
-      def dumpline = puts "FOX #{path}"
+      def strname = "FOX"
+      def strtext = path
       def dumpunit = dumpline
     end
 
@@ -135,7 +140,9 @@ module Prick::Lang
         end
       end
 
-      def dumpline = puts "#{ast.kind} #{source.value.sub(/\..*/m, "")}"
+#     def strline = "#{ast.kind} #{source.value.sub(/\..*/m, "")}"
+      def strname = ast.kind.upcase
+      def strtext = source.value.sub(/\..*/m, "")
 
       def dump
         command = ast.kind.downcase
@@ -157,20 +164,23 @@ module Prick::Lang
     end
 
     class CopyCommand
-      def dumpline = puts "copy #{tables.map(&:value).join(", ")}"
+      def strtext = tables.map(&:value).join(", ")
     end
 
     class SyncCommand
+      def strtext = [table, key, id_table].compact.join(' ')
+
       def dumpline
-        puts ["sync #{table} #{key}", id_table].compact.join(' ')
-        indent { puts source.value } if source
+        super
+        indent { puts source.value } if source # FIXME
       end
     end
 
 #       puts ["prepare #{table} #{key}", id_table].compact.join(' ')
     class PrepareCommand
+      def strtext = [table, key, id_table].compact.join(' ')
       def dumpline
-        puts ["prepare #{table} #{key}", id_table].compact.join(' ')
+        super
         indent { puts source.value } if source
       end
 #     def dumpline
@@ -186,51 +196,57 @@ module Prick::Lang
     end
 
     class HandleCommand
-      def dumpline = puts "handle #{tables.map(&:value).join(", ")}"
+      def strtext = tables.map(&:value).join(", ")
     end
 
     class CallCommand
-      def dumpline = puts "call #{ident}"
+      def strtext = ident
     end
 
     class RequireCommand
-      def dumpline = puts "require #{uid} -> #{node ? node.classname : node.inspect}"
+      def strtext = "#{uid} -> #{node ? node.classname : node.inspect}"
       def dumpdep = puts "REQ #{uid}"
     end
 
     class DetectMetaCommand
-      def dumpline = puts "DETECT META"
+      def strtext = nil
     end
 
     class NopCommand
-      def dumpline = puts "NOP #{parent.uid || parent.class}"
+      def strtext = nil
+#     def strline = "NOP #{parent.uid || parent.class}"
     end
 
     class MarkCommand
-      def dumpline
-        if parent.is_a?(Idr::Schema)
-          puts "#{kind} #{parent.uid || "public"}"
-        else
-          puts "#{kind} #{parent.uid || parent.class}"
-        end
+      def strtext
+        parent.uid || (parent.is_a?(Idr::Schema) ? "public" : parent.classname)
       end
+
+#     def dumpline
+#       if parent.is_a?(Idr::Schema)
+#         puts "#{kind} #{parent.uid || "public"}"
+#       else
+#         puts "#{kind} #{parent.uid || parent.class}"
+#       end
+#     end
       def dumpdep = dumpline
     end
 
     class MetaCommand
-      def dumpline = puts "META #{table}"
+      def strtext = table
       def dumpdep = dumpline
     end
 
+    class DetectMetaCommand
+      def strname = "Detect"
+      def strtext = "meta"
+    end
+
     class ProvideCommand
-      def dumpline = puts "provide #{uid}"
+      def strtext = uid
       def dump = dumpline
       def dumpdep = puts "PROP #{uid}"
       def dump_parts = nil # nop
-    end
-
-    class MakeCommand
-      def dumpline = puts "MAKE"
     end
 
     # Can be a schema, phase, provide, or function
@@ -246,16 +262,15 @@ module Prick::Lang
 
     class Phase
       PARTS = [:block]
-      def dumpline = puts "Phase #{uid}"
-    end
-
-    class DefaultPhase
-      def dumpline = puts "Phase #{uid}"
+      def strname = "Phase" # Subclasses have strange names
+      def strtext = uid
     end
 
     class Schema
 #     PARTS = [:create, :functions, :phases, :block]
-      PARTS = [:schema_command, :procedures, :meta_tables, :phases]
+      PARTS = [:procedures, :meta_tables, :phases]
+      def strtext = ident
+      def meta_tables = meta_commands.map(&:table) # [String] Only used in dump
       def dumpunit = puts "SCHEMA #{ident}"
     end
 
@@ -267,7 +282,7 @@ module Prick::Lang
     end
 
     class Unresolved
-      def dumpline = puts "UNRESOLVED #{uid}"
+      def strline = uid
     end
   end
 end

@@ -30,21 +30,3 @@ module Prick::Lang
   end
 end
 
-__END__
-
-
-
-
-      def dumpunit
-#       print "#{phase} "
-        node.dumpunit
-      end
-
-      def dumpline = node.dump
-      def dumpdep = node.dump
-
-#     def dump = puts "#{self.classname} #{node.token&.kind || 'nil'} #{node.token&.text || 'nil'}"
-
-#     def dump = puts "#{node.token.kind} #{node.token.text}"
-#     def dump = dumpline
-#     def dump = puts "#{phase} #{node.token.kind} #{node.token.text}"

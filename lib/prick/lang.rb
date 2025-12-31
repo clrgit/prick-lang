@@ -24,7 +24,7 @@ module Prick::Lang
   class EofError < Error; end # Not an error but used as a signal
 
   # Supported dump kinds
-  DUMP_KINDS = %w(tokens ast idr refs links deps marks units state)
+  DUMP_KINDS = %w(tokens ast idr refs deps units state)
 
   # Used to dump tokens as they are processed. The problem is that the kind of
   # a token depends on the context so we need to run the parser to get the
@@ -36,7 +36,7 @@ module Prick::Lang
 
   def self.dump(compiler, kinds)
     compiler.load_compiler_state
-    state = kinds.delete "state"
+    state = kinds.delete "state" # We want state to be last
     if kinds.empty?
       compiler.parse compiler.file
       compiler.convert
@@ -50,17 +50,19 @@ module Prick::Lang
 
 private
   def self.dump_phases(compiler, kinds)
+    # Tokens are captured as they are read by the tokenizer (and ultimately the
+    # parser). They don't have a data structure of their own so instead we
+    # install a listener to register them as they are created
     tokens = []
     install_token_listener(tokens) if kinds.include? "tokens"
 
-    compiler.parse compiler.file
+    compiler.parse
     dump_tokens(tokens) if kinds.delete "tokens"
     compiler.ast.dump if kinds.delete "ast"
     return if kinds.empty?
 
     compiler.convert
     compiler.analyzer.analyze link: false
-#   compiler.idr.dump
     compiler.idr.dump if kinds.delete "idr"
     return if kinds.empty?
 
@@ -70,9 +72,9 @@ private
 
 #   compiler.idr.check_deps # FIXME HERE HERE HERE
     compiler.idr.dumpref if kinds.delete "refs"
-    compiler.idr.dump if kinds.delete "links"
-    compiler.analyzer.dump if kinds.delete "deps"
-    compiler.analyzer.dump(marks: true) if kinds.delete "marks"
+#   compiler.idr.dump if kinds.delete "links"
+    compiler.analyzer.dump(marks: true) if kinds.delete "deps"
+#   compiler.analyzer.dump(marks: true) if kinds.delete "marks"
     return if kinds.empty?
 
     compiler.generate

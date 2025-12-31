@@ -1,43 +1,6 @@
 ---
 
-# #
-# # AUTH
-# #
-# - match: auth.domains.default_routine_permission
-#   that: false
-# - match: auth.domains.default_relation_permission
-#   that: false
-#
-# - match: auth.role_groups.group_id
-#   that: roles
-# - match: auth.role_groups.role_id
-#   that: groups
-#
-# #
-# # APP PORTAL
-# #
-#
-# # CASE_CHANGES
-# - match: app_portal.case_changes.first_act_id
-#   that: false
-# - match: app_portal.case_changes.last_act_id
-#   that: false
-#
-# # CASE_NOTES
-# - match: app_portal.case_notes.first_act_id
-#   that: false
-# - match: app_portal.case_notes.last_act_id
-#   that: false
-#
-# # NONCOMPLIACNE_STATE_PERMS
-# - match: app_portal.noncompliance_state_perms.from_state
-#   that: false
-# - match: app_portal.noncompliance_state_perms.to_state
-#   that: false
-#
-# # METHOD_LINES
-# - match: app_portal.method_lines.last_process_state_kind
-#   that: false
-# - match: app_portal.method_lines.last_publish_state_kind
-#   that: false
+# Syntax
+#   - match: FIELD
+#     that: false|back-reference-name
 

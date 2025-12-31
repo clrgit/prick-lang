@@ -13,6 +13,8 @@ require 'indented_io'
 require 'pg_conn'
 require 'string-text'
 
+require_relative './prick/ext/x_indented_io.rb'
+
 include ForwardTo
 include Constrain
 include IndentedIO
@@ -127,9 +129,12 @@ module Prick
   # Suffix for prick source files
   SOURCE_EXT = "prick"
 
-  # Default source file ('make.prick'). Also used when including directories
+  # Default source file name ('make.prick'). Used when including directories
   # (eg. './dir' becomes './dir/make.prick')
-  SOURCE_FILENAME = "make.#{SOURCE_EXT}"
+  MAKE_FILENAME = "make.#{SOURCE_EXT}"
+
+  # Default source file - schema/make.prick
+  SOURCE_FILE = File.join(SCHEMA_DIRNAME, MAKE_FILENAME)
 
   # List of SQL files that defines objects in the prick schema. Only prick.sql
   # is mandatory
