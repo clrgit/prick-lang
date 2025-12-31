@@ -38,7 +38,7 @@ module Prick::Lang
     compiler.load_compiler_state
     state = kinds.delete "state" # We want state to be last
     if kinds.empty?
-      compiler.parse compiler.file
+      compiler.parse
       compiler.convert
       compiler.analyze
       compiler.generate

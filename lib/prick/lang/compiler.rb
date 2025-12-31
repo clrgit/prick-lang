@@ -392,6 +392,7 @@ module Prick::Lang
       puts "Compiler"
       indent {
         puts "timestamp: #{@timestamp&.strftime("%F %T %Z") || 'nil'}"
+        puts "created_at: #{settings.created_at.strftime("%F %T %Z")}"
         pindent "variables:" do puts variables.map { |k,v| "#{k}: #{v}" } end
         pindent "sources:" do puts sources.keys end
         pindent "resources ('*' - dirty):" do
@@ -400,13 +401,20 @@ module Prick::Lang
             puts [uid, dirty, "(#{node.classname})"].compact.join(' ') + " #{node.ast.class}"
           }
         end
+
         pindent "nodes:" do
+          kinds = [:dirty, :built, :excluded, :build, :make]
+          methods = kinds.map { |k| [k, :"#{k}?"] }.to_h
+          counts = kinds.map { |k| [k, 0] }.to_h
           idr.each { |node|
-            dirty = (node.dirty? ? " *" : "")
-            puts node.strline + dirty
+            for kind, method in methods
+              counts[kind] += 1 if node.send(method)
+            end
           }
-#         puts "#{node.ast&.token || node.classname} #{node.dirty? && '*'}" }
-#         idr.each { |node| puts "#{node.ast&.token || node.classname} #{node.dirty? && '*'}" }
+          puts "all: #{counts.values.sum}"
+          for kind in kinds
+            puts "#{kind}: #{counts[kind]}"
+          end
         end
 
 #       indent {
