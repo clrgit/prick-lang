@@ -1,0 +1,17 @@
+
+schema public {
+  public-this.sql
+
+  init {
+    public-init.sql
+  }
+
+  term {
+    public-term.sql
+  }
+
+  seed {
+    sql select 'public-seed-sql'
+  }
+}
+

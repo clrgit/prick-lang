@@ -3,14 +3,18 @@
 . bash.include
 
 # Usage
-#   cmd -t init|setup|build|help OPTS-OR-ARGS
+#   cmd -t sync|init|setup|build|help OPTS-OR-ARGS
 #
 
 USAGE="list|init|setup|build|help OPTS-OR-ARGS"
 
 PROJECT="project"
+SAMPLE="sample"
 
-echo "$1"
+function sync() {
+    rsync -a --exclude /prick $SAMPLE/ $PROJECT/schema
+}
+
 if [ "$1" = "-t" -o "$1" = "--time" ]; then
     shift
     TIMECMD="time"
@@ -20,8 +24,11 @@ fi
 
 [ $# -ge 1 ] || error "Illegal number of arguments"
 
-clear
+[ "$1" = sync ] || clear
 case "$1" in
+    sync)
+        sync
+        ;;
     init)
         if [ -d $PROJECT ]; then
             [ -f $PROJECT/.safety ] && rm -rf $PROJECT || error "No .safety file found in $PROJECT"
@@ -29,6 +36,8 @@ case "$1" in
 
         eval $TIMECMD bundle exec exe/prick-lang init $PROJECT
         touch $PROJECT/.safety 2>/dev/null || true
+
+        sync
         ;;
     list)
         eval $TIMECMD bundle exec exe/prick-lang -C $PROJECT list -l
@@ -37,7 +46,9 @@ case "$1" in
         eval $TIMECMD bundle exec exe/prick-lang --help
         ;;
     *)
+#       echo eval $TIMECMD bundle exec exe/prick-lang -C $PROJECT "$@"
         eval $TIMECMD bundle exec exe/prick-lang -C $PROJECT "$@"
+
         ;;
 
 #   setup)

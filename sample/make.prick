@@ -1,0 +1,47 @@
+
+public/
+require public
+
+init {
+  main-init.sql
+}
+
+term {
+  main-term.sql
+}
+
+seed {
+  sql select 'main-seed-sql'
+}
+
+schema A {
+  a-tables.sql
+
+  provide gryf
+  sql select 1
+  sql select 2
+
+  seed {
+    a-seed.sql
+  }
+}
+
+schema B
+  require A
+  require A.gryf
+  b-tables.sql
+
+  seed {
+    b-seed.sql
+  }
+}
+
+if true
+  schema C
+    require A
+    seed {
+      c-seed.sql
+    }
+  }
+end
+
