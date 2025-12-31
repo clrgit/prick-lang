@@ -76,10 +76,10 @@ module Prick
     attr_reader :prick_state_file
 
     # Database state file. Default '#@state_dir/database-state.yml'
-    attr_reader :database_state_file
+    attr_reader :database_cache_file
 
     # List of all database state files.
-    def database_state_files() = @database_state_files ||= Dir.glob(database_state_file_glob)
+    def database_cache_files() = @database_cache_files ||= Dir.glob(database_cache_file_glob)
 
     # Compiler state file. Default '#@state_dir/compiler-state.yml'
     attr_reader :compiler_state_file
@@ -135,11 +135,11 @@ module Prick
     attr_accessor :database_state # PRICK.STATES Struct object
 
     # Map from database name to state for all cached databases. Should be
-    # explicitly loaded using #load_database_states
-    attr_reader :database_states
+    # explicitly loaded using #load_database_cache
+    attr_reader :database_cache
 
     # Dir glob matching all database state files
-    attr_reader :database_state_file_glob
+    attr_reader :database_cache_file_glob
 
     #
     # E N V I R O N M E N T S
@@ -268,7 +268,7 @@ module Prick
       @source_file = absfile :source_file, dirs.project, Prick::SOURCE_FILE
 
       # Assign database state glob
-      @database_state_file_glob = File.join dirs.project, Prick::DATABASE_STATE_FILE_GLOB
+      @database_cache_file_glob = File.join dirs.project, Prick::DATABASE_STATE_FILE_GLOB
 
       # Load state files. Absent files are ignored
       load_project
@@ -286,17 +286,16 @@ module Prick
         @dirs.database_cache = File.join(Prick::CACHE_DIRNAME, @database)
 
         # Assign database cache files
-        @database_state_file = absfile :database_state_file, dirs.database_cache, Prick::DATABASE_STATE_FILENAME
+        @database_cache_file = absfile :database_cache_file, dirs.database_cache, Prick::DATABASE_STATE_FILENAME
         @compiler_state_file = absfile :compiler_state_file, dirs.database_cache, Prick::COMPILER_STATE_FILENAME
         @fox_state_file = absfile :fox_state_file, dirs.database_cache, Prick::FOX_STATE_FILENAME
 
-        # Load database state from file. Compiler and fox states are loaded elsewhere
-        load_database_state
+        # Load database state. Compiler and fox states are loaded elsewhere
+        get_database_state
       end
 
       # Assign additional attributes
       attrs.each { |attr, value| self.send(:"#{attr}=", value) }
-
     end
 
     #
@@ -319,14 +318,17 @@ module Prick
       @environment_loaded = true
     end
 
-    # Load database state from cache file
-    def load_database_state
-      @database_state = load_file :database_state_file
+    # Load database states from cache files
+    def load_database_cache
+      @database_caches = database_cache_files.map { |file|
+#       [File.basename(File.dirname(file)), OpenStruct.new(YAML.load_extended(file))]
+        [File.basename(File.dirname(file)), load_file(:database_cache_file)]
+      }.to_h
     end
 
     # Write build state to cache file
-    def save_database_state
-      IO.write database_state_file, @database_state.to_h.to_yaml_extended
+    def save_database_cache
+      IO.write database_cache_file, @database_state.to_h.to_yaml_extended
     end
 
     # Load database state from database
@@ -336,8 +338,8 @@ module Prick
       @environment = @database_state.environment
     end
 
-    # Set database state and save to database
-    def set_database_state(status: nil)
+    # Clear compilation state and create new build record
+    def create_database_state
       @database_state = OpenStruct.new \
         name: name,
         environment: environment,
@@ -345,22 +347,42 @@ module Prick
         branch: branch,
         rev: rev(kind: :short),
         clean: clean?,
-        status: status,
+        status: nil,
         prick_version: prick_version,
         created_at: created_at,
-        compile_duration: compile_duration,
-        execute_duration: execute_duration
+        compile_duration: nil,
+        execute_duration: nil
 
       id = user_conn.insert "prick.builds", **@database_state.to_h
       @database_state.id = id
     end
 
-    # Load all database states
-    def load_database_states
-      @database_states = database_state_files.map { |file|
-        [File.basename(File.dirname(file)), OpenStruct.new(YAML.load_extended(file))]
-      }.to_h
+    def update_database_state
+      user_conn.update "prick.build", @database_state.id, {
+        status: status,
+        compile_duration: compile_duration,
+        execute_duration: execute_duration
+      }
     end
+
+#   # Set database state and save to database
+#   def set_database_state(status: nil)
+#     @database_state = OpenStruct.new \
+#       name: name,
+#       environment: environment,
+#       version: version,
+#       branch: branch,
+#       rev: rev(kind: :short),
+#       clean: clean?,
+#       status: status,
+#       prick_version: prick_version,
+#       created_at: created_at,
+#       compile_duration: compile_duration,
+#       execute_duration: execute_duration
+#
+#     id = user_conn.insert "prick.builds", **@database_state.to_h
+#     @database_state.id = id
+#   end
 
 #   def reset_database_state
 #     @environment = nil
@@ -385,7 +407,7 @@ module Prick
       project_file: [:name, :title, :prick_version],
       version_file: [:version],
       prick_state_file: [:database],
-      database_state_file: OpenStruct
+      database_cache_file: OpenStruct
     }
 
     # Helper method. Get value of :attr from @attrs and the entry. If value is

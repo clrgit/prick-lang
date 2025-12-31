@@ -26,6 +26,8 @@ module Prick::Lang
       Unit::Node.conn = conn
       Unit::Node.bash = @bash
 
+      # Create new PRICK.BUILDS record
+
       # Clear PRICK.RESOURCES that are marked for rebuild
 
       # Setup logger
@@ -38,6 +40,9 @@ module Prick::Lang
           unit.execute
         }
       }
+
+      # Save compiler state
+
 #     puts "after"
 #     p conn.tuples "prick.resources"
     end
