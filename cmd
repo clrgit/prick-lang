@@ -22,8 +22,15 @@ function sync() {
     [ -f "$PROJECT/.safety" ] || error "Can't find safety file '$PROJECT/.safety'"
 
     for dst in $(find $dstdir -mindepth 1 -maxdepth 1 -type d 2>/dev/null); do
+        [[ "$dst" =~ /\. ]] && continue
         [ $(basename $dst) = prick ] && continue
         rm -rf $dst
+    done
+
+    for dst in $(find $dstdir -mindepth 1 -maxdepth 1 -type f 2>/dev/null); do
+        [[ "$dst" =~ /\. ]] && continue
+        [ "$dst" = "reflections.yml" ] && continue
+        rm -f $dst
     done
 
     for src in $(find $srcdir -mindepth 1); do
