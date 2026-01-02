@@ -1,0 +1,12 @@
+schema A {
+  tables.sql
+
+  provide gryf
+  sql select 1
+  sql select 2
+
+  seed {
+    seed.sql
+  }
+}
+
