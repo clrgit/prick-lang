@@ -303,8 +303,8 @@ module Prick::Lang
     attr_accessor :value
 
     def initialize(file, lineno, charno, text, kind)
+      constrain File.absolute_path?(file), true
       @file, @lineno, @charno, @text, @kind = file, lineno, charno, text, kind
-#     d "Token.new #{kind} #{text&.inspect}"
     end
 
     # Create a new token as a copy of this but with the given kind

@@ -291,7 +291,7 @@ module Prick
         @fox_state_file = absfile :fox_state_file, dirs.database_cache, Prick::FOX_STATE_FILENAME
 
         # Load database state. Compiler and fox states are loaded elsewhere
-        get_database_state
+        load_database_state
       end
 
       # Assign additional attributes
@@ -332,7 +332,7 @@ module Prick
     end
 
     # Load database state from database
-    def get_database_state
+    def load_database_state
 #     @database_state = user_conn.struct "select * from prick.states limit 1"
       @database_state = user_conn.struct "prick.states"
       @environment = @database_state.environment

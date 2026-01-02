@@ -19,6 +19,7 @@ module Prick::Lang
     attr_reader :error
 
     def initialize(path, lines, reader = nil)
+      constrain File.absolute_path?(path), true
       @path = path
       @lines = lines
       if reader
@@ -98,7 +99,9 @@ module Prick::Lang
         @error = ErrorToken.new *args
         @token = nil
       else
-        @pos += m.match_length(0) if @token = yield(m, args)
+        if @token = yield(m, args)
+          @pos += m.match_length(0)
+        end
         @error = nil
         @token
       end

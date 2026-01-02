@@ -7,7 +7,7 @@ module Prick::Lang
       attr_reader :parent # Node or nil
       attr_reader :children # [Node]
 
-      forward_to :@children, :empty?
+      forward_to :@children, :empty?, :size
 
       # All nodes have a token that identifies the node and a start and stop
       # token. The three tokens are often identical but eg. binary operators
@@ -23,13 +23,16 @@ module Prick::Lang
       def stop_token() @stop_token ||= @children.last&.stop_token || @token end
       attr_writer :stop_token
 
-      forward_to :token, :lineno, :charno, :kind, :file
+      forward_to :token, :lineno, :charno, :kind
+      def source_file = token.file
 
       # True if the node is part of a dirty (changed) build file. Initialized
-      # by Analyzer#mark_dirty_build. Initially false
+      # by Analyzer#mark_dirty_ast. Initially false
       def dirty?() @dirty end
+
+      # Set dirty recursively
       def dirty!()
-        return if dirty?
+        return if @dirty
         @dirty = true
         @children.each(&:dirty!)
       end
@@ -184,7 +187,20 @@ module Prick::Lang
       def initialize(token, **file_opts)
         super(token)
         self.file = File.new(token, **file_opts)
+        @@SOURCE_FILES[self.file.path] = self
       end
+
+      def inspect = "#<SourceFile @path=#{path.inspect}>"
+
+      def self.key?(file) = @@SOURCE_FILES.key?(file)
+
+      def self.[](file)
+        constrain file, String
+        @@SOURCE_FILES[file]
+      end
+
+    private
+      @@SOURCE_FILES = {}
     end
 
     class Provide < Stmt
@@ -206,20 +222,28 @@ module Prick::Lang
 
     class Decl < Stmt
       part :ident, Reference
-      part :block, Block
+
+      # A declaration has a block but Program redefines it and we can't do that
+      # with a part object so we define these methods instead using 'part :block'
+      def block() = raise
+      def block=(value) raise end
     end
 
     class Procedure < Decl
+      part :block, Block
     end
 
     class Phase < Decl
+      part :block, Block
     end
 
     class Schema < Decl
+      part :block, Block
     end
 
     class Program < Decl
       part :file, SourceFile
+      forward_to :file, :block, :block=
       def initialize(file)
         constrain file, SourceFile
         super file.token

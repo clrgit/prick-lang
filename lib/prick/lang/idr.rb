@@ -13,11 +13,11 @@ module Prick::Lang
       # Ast::Node, may be nil
       attr_reader :ast
 
-      # Token, fails if ast is nil
-      forward_to :ast, :token
+      # Associated token, may be nil
+      def token = ast&.token
 
-      # Prick file where this node is defined
-      def deffile = token.file
+      # Prick file where this node is defined, may be nil
+      def source_file = token&.file
 
       # Schema (or Program) this node belongs to. Assigned by the analyzer
       attr_accessor :schema
@@ -63,6 +63,10 @@ module Prick::Lang
       # Return true if the node should be included when using 'prick make'
       def make? = included? && !excluded? && (dirty? || !built?)
 
+       # Return true if the node should be included in the given mode (default
+       # #compiler.mode)
+      def include?(mode) = (mode == :build ? build? : make?)
+
       # Set #built? to true transitively
       def built!
         return if built?
@@ -70,26 +74,26 @@ module Prick::Lang
         deps.each &:built!
       end
 
-      # Set #dirty? to true transitively
+      # Set #dirty? to true transitively along the #reqs axis
       def dirty!
         return if dirty?
         @dirty = true
         reqs.each &:dirty!
       end
 
-      # Set #exclude? to true transitively
-      def exclude!()
-        return if excluded?
-        @excluded = true
-        deps.each &:exclude!
-      end
-
-      # Set #exclude? to true transitively but ignore nodes with #exclude? ==
+      # Set #include? to true transitively but ignore nodes with #exclude? ==
       # true
       def include!()
         return if included? || excluded?
         @included = true
         deps.each &:include!
+      end
+
+      # Set #exclude? to true transitively
+      def exclude!()
+        return if excluded?
+        @excluded = true
+        reqs.each &:exclude!
       end
 
       # First node. Default equal to self but resources sets it to the first
@@ -282,6 +286,7 @@ module Prick::Lang
     class RequireCommand < NopCommand
       attr_accessor :uid # UID of required node
       attr_accessor :node # Required node
+
 #     def node=(node)
 #       depend_on(node)
 #       @node = node
@@ -326,7 +331,6 @@ module Prick::Lang
 
     class SyncCommand < MergeCommand
       forward_to :ast, :table, :key, :id_table, :source
-
       def tables = [table]
     end
 
@@ -365,15 +369,14 @@ module Prick::Lang
 
       def head = block.first
       def tail = block.last
-      def deps = head.deps
-      def reqs = tail.reqs
 
-      # These specializations also hits the tail node itself
+      forward_to :head, :deps, :included?, :built?
+      forward_to :tail, :reqs, :excluded?, :dirty?
+
       def built!() super; tail.built! end
-#     def dirty!() super; tail.dirty! end
-      def dirty!() super; children.map(&:dirty!) end
-      def exclude!() super; tail.exclude! end
+      def dirty!() super; head.dirty! end
       def include!() super; tail.include! end
+      def exclude!() super; head.exclude! end
 
       def initialize(parent, ast)
         constrain parent, Resource, nil
@@ -465,6 +468,11 @@ module Prick::Lang
 
 #     def exclude = schema_command.exclude
 
+      def include!()
+        puts "SCHEMA #{ident.inspect}"
+        super
+      end
+
       # Get/set phase by name
       def get_phase(ident) = self.send(ident)
       def set_phase(ident, value) = self.send(:"#{ident}=", value)
@@ -496,15 +504,37 @@ module Prick::Lang
     class Program < Schema
       def key = nil
       def uid = nil
-#     def uid = "public"
 
       attr_reader :schemas # [Schema], initialized by the analyzer
 
       def initialize(ast)
+        constrain ast, Ast::Program
         super(nil, ast)
         @schemas = []
 #       @meta_command = DetectMetaCommand.new(self) # FIXME Move to analyzer
       end
+
+#     def include!
+#       puts "PROGRAM#include"
+#       indent {
+#         v = super
+#         puts @included
+#         puts head
+#         puts head.included?.inspect
+#       }
+#     end
+#
+#     def included?()
+#       puts "#included?()"
+#       indent {
+#         puts "head.included?: #{head.included?.inspect}"
+#         puts "tail.included?: #{tail.included?.inspect}"
+#       }
+#
+#       v = super
+#       puts "  -> #{v.inspect}"
+#       v
+#     end
 
       def program? = true
     end

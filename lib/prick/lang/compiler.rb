@@ -78,10 +78,11 @@ module Prick::Lang
 
     # State data. State data are read by #load_compiler_state
 
-    # Timestamp of last successful run. Default EPOCH. The timestamp for the
-    # current run (successful or nor) can be found as settings.created_at
+    # Timestamp of last run, default EPOCH. The timestamp for the current run
+    # (successful or nor) can be found as settings.created_at
     #
-    # TODO: This should be registered per schema or file
+    # TODO: Register last successful run per file (maybe... PRICK.RESOURCES
+    # implicitly reflects this state)
     attr_reader :timestamp # Time
 
     # Completed resources from PRICK.RESOURCES. This is always the resources
@@ -160,16 +161,7 @@ module Prick::Lang
 
         yield
 
-#       puts "MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM"
-#       puts "#compile"
-#       p conn.tuples "prick.resources"
-
         save_compiler_state
-
-#       puts "MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM"
-#       puts "#compile"
-#       p conn.tuples "prick.resources"
-#       puts "MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM"
       }
 
       t1 = Time.now
@@ -356,7 +348,7 @@ module Prick::Lang
     # timestamp (TODO: needs much more work)
     def load_compiler_state
       @completed_resources = conn.values %(select uid from prick.resources)
-      @timestamp = conn.value?("select max(created_at) from prick.builds where status = true") || EPOCH_TIMESTAMP
+#     @timestamp = conn.value?("select max(created_at) from prick.builds where status = true") || EPOCH_TIMESTAMP
     end
 
 #   # Remove entries in completed_resources for the given schema_stack. This is

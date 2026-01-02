@@ -119,13 +119,15 @@ module Prick::Lang
       def execute
         sql_phases = conn.quote_list phases
         sql_schemas = conn.quote_list schemas
+        phase_expr = "phase_name in #{sql_phases} and schema_name is null" if !phases.empty?
+        schema_expr = "schema_name in #{sql_schemas}" if !schemas.empty?
+        expr = [phase_expr, schema_expr].compact.join(" or ")
         conn.exec %(
           delete from prick.resources
-          where phase_name in #{sql_phases} and schema_name is null
-             or schema_name in #{sql_schemas}
+          where #{expr}
         )
       end
-      def to_s = "UNMARK #{(phases + schemas).join(', ')}"
+      def to_s = "UNMARK #{(phases + schemas).map { _1 || 'nil' }.join(', ')}"
     end
 
     class Meta < Node

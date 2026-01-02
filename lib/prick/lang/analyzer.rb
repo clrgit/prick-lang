@@ -61,7 +61,21 @@ module Prick::Lang
 
     def inspect() = "<#{self.class}>"
 
+
     def dump(marks: false)
+      # Files that succeeded
+      # Files that failed
+      # Files that was never run
+
+      # Problem that some prick files may have no resources
+
+      puts "Files"; indent {
+        ast.nodes(Ast::SourceFile) { |file|
+          dirty = is_dirty?(file.path) ? "D" : " "
+          puts "#{dirty} #{file.path}"
+        }
+      }
+
       puts "Nodes (D - dirty, B - built, I - included, X - excluded, * - rebuild)"; indent {
         idr.nodes.sort_by(&:serial).each { |node|
           deps = node.deps.empty? ? 'nil' : node.deps.map(&:serial).map(&:inspect).join(", ")
@@ -104,6 +118,12 @@ module Prick::Lang
     end
 
   private
+    # Helper function. Return true if path exists and is modified after last
+    # build. We assume that PRICK.RESOURCES maintains the state of built
+    # resources so we only have to concern ourselves with objects that have
+    # been modified after the last build (successful or not)
+    def is_dirty?(path) = File.exist?(path) && File.mtime(path) > compiler.timestamp
+
     # Assign Program#schemas and Compiler#schemas
     def collect_schemas
       compiler.program.trees(Idr::Schema).each { |schema|
@@ -235,42 +255,44 @@ module Prick::Lang
       }
     end
 
-
-    # Helper function
-    def is_dirty?(path) = File.exist?(path) && File.mtime(path) > compiler.timestamp
-
-
     # FIXME FIXME FIXME
     # Everything becomes dirty
-
-    # Mark dirty (changed) files. Note that absent files are not dirty because
-    # they may be generated later, if not it will cause an error when executed
-    def mark_dirty_nodes
-      program.trees(Idr::FileCommand).each { |cmd|
-        cmd.dirty! if is_dirty? cmd.path #File.exist?(cmd.path) && File.mtime(cmd.path) > compiler.timestamp
-      }
+    def mark_nodes
+      # if build; mark_everything_dirty
+      mark_clean_nodes
+      mark_dirty_ast_nodes
+      mark_dirty_source_files
+      mark_dirty_files
+      mark_excluded_nodes
+      mark_included_nodes
     end
 
-    # Mark nodes defined in dirty build files
-    def mark_dirty_build
-      # FIXME FIXME FIXME This is where the source column in the resources table is used !!!
-
-      # Find dirty prick files
-      dirty_sources = compiler.sources.values.select { is_dirty? _1.file.path }
-
-      # Mark Ast nodes dirty
-      dirty_sources.each { |source| source.dirty!  }
-
-      # Mark resource Idr objects dirty if they have a dirty Ast node
-      compiler.resources.values.each { |node| node.dirty! if node.ast&.dirty? }
-
-      # Propagate dirty
-#     program.nodes(Idr::Resource, Idr::ProvideCommand).each { |cmd| cmd.dirty! if cmd.ast&.dirty?  }
+    # Mark
+    def mark_dirty_ast_nodes
     end
 
     # Mark nodes that are already built
-    def mark_built_nodes
+    def mark_clean_nodes
       compiler.completed_resources.each { |uid| compiler.resources[uid]&.built!  }
+    end
+
+    # Mark nodes defined in dirty source (*.prick) files
+    def mark_dirty_source_files
+      # Set of dirty source files
+      dirty_sources = compiler.sources.values.select { is_dirty? _1.path }.map(&:path).to_set
+
+      # Mark resources from dirty source files
+      compiler.resources.values.each { |resource|
+        resource.dirty! if dirty_sources.include?(resource.source_file)
+      }
+    end
+
+    # Mark dirty (changed) files. Note that absent files are not dirty because
+    # they may be generated later, if not it will cause an error when executed
+    def mark_dirty_files
+      program.trees(Idr::FileCommand).each { |cmd|
+        cmd.dirty! if is_dirty? cmd.path #File.exist?(cmd.path) && File.mtime(cmd.path) > compiler.timestamp
+      }
     end
 
     # Exclude nodes (schemas) from the command line
@@ -281,14 +303,6 @@ module Prick::Lang
     # Include targets
     def mark_included_nodes
       compiler.targets.map { compiler.resources[_1] }.each(&:include!)
-    end
-
-    def mark_nodes
-      mark_built_nodes
-      mark_dirty_build
-      mark_dirty_nodes
-      mark_excluded_nodes
-      mark_included_nodes
     end
 
     # Mark excluded/included nodes

@@ -28,6 +28,7 @@ module Prick::Lang
 
       # Create new PRICK.BUILDS record
 
+p :BING
       # Clear PRICK.RESOURCES that are marked for rebuild
 
       # Setup logger

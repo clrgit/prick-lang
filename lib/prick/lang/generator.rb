@@ -172,18 +172,19 @@ module Prick::Lang
 
     # Drop/reset schemas and delete invalid resources entries
     def generate_initial_units
+      # Idr object selector method, either :build? or :make?
+      build_method = :"#{compiler.mode}?"
+
       # Find dirty schemas. We don't use build_schemas+invalidate_schemas
       # because schemas outside of the build set may be dirty and have to clear
       # its resources
-      dirty_schemas = idr.trees(Idr::Schema).select(&:dirty?).map(&:ident)
-
-      # Dirty program phases
-      dirty_phases = program.phases.values.select(&:dirty?).map(&:kind)
+      build_schemas = idr.nodes(Idr::Schema).select(&build_method).map(&:ident)
+      dirty_phases = program.phases.values.select(&build_method).map(&:kind)
 
       # Drop/reset dirty schemas
       @execute_units =
           [ Unit::Transaction.new(:BEGIN),
-            Unit::UnMarks.new(dirty_phases, dirty_schemas) ] +
+            Unit::UnMarks.new(dirty_phases, build_schemas) ] +
           @invalidate_schemas.map { |schema| Unit::Db.new(schema.ident, :DROP) } +
           @build_schemas.map { |schema| Unit::Db.new(schema.ident, :RESET) } +
           [ Unit::Transaction.new(:COMMIT) ]

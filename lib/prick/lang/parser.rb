@@ -82,7 +82,7 @@ module Prick::Lang
       @ast = Ast::Program.new(file)
       compiler.sources[source_file] = file
       Dir.chdir(file.dirpath) {
-        @ast.block = parse_block(check: false)
+        file.block = parse_block(check: false)
       }
       @ast
     end
@@ -201,13 +201,8 @@ module Prick::Lang
     end
 
     def parse_prick_file(anypath)
-#     puts "#parse_prick_file(#{anypath})"
-
-
       read # DirToken or a FileToken
       path = File.absolute_path(anypath)
-#     puts "  dir: #{Dir.getwd}"
-#     puts "  path: #{path}"
       File.readable?(path) or error token, "Can't read #{anypath}"
 
       if compiler.sources.key? path # Only read sources once
@@ -217,9 +212,6 @@ module Prick::Lang
         compiler.sources[path] = source
         begin
           push_tokenizer Tokenizer.new path
-#         puts "  source.file.dirpath: #{source.file.dirpath}"
-#         puts "  source.file.path: #{source.file.path}"
-#         exit
           Dir.chdir(source.dirpath) {
             source.block = parse_block(nil, check: false)
           }

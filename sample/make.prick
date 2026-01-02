@@ -1,5 +1,7 @@
 
 public/
+a/
+
 require public
 
 init {
@@ -12,18 +14,6 @@ term {
 
 seed {
   sql select 'main-seed-sql'
-}
-
-schema A {
-  a-tables.sql
-
-  provide gryf
-  sql select 1
-  sql select 2
-
-  seed {
-    a-seed.sql
-  }
 }
 
 schema B
