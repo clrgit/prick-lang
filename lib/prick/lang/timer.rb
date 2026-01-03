@@ -26,10 +26,11 @@ module Prick::Lang
     def dftime(t0, limit: "ms") = ftime(Time.now - t0, limit: "ms")
 
     def time(title, &block)
+      ShellOpts.verb title, newline: false
       t0 = Time.now
       r = yield
       t1 = Time.now
-      ShellOpts.verb "#{title} (#{ftime t1 - t0})"
+      ShellOpts.verb " (#{ftime t1 - t0})"
       r
     end
   end

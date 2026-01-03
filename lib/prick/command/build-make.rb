@@ -5,10 +5,10 @@ module Prick::Command
     BUILTIN_VARIABLES = [:database, :username, :environment, :version, :prick_version ]
 
     attr_reader :compiler
+    attr_reader :executer
 
 # --timestamp=TIMESTAMP
 #   Override timestamp from the compiler state file
-#
 
     def initialize(opts, args)
       super opts, args
@@ -37,6 +37,9 @@ module Prick::Command
           variables: variables
       )
 
+      # Executer object
+      @executer = Prick::Lang::Executer.new
+
       # Handle dump option. 'units' is the default
       if opts.dump?
         kinds = opts.dump || "units"
@@ -49,9 +52,14 @@ module Prick::Command
 
     def run
       begin
-        compiler.interpret
-#       puts "---------------------------"
-#       p compiler.conn.tuples "prick.resources"
+        t0 = Time.now
+        ShellOpts.verb "Building #{settings.source_file}"
+        indent {
+          compiler.compile
+          executer.execute
+        }
+        dt = Time.now - t0
+        ShellOpts.verb "Done (#{ftime dt})"
       rescue => ex
         raise Prick::Lang::ErrorFunctions.pretty_backtrace!(ex)
       end

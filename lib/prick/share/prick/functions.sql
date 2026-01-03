@@ -1,4 +1,6 @@
 
+set search_path to prick, pg_temp;
+
 drop function if exists prick.get_serial(varchar) cascade;
 drop function if exists prick.get_serial(varchar, varchar) cascade;
 drop procedure if exists prick.update_serials() cascade;

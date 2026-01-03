@@ -468,11 +468,6 @@ module Prick::Lang
 
 #     def exclude = schema_command.exclude
 
-      def include!()
-        puts "SCHEMA #{ident.inspect}"
-        super
-      end
-
       # Get/set phase by name
       def get_phase(ident) = self.send(ident)
       def set_phase(ident, value) = self.send(:"#{ident}=", value)

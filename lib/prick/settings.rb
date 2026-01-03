@@ -131,6 +131,10 @@ module Prick
     # B U I L D   S T A T E
     #
 
+    # True if source compiled and executed successfully. Initialized by the
+    # executor
+    attr_accessor :status
+
     # Last database build state. Read from database
     attr_accessor :database_state # PRICK.STATES Struct object
 
@@ -199,14 +203,14 @@ module Prick
     def log? = @log
 
     #
-    # T I M E S T A M P S
+    # T I M E
     #
 
     # Time when the program started
     @@created_at = Time.now
     def created_at = @@created_at
 
-    # Duration of the compile and execute phases. Read from the connection build object
+    # Duration of the compile and execute phases
     attr_accessor :compile_duration
     attr_accessor :execute_duration
 
@@ -226,6 +230,7 @@ module Prick
     def initialize(
         project_dir: nil, # Only not-nil when running #init and the directory doesn't exist
         database: nil,
+        load_database_state: true, # Only not-nil when running #setup and the database doesn't exist
         **attrs)
 
       constrain project_dir.nil? || File.absolute_path?(project_dir), true
@@ -290,8 +295,8 @@ module Prick
         @compiler_state_file = absfile :compiler_state_file, dirs.database_cache, Prick::COMPILER_STATE_FILENAME
         @fox_state_file = absfile :fox_state_file, dirs.database_cache, Prick::FOX_STATE_FILENAME
 
-        # Load database state. Compiler and fox states are loaded elsewhere
-        load_database_state
+        # Load database state if required. Compiler and fox states are loaded elsewhere
+        self.load_database_state if load_database_state
       end
 
       # Assign additional attributes
@@ -353,12 +358,12 @@ module Prick
         compile_duration: nil,
         execute_duration: nil
 
-      id = user_conn.insert "prick.builds", **@database_state.to_h
+      id = user_conn.insert "prick.runs", **@database_state.to_h
       @database_state.id = id
     end
 
     def update_database_state
-      user_conn.update "prick.build", @database_state.id, {
+      user_conn.update "prick.runs", @database_state.id, {
         status: status,
         compile_duration: compile_duration,
         execute_duration: execute_duration
@@ -380,7 +385,7 @@ module Prick
 #       compile_duration: compile_duration,
 #       execute_duration: execute_duration
 #
-#     id = user_conn.insert "prick.builds", **@database_state.to_h
+#     id = user_conn.insert "prick.runs", **@database_state.to_h
 #     @database_state.id = id
 #   end
 

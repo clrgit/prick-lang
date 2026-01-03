@@ -13,7 +13,7 @@ module Prick::Command
       @force = opts.subcommand!.force || false
       environment, database = args.expect(1..2)
       database ||= environment
-      super opts, args, database: database, environment: environment
+      super opts, args, database: database, environment: environment, load_database_state: false
     end
 
     def run

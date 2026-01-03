@@ -23,7 +23,7 @@ module Prick::Command
     end
 
     def list_databases
-      states = settings.load_database_states
+      states = settings.load_database_cache
 
       if format == :short
         puts states.keys

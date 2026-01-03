@@ -5,22 +5,37 @@ module Prick::Lang
   #   Collect fox files
   #
   class Executer < CompilerProcess
+    include Prick
+    include ErrorFunctions
+    include Prick::Lang::Timer
+
     using String::Text
+
+    # Singleton instance
+    def self.instance = @@INSTANCE
 
     attr_reader :bash # Bash::Bash object
     attr_reader :source # Executed postgres source if settings.log? is true
 
+    forward_to :settings, :status
+
     def initialize
+      @@INSTANCE = self
     end
 
 #   logger = lambda { |arg| dst.puts arg.sub(/\n\s*\n/m, "\n") + ";" }
 #   def logger(msg) puts  msg.sub(/\n\s*\n/m, "\n") end
 
     def execute
+      ShellOpts.verb "Execute", newline: false
+      t0 = Time.now
+
       # We delay initialization of the Bash object until here because we can't
       # access the #compiler object from #initialize
       @bash = Bash::Bash.new(bash_environment)
       @source = nil
+      @status = false
+
 
       # Setup unit objects for #execute
       Unit::Node.conn = conn
@@ -28,22 +43,31 @@ module Prick::Lang
 
       # Create new PRICK.BUILDS record
 
-p :BING
       # Clear PRICK.RESOURCES that are marked for rebuild
 
       # Setup logger
       proc = lambda { |arg| $stderr.puts arg.sub(/\n\s*\n/m, "\n") + ";" }
       logger = settings.log? && !conn.log? ? proc : nil
 
-      # Execute units
-      conn.with(log: logger) {
-        units.each { |unit|
-          unit.execute
+      begin
+        settings.create_database_state
+        settings.status = false
+
+        # Execute units
+        conn.with(log: logger) {
+          units.each { |unit|
+            unit.execute
+          }
         }
-      }
 
-      # Save compiler state
+        settings.status = true
+      ensure
+        dt = Time.now - t0
+        settings.execute_duration = dt
+        settings.update_database_state
+      end
 
+      ShellOpts.verb " (#{ftime dt})"
 #     puts "after"
 #     p conn.tuples "prick.resources"
     end

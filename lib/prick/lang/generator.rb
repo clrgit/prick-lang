@@ -172,14 +172,14 @@ module Prick::Lang
 
     # Drop/reset schemas and delete invalid resources entries
     def generate_initial_units
-      # Idr object selector method, either :build? or :make?
-      build_method = :"#{compiler.mode}?"
+#     # Idr object selector method, either :build? or :make?
+#     build_method = :"#{compiler.mode}?"
 
       # Find dirty schemas. We don't use build_schemas+invalidate_schemas
       # because schemas outside of the build set may be dirty and have to clear
       # its resources
-      build_schemas = idr.nodes(Idr::Schema).select(&build_method).map(&:ident)
-      dirty_phases = program.phases.values.select(&build_method).map(&:kind)
+      build_schemas = idr.nodes(Idr::Schema).select(&mode_method).map(&:ident)
+      dirty_phases = program.phases.values.select(&mode_method).map(&:kind)
 
       # Drop/reset dirty schemas
       @execute_units =

@@ -69,8 +69,14 @@ module Prick::Lang
 
       # Problem that some prick files may have no resources
 
-      puts "Files"; indent {
+      puts "Prick Files"; indent {
         ast.nodes(Ast::SourceFile) { |file|
+          dirty = is_dirty?(file.path) ? "D" : " "
+          puts "#{dirty} #{file.path}"
+        }
+      }
+      puts "Source files"; indent {
+        ast.nodes(Ast::File) { |file|
           dirty = is_dirty?(file.path) ? "D" : " "
           puts "#{dirty} #{file.path}"
         }
@@ -122,7 +128,9 @@ module Prick::Lang
     # build. We assume that PRICK.RESOURCES maintains the state of built
     # resources so we only have to concern ourselves with objects that have
     # been modified after the last build (successful or not)
-    def is_dirty?(path) = File.exist?(path) && File.mtime(path) > compiler.timestamp
+    def is_dirty?(path)
+      File.exist?(path) && File.mtime(path) > compiler.timestamp
+    end
 
     # Assign Program#schemas and Compiler#schemas
     def collect_schemas
@@ -255,20 +263,13 @@ module Prick::Lang
       }
     end
 
-    # FIXME FIXME FIXME
-    # Everything becomes dirty
     def mark_nodes
       # if build; mark_everything_dirty
       mark_clean_nodes
-      mark_dirty_ast_nodes
       mark_dirty_source_files
       mark_dirty_files
       mark_excluded_nodes
       mark_included_nodes
-    end
-
-    # Mark
-    def mark_dirty_ast_nodes
     end
 
     # Mark nodes that are already built
@@ -291,7 +292,7 @@ module Prick::Lang
     # they may be generated later, if not it will cause an error when executed
     def mark_dirty_files
       program.trees(Idr::FileCommand).each { |cmd|
-        cmd.dirty! if is_dirty? cmd.path #File.exist?(cmd.path) && File.mtime(cmd.path) > compiler.timestamp
+        cmd.dirty! if is_dirty? cmd.path
       }
     end
 

@@ -1,14 +1,16 @@
 
--- Contains only the most recent record from builds
-create view states as
+set search_path to prick, pg_temp;
+
+-- Contains only the most recent record from runs
+create view prick.states as
   select *
-  from builds
-  where created_at = (select max(created_at) from builds)
+  from prick.runs
+  where created_at = (select max(created_at) from runs)
 ;
 
 -- Current serial values for each table
 create view prick.curr_serials as
-  with serials as (
+  with serial_wo_values as (
     select
       table_schema::varchar as "schema_name",
       table_name::varchar,
@@ -19,7 +21,7 @@ create view prick.curr_serials as
   select
     s.*,
     prick.get_serial(schema_name || '.' || table_name) as "value"
-  from serials s
+  from serial_wo_values s
   where sequence_name is not null
 ;
 

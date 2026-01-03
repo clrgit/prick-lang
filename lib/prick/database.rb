@@ -144,7 +144,7 @@ end
 #
 #     # Add initial build record
 #     state = Prick.state # shorthand
-#     conn.insert "prick.builds",
+#     conn.insert "prick.runs",
 #         name: state.name,
 #         version: state.version,
 #         prick: state.prick_version,

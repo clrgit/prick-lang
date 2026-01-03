@@ -5,6 +5,7 @@ module Prick::Lang
     include ErrorFunctions
 
     def compiler() @compiler ||= Compiler.instance end
+    def executer() @executer ||= Executer.instance end
 
     forward_to :compiler, :conn, :database, :username, :environment, :schemas, :verbose, :log, :dryrun
 
@@ -116,6 +117,7 @@ module Prick::Lang
       @mode = mode
       @sources = {}
       @targets = targets
+#     exit if !timestamp.nil?
       @timestamp = timestamp || settings.database_state.created_at
       @exclude = exclude
       @variables = variables
@@ -136,45 +138,41 @@ module Prick::Lang
     # Compile
     #
 
-    def compile(&block)
+    def compile
       t0 = Time.now
-      ShellOpts.verb "Compiling '#{source_file}'"
 
-      indent(verbose?) {
-        load_compiler_state
+      load_compiler_state
 
-        time "Parsing" do
-          parse
-        end
+      time "Parsing" do
+        parse
+      end
 
-        time "Converting" do
-          convert
-        end
+      time "Converting" do
+        convert
+      end
 
-        time "Analyzing" do
-          analyze
-        end
+      time "Analyzing" do
+        analyze
+      end
 
-        time "Generating" do
-          generate
-        end
+      time "Generating" do
+        generate
+      end
 
-        yield
-
-        save_compiler_state
-      }
-
-      t1 = Time.now
-      ShellOpts.verb "Done (#{ftime t1 - t0})"
+      dt = Time.now - t0
+      settings.compile_duration = dt
     end
 
     def interpret
+      raise
       compile do
+        t0 = Time.now
         time "Executing" do
           execute
         end
-#       puts "COMPILER ok here"
-#       p conn.tuples "prick.resources"
+        t1 = Time.now
+        dt = t1 - t0
+        settings.execute_duration = dt
       end
 #     puts "COMPILER absent here"
 #     p conn.tuples "prick.resources"
@@ -219,24 +217,6 @@ module Prick::Lang
     def execute
       @executer.execute
     end
-
-    #
-    # Utilities
-    #
-
-    # Compute fully qualified uid - prepends the current context uid to the
-    # ident if absent
-    def uid(ident)
-      constrain ident, String
-      (ident.index('.') ? ident : [context.uid, ident].compact.join("."))
-    end
-    def self.uid(ident) = instance.uid(ident)
-
-    # Compute path relative to #dir, this is used in error messages
-    def userpath(path)
-      Pathname.new(File.expand_path(path)).relative_path_from(@dir_pathname).to_s
-    end
-    def self.userpath(path) = instance.userpath(path)
 
     #
     # Runtime variables
@@ -345,33 +325,33 @@ module Prick::Lang
     #
 
     # Load completed resources from PRICK.RESOURCES and the last successful
-    # timestamp (TODO: needs much more work)
+    # timestamp (TODO: needs much more work). Note that there is no
+    # corresponding #save_compiler_state because resources are created as the
+    # program is executed
     def load_compiler_state
       @completed_resources = conn.values %(select uid from prick.resources)
-#     @timestamp = conn.value?("select max(created_at) from prick.builds where status = true") || EPOCH_TIMESTAMP
-    end
-
-#   # Remove entries in completed_resources for the given schema_stack. This is
-#   # should be done for all schema_stack that are either recompiled or
-#   # invalidated
-#
-#   'schema_stack' <- a substitution that went wrong?
-#   def clean_compiler_state(*schema_stack)
-#     schema_stack.flatten!
-#
-#     conn.exec %(
-#       delete from prick.resources where
-#   end
-
-    # Do nothing because resources are registered as we execute the prick
-    # script and the timestamp is saved as part of
-    # Settings#save_database_state. This may change though so we keep the
-    # method
-    def save_compiler_state
     end
 
     # Remove the compiler state if present
     def reset_compiler_state = conn.exec "delete from prick.resources"
+
+    #
+    # Utilities
+    #
+
+    # Compute fully qualified uid - prepends the current context uid to the
+    # ident if absent
+    def uid(ident)
+      constrain ident, String
+      (ident.index('.') ? ident : [context.uid, ident].compact.join("."))
+    end
+    def self.uid(ident) = instance.uid(ident)
+
+    # Compute path relative to #dir, this is used in error messages
+    def userpath(path)
+      Pathname.new(File.expand_path(path)).relative_path_from(@dir_pathname).to_s
+    end
+    def self.userpath(path) = instance.userpath(path)
 
     #
     # D U M P
