@@ -36,7 +36,6 @@ module Prick::Lang
       @source = nil
       @status = false
 
-
       # Setup unit objects for #execute
       Unit::Node.conn = conn
       Unit::Node.bash = @bash
@@ -45,7 +44,7 @@ module Prick::Lang
 
       # Clear PRICK.RESOURCES that are marked for rebuild
 
-      # Setup logger
+      # Setup logger if requested
       proc = lambda { |arg| $stderr.puts arg.sub(/\n\s*\n/m, "\n") + ";" }
       logger = settings.log? && !conn.log? ? proc : nil
 

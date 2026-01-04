@@ -90,7 +90,7 @@ module Prick::Lang
     # registered directly in database when the script is executed
     attr_reader :completed_resources # [uid]
 
-    # Lists of meta and seed tables
+    # Lists of meta and seed tables. Assigned by the analyzer
     attr_reader :meta_tables
     attr_reader :seed_tables
 
@@ -133,6 +133,8 @@ module Prick::Lang
       @requires = []
       @context_stack = [] # Stack of [Idr::Resource, Idr::Block] tuples
       @schema_stack = [] # Stack of Idr::Schema objects
+      @meta_tables = []
+      @seed_tables = []
     end
 
     #
@@ -183,6 +185,7 @@ module Prick::Lang
     #
     # A resource is a phase, function, schema, or program object, or a provide
     # statement
+    #
 
     # Map from uid to Idr resource object, false if marked absent and nil if
     # unknown
@@ -280,8 +283,11 @@ module Prick::Lang
       begin
         t0 = Time.now
 
-        reset_compiler_state if mode == :build
-        load_compiler_state
+        if mode == :build
+          reset_compiler_state
+        else
+          load_compiler_state
+        end
 
         time "Parsing" do
           parse
@@ -310,19 +316,6 @@ module Prick::Lang
       end
     end
 
-#   def interpret
-#     raise
-#     compile do
-#       t0 = Time.now
-#       time "Executing" do
-#         execute
-#       end
-#       t1 = Time.now
-#       dt = t1 - t0
-#       settings.execute_duration = dt
-#     end
-#   end
-
     #
     # S T A T E
     #
@@ -341,7 +334,8 @@ module Prick::Lang
 
     # Remove the compiler state. This is used by 'prick build'
     def reset_compiler_state
-      conn.exec "delete from prick.resources"
+      conn.truncate "prick", %w(resources meta_tables)
+      load_compiler_state
     end
 
     #

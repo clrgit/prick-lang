@@ -1,2 +1,2 @@
 
-insert into a_table (name) values ('An entry in A');
+insert into tbl1 (name) values ('An entry in A');

@@ -158,6 +158,8 @@ module Prick::Lang
                 Unit::Sync.new node.table, node.key, node.id_table, node.source.value
               when Idr::HandleCommand
                 Unit::Handle.new node.tables
+              when Idr::ProvideCommand
+                Unit::Mark.new node.phase, node.schema&.ident, node.uid
               when Idr::NopCommand, Idr::Phase, Idr::Resource
                 next
             else

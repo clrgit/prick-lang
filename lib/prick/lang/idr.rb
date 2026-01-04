@@ -295,6 +295,14 @@ module Prick::Lang
       end
     end
 
+    class ProvideCommand < NopCommand
+      include ResourceUID
+      def initialize(parent, ast, uid)
+        super(parent, ast)
+        @uid = uid.downcase
+      end
+    end
+
     class MetaCommand < NopCommand
       attr_accessor :schema_name
       attr_accessor :table_name
@@ -305,14 +313,6 @@ module Prick::Lang
         super(parent, ast)
         @table_name, @schema_name = name.split('.').reverse
         @schema_name ||= parent.ident.to_s
-      end
-    end
-
-    class ProvideCommand < NopCommand
-      include ResourceUID
-      def initialize(parent, ast, uid)
-        super(parent, ast)
-        @uid = uid.downcase
       end
     end
 

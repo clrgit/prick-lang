@@ -34,22 +34,15 @@ module Prick::Lang
         collect_meta
         resolve_references
         assign_schema_deps
+
+        check_targets
       end
       if link.nil? || link # Link
         link_block_nodes
-#     puts "HERE"
-
-#     p program.deps.map(&:parent).map(&:ident)
-#     p program.reqs.map(&:parent).map(&:ident)
         link_phases
-#     p program.deps.map(&:parent).map(&:ident)
-#     p program.reqs.map(&:parent).map(&:ident)
         link_program_phases
         mark_nodes
         select_nodes
-#     p program.deps.map(&:parent).map(&:ident)
-#     p program.reqs.map(&:parent).map(&:ident)
-#     exit
       end
       idr
     end
@@ -299,7 +292,16 @@ module Prick::Lang
 
     # Include targets
     def mark_included_nodes
-      compiler.targets.map { compiler.resources[_1] }.each(&:include!)
+      compiler.targets.each { |target|
+        resource = compiler.resources[target] or error "No such target '#{target}'"
+        resource.include!
+      }
+    end
+
+    def check_targets
+      compiler.targets.each { |target|
+        compiler.resources[target] or error "No such target '#{target}'"
+      }
     end
 
     # Mark excluded/included nodes
@@ -310,18 +312,4 @@ module Prick::Lang
     end
   end
 end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
