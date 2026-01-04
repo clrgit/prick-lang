@@ -12,5 +12,10 @@ schema A {
   seed {
     seed.sql
   }
+
+  merge {
+    copy tbl1
+    copy tbl2
+  }
 }
 

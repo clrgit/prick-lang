@@ -158,7 +158,7 @@ module Prick::Lang
               when Idr::TailCommand
                 Unit::Mark.new node.phase, node.schema&.ident, node.uid
               when Idr::CopyCommand
-                Unit::Copy.new node.tables
+                Unit::Copy.new node.tables.map(&:uid)
               when Idr::SyncCommand
                 Unit::Sync.new node.table, node.key, node.id_table, node.source.value
               when Idr::PrepareCommand

@@ -326,11 +326,30 @@ module Prick::Lang
     end
 
     class MergeCommand < Command
-      def tables = raise
+      attr_accessor :schema_name
+      attr_accessor :table_name
+      def table() = "#{schema_name}.#{table_name}"
+
+#     def schema_name = raise
+#     def table_name = raise
+#     def tables = raise
+#     def require_search_path? = true
+
+      def initialize(parent, ast, table)
+        constrain table, String
+        @table_name, @schema_name = table.split('.').reverse
+        @schema_name ||= parent.ident.to_s
+      end
     end
+
+    # HERE HERE HERE
 
     class CopyCommand < MergeCommand
       forward_to :ast, :tables
+    end
+
+    class SingleCopyCommand < MergeCommand
+      forward_to :ast, :table
     end
 
     class SyncCommand < MergeCommand

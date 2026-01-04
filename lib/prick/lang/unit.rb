@@ -272,6 +272,27 @@ module Prick::Lang
       def to_s = "#{kind} #{bash.command}"
     end
 
+    # TODO MERGE can't be used as a target for build or make. It is only used
+    # by the 'prick merge' command
+
+    # TODO
+    #   copy_tables
+    #   sync_tables
+    #   prepare_tables
+    #   handle_tables
+    #
+#   class Merge
+#     def kind = self.classname.upcase.to_sym
+#     attr_reader :kind # COPY, SYNC, PREPARE, HANDLE
+#     attr_reader :table
+#
+#     # Only used by sync/prepare
+#     attr_reader :key
+#     attr_reader :id_table
+#     attr_reader :sql
+#   end
+
+    # TODO Split into an object per table
     class Copy < Node
       attr_reader :tables
       def initialize(tables) = super tables: tables

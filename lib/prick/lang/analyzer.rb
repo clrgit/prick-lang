@@ -228,7 +228,7 @@ module Prick::Lang
         program.term.depend_on schema.term
         program.seed.depend_on schema.seed
         program.auth.depend_on schema.auth
-#       program.merge.depend_on schema.merge
+        program.merge.depend_on schema.merge
       }
     end
 
