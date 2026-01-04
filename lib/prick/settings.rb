@@ -370,32 +370,14 @@ module Prick
       }
     end
 
-#   # Set database state and save to database
-#   def set_database_state(status: nil)
-#     @database_state = OpenStruct.new \
-#       name: name,
-#       environment: environment,
-#       version: version,
-#       branch: branch,
-#       rev: rev(kind: :short),
-#       clean: clean?,
-#       status: status,
-#       prick_version: prick_version,
-#       created_at: created_at,
-#       compile_duration: compile_duration,
-#       execute_duration: execute_duration
+    def create_migration_state
+#     @migration_state = OpenStruct.new \
+#       :meta_tables: compiler.meta_tables,
+#       :seed_tables: compiler.seed_tables
 #
-#     id = user_conn.insert "prick.runs", **@database_state.to_h
-#     @database_state.id = id
-#   end
-
-#   def reset_database_state
-#     @environment = nil
-#     @clean = nil
-#     @status = nil
-#     @compile_duration = nil
-#     @execute_duration = nil
-#   end
+#     user_conn.insert "prick.meta_tables", :schema_name, :table_name, ....
+#
+    end
 
     #
     # I O

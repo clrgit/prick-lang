@@ -249,10 +249,19 @@ module Prick::Lang
       def require_search_path? = true
     end
 
-    # Artificial node that detects if all meta tables have been declared
-    # (before any seed has been loaded). There is ever only one of these nodes,
-    # it is added to the end of the program TERM block
-    class CheckMetaCommand < Command
+    # Artificial node that handles meta tables
+    #
+    # There is ever only one of these nodes, it is added to the end of the
+    # program's TERM block
+    class MakeMetaCommand < Command
+      def initialize(parent) = super(parent, nil)
+    end
+
+    # Artificial node that handles seed tables
+    #
+    # There is ever only one of these nodes, it is added to the end of the
+    # program's SEED block
+    class MakeSeedCommand < Command
       def initialize(parent) = super(parent, nil)
     end
 

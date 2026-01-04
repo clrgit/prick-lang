@@ -113,6 +113,7 @@ module Prick::Lang
     end
 
     # Clears all resources in the given phases and schemas
+    # TODO Rename to 'clear' or 'setup' or similar
     class UnMarks < Node
       attr_reader :phases
       attr_reader :schemas
@@ -127,19 +128,97 @@ module Prick::Lang
           delete from prick.resources
           where #{expr}
         )
+        conn.exec %(
+          delete from prick.meta_tables
+          where #{schema_expr || 'true'}
+        )
+        conn.exec %(
+          delete from prick.seed_tables
+          where #{schema_expr || 'true'}
+        )
       end
       def to_s = "UNMARK #{(phases + schemas).map { _1 || 'nil' }.join(', ')}"
     end
 
     class Meta < Node
-      attr_reader :schema_name
-      attr_reader :table_name
-      def table = "#{schema_name}.#{table_name}"
-      def initialize(schema_name, table_name) = super schema_name: schema_name, table_name: table_name
-#     def execute = conn.proc :"prick.register_meta_table", table
-      def execute = conn.insert "prick.meta_tables", schema_name: schema_name, table_name: table_name
-      def to_s = "META #{table}"
+      # Affected schemas from Idr::MakeMetaCommand
+      attr_reader :schemas # [String]
+
+      # Array of [schema_name, table_name] tuples from Idr::MetaCommand
+      attr_reader :tables
+
+      def initialize(schemas) = super schemas: schemas, tables: []
+      def add_table(schema_name, table_name) = @tables << [schema_name, table_name]
+      def uids = tables.map { _1.join('.') } # Table uids
+
+      def execute
+        uid_list = conn.quote_list(uids)
+
+        # Check for undeclared meta table
+        absent_tables = conn.values %(
+            select schema_name || '.' || table_name
+            from prick.current_serials
+            where schema_name in #{conn.quote_list(schemas)}
+            and (schema_name || '.' || table_name) not in #{uid_list}
+            and value > 1
+        )
+
+        if !absent_tables.empty?
+          error "Found undeclared meta table(s): #{absent_tables.join(', ')}"
+        end
+
+        # Create meta tables
+        conn.exec %(
+          insert into prick.meta_tables (schema_name, table_name, value)
+            select schema_name, table_name, value
+            from prick.current_serials
+            where schema_name || '.' || table_name in #{uid_list}
+        )
+      end
+
+      def to_s = "META #{(schemas+uids).join(', ')}"
     end
+
+    # Should check that meta tables are untouched
+    class Seed < Node
+      # Affected schemas
+      attr_reader :schemas # [String]
+
+      def initialize(schemas) = super schemas: schemas
+
+      def execute
+        # Check for altered meta tables
+        meta_tables = conn.structs %(
+            select
+              m.schema_name || '.' || m.table_name as "uid",
+              c.value <> m.value as "altered"
+            from prick.meta_tables m
+            join prick.current_serials c
+              on c.schema_name = m.schema_name
+              and c.table_name = m.table_name
+        )
+
+        altered_tables = meta_tables.select(&:altered).map(&:uid)
+        if !altered_tables.empty?
+          error "Found altered meta table(s): #{altered_tables.join(', ')}"
+        end
+
+        # Create seed tables
+        schema_list = conn.quote_list(schemas)
+        meta_list = conn.quote_list(meta_tables.map(&:uid))
+        conn.exec %(
+          insert into prick.seed_tables (schema_name, table_name, value)
+            select schema_name, table_name, value
+            from prick.current_serials
+            where schema_name in #{schema_list}
+              and (schema_name || '.' || table_name) not in #{meta_list}
+              and value > 1
+        )
+      end
+
+      def to_s = "SEED #{schemas.join(', ')}"
+    end
+
 
     class Sql < Node
       attr_reader :sql
@@ -153,29 +232,6 @@ module Prick::Lang
       def initialize(proc) = super proc: proc
       def execute = conn.proc proc
       def to_s = "CALL #{proc}"
-    end
-
-    class CheckMeta < Node
-      attr_reader :schemas # [String]
-      def initialize(schemas) = super schemas: schemas
-      def execute
-        absent_tables = conn.values %(
-            select schema_name || '.' || table_name as "table_uid"
-            from prick.curr_serials
-            where schema_name in #{conn.quote_list(schemas)}
-            and value > 1
-
-            except
-
-            select schema_name || '.' || table_name as "table_uid"
-            from prick.meta_tables
-        )
-
-        if !absent_tables.empty?
-          error "Found undeclared meta tables: #{absent_tables.join(', ')}"
-        end
-      end
-      def to_s = "CHECK #{schemas.join(', ')}"
     end
 
     class File < Node
@@ -261,7 +317,7 @@ __END__
     class ClearSchemaSeed < Node
     end
 
-    class CheckMeta < Node
+    class MakeMeta < Node
     end
 
     class SearchPath < Node

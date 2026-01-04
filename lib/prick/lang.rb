@@ -75,8 +75,7 @@ private
 #   compiler.idr.check_deps # FIXME HERE HERE HERE
     compiler.idr.dumpref if kinds.delete "refs"
 #   compiler.idr.dump if kinds.delete "links"
-    compiler.analyzer.dump(marks: true) if kinds.delete "deps"
-#   compiler.analyzer.dump(marks: true) if kinds.delete "marks"
+    compiler.analyzer.dump if kinds.delete "deps"
     return if kinds.empty?
 
     compiler.generate

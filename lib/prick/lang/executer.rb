@@ -120,7 +120,7 @@ end
 __END__
 #         @idr = nil
 #         case @unit
-#           when Unit::CheckMeta
+#           when Unit::MakeMeta
 #             detect_meta_command
 #           when Unit::SchemaCommand
 #             schema_command

@@ -17,6 +17,9 @@ module Prick::Lang
     # included (eg. Unit::Marks)
     attr_reader :units
 
+    # A Unit::Meta object that collects all Idr::MetaCommand tables
+    attr_reader :meta
+
     # Nodes by unit. Used to lookup the associated node without polluting Unit
     # with compiler objects
     attr_reader :nodes # {Unit => Node}
@@ -132,6 +135,7 @@ module Prick::Lang
       @phases = PHASES.map { |kind| [kind, []] }.to_h # {PHASE=>[Unit]}
       @units = []
       @nodes = {}
+      @meta = Unit::Meta.new affected_schemas.map(&:uid) # Idr::MetaCommands needs this
       unit_classes = { SQL: Unit::SqlFile, PSQL: Unit::PSqlFile, FOX: Unit::FoxFile, RB: Unit::RubyFile }
       nodes.each { |node|
         unit =
@@ -144,12 +148,15 @@ module Prick::Lang
                 Unit::Bash.new node.kind, node.source
               when Idr::CallCommand
                 Unit::Call.new node.procs
-              when Idr::CheckMetaCommand
-                Unit::CheckMeta.new affected_schemas.map(&:uid)
+              when Idr::MakeMetaCommand
+                @meta # This places the meta command at the right spot
+              when Idr::MetaCommand
+                @meta.add_table node.schema_name, node.table_name
+                next
+              when Idr::MakeSeedCommand
+                Unit::Seed.new affected_schemas.map(&:uid)
               when Idr::TailCommand
                 Unit::Mark.new node.phase, node.schema&.ident, node.uid
-              when Idr::MetaCommand
-                Unit::Meta.new node.schema_name, node.table_name
               when Idr::CopyCommand
                 Unit::Copy.new node.tables
               when Idr::SyncCommand
@@ -268,6 +275,7 @@ module Prick::Lang
     end
 
     def generate_final_units
+
       # Remove COMMIT-END combination
       last = @execute_units.last
       @execute_units.pop if last.is_a?(Unit::Transaction) && last.command == :COMMIT

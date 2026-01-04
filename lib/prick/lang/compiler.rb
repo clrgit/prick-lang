@@ -91,11 +91,10 @@ module Prick::Lang
     attr_reader :completed_resources # [uid]
 
     # Lists of meta and seed tables. Assigned by the analyzer
-    attr_reader :meta_tables
-    attr_reader :seed_tables
+    attr_reader :meta_tables # [[schema_name, table_name]]
 
-    # Affected schemas
-    attr_reader :affected_schemas
+    # Affected schemas. Initialized by the generator
+    forward_to :generator, :affected_schemas
 
     def initialize(
         targets = [DEFAULT_TARGET],

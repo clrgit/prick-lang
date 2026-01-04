@@ -9,7 +9,7 @@ create view prick.states as
 ;
 
 -- Current serial values for each table
-create view prick.curr_serials as
+create view prick.current_serials as
   with serial_wo_values as (
     select
       table_schema::varchar as "schema_name",

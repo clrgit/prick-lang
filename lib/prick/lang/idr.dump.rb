@@ -208,7 +208,7 @@ module Prick::Lang
       def dumpdep = puts "REQ #{uid}"
     end
 
-    class CheckMetaCommand
+    class MakeMetaCommand
       def strtext = nil
     end
 
@@ -237,9 +237,14 @@ module Prick::Lang
       def dumpdep = dumpline
     end
 
-    class CheckMetaCommand
-      def strname = "Detect"
+    class MakeMetaCommand
+      def strname = "Make"
       def strtext = "meta"
+    end
+
+    class MakeSeedCommand
+      def strname = "Make"
+      def strtext = "seed"
     end
 
     class ProvideCommand

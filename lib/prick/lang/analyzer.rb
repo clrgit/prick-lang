@@ -28,7 +28,8 @@ module Prick::Lang
         assign_this_phase
         assign_default_phases
         add_phase_nodes
-        add_detect_meta_nodes
+        add_make_meta_node
+        add_make_seed_node
         assign_schema
         assign_phases
         collect_meta
@@ -49,7 +50,16 @@ module Prick::Lang
 
     def inspect() = "<#{self.class}>"
 
-    def dump(marks: false)
+    def strflags(node, star = nil)
+      (node.dirty? ? "D" : " ") +
+      (node.built? ? "B" : " ") +
+      (node.excluded? ? "X" : " ") +
+      (node.included? ? "I" : " ") +
+      (star.nil? ? '' : (star ? '*' : ' ')) +
+      " "
+    end
+
+    def dump
       puts "Prick Files"; indent {
         ast.nodes(Ast::SourceFile) { |file|
           dirty = is_dirty?(file.path) ? "D" : " "
@@ -68,17 +78,7 @@ module Prick::Lang
         idr.nodes.sort_by(&:serial).each { |node|
           deps = node.deps.empty? ? 'nil' : node.deps.map(&:serial).map(&:inspect).join(", ")
           reqs = node.reqs.empty? ? '' : node.reqs.map(&:serial).map(&:inspect).join(", ")
-          if marks
-            flags =
-              (node.dirty? ? "D" : " ") +
-              (node.built? ? "B" : " ") +
-              (node.excluded? ? "X" : " ") +
-              (node.included? ? "I" : " ") +
-              (compiler.mode == :build && node.build? || compiler.mode == :make && node.make? ? "*" : " ") +
-              " "
-          else
-            flags = ""
-          end
+          flags = strflags(node, (compiler.mode == :build && node.build? || compiler.mode == :make && node.make?))
           printf "#{flags}%3s -> %s [%s] ", node.serial, deps, reqs
           node.dumpdep
         }
@@ -87,22 +87,20 @@ module Prick::Lang
       puts "Resources"; indent {
         compiler.present.each { |uid|
           node = compiler.resources[uid]
-
-          if marks
-            flags =
-              (node.dirty? ? "D" : " ") +
-              (node.built? ? "B" : " ") +
-              (node.excluded? ? "X" : " ") +
-              (node.included? ? "I" : " ") + " "
-          else
-            flags = ""
-          end
+          flags = strflags(node)
           printf flags
           puts "#{uid} -> #{node.tail.serial}"
         }
       }
 
-      puts "Schema"
+      puts "Schemas"; indent {
+        compiler.schemas.values.each { |node|
+          flags = strflags(node)
+          puts "#{flags}#{node.uid}"
+
+        }
+      }
+
     end
 
   private
@@ -156,20 +154,17 @@ module Prick::Lang
       }
     end
 
-    # Add detect meta node at the end of the program term phase
-    def add_detect_meta_nodes
+    # Add a make-meta node at the end of the program term phase
+    def add_make_meta_node
       phase = program.phases[:TERM]
-      phase.block.append Idr::CheckMetaCommand.new(phase)
+      phase.append Idr::MakeMetaCommand.new(phase)
     end
 
-
-#     idr.nodes(Idr::Phase).select { _1.kind == :TERM }.each { |phase|
-# #     idr.trees(Idr::Phase).select { _1.kind == :TERM }.each { |phase|
-#       if phase.kind == :TERM && phase.parent == idr
-#         phase.block.append Idr::CheckMetaCommand.new(phase)
-#       end
-#     }
-#   end
+    # Add a make-seed node at the end of the seed phase
+    def add_make_seed_node
+      phase = program.phases[:SEED]
+      phase.append Idr::MakeSeedCommand.new(phase)
+    end
 
     # Assign Node#schema. TODO Do we check for sql in main?
     def assign_schema
