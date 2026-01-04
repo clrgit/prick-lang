@@ -6,7 +6,7 @@ module Prick::Command
     include Prick::Lang::Timer
 
     # The name of the command. 'init', 'build', 'list', ...
-    attr_reader :cmd
+    attr_reader :cmd # String
 
     # Options for the command
     attr_reader :opts

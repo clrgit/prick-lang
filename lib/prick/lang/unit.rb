@@ -4,6 +4,7 @@ module Prick::Lang
   module Unit
     class Node
       include ClassFunctions
+      include ErrorFunctions
 
       # Connection object. Initialized by the executer
       @@CONN = nil

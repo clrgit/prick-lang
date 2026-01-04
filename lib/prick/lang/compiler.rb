@@ -280,6 +280,7 @@ module Prick::Lang
       begin
         t0 = Time.now
 
+        reset_compiler_state if mode == :build
         load_compiler_state
 
         time "Parsing" do
@@ -300,26 +301,27 @@ module Prick::Lang
 
         dt = Time.now - t0
         settings.compile_duration = dt
+
+        save_compiler_state
+
       rescue
         @parser&.tokenizer&.dump
         raise
       end
     end
 
-    def interpret
-      raise
-      compile do
-        t0 = Time.now
-        time "Executing" do
-          execute
-        end
-        t1 = Time.now
-        dt = t1 - t0
-        settings.execute_duration = dt
-      end
-#     puts "COMPILER absent here"
-#     p conn.tuples "prick.resources"
-    end
+#   def interpret
+#     raise
+#     compile do
+#       t0 = Time.now
+#       time "Executing" do
+#         execute
+#       end
+#       t1 = Time.now
+#       dt = t1 - t0
+#       settings.execute_duration = dt
+#     end
+#   end
 
     #
     # S T A T E
@@ -333,8 +335,14 @@ module Prick::Lang
       @completed_resources = conn.values %(select uid from prick.resources)
     end
 
-    # Remove the compiler state if present
-    def reset_compiler_state = conn.exec "delete from prick.resources"
+    def save_compiler_state
+      # Add meta tables etc.
+    end
+
+    # Remove the compiler state. This is used by 'prick build'
+    def reset_compiler_state
+      conn.exec "delete from prick.resources"
+    end
 
     #
     # Utilities
