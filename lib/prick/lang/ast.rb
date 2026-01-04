@@ -311,25 +311,25 @@ module Prick::Lang
     end
 
     class CopyCommand < MergeCommand
-      part :tables, [Ident]
+      part :tables, [Reference]
     end
 
     class PrepareCommand < MergeCommand
-      part :table, Ident
+      part :table, Reference
       part :key, Ident
-      part :id_table, Ident
+      part :id_table, Reference
       part :source, Source
     end
 
     class SyncCommand < MergeCommand
-      part :table, Ident
+      part :table, Reference
       part :key, Ident
-      part :id_table, Ident
+      part :id_table, Reference
       part :source, Source
     end
 
     class HandleCommand < MergeCommand
-      part :tables, [Ident]
+      part :tables, [Reference]
     end
 
     #
