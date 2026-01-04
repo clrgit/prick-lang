@@ -96,7 +96,7 @@ module Prick::Lang
         super phase_name: phase_name, schema_name: schema_name, uid: uid
       end
 #     def execute = conn.insert "prick.resources", [:phase_name, :schema_name, :uid], marks
-      def to_a = [phase_name, schema_name, uid]
+      def to_a = [phase_name, schema_name, uid] # For Marks#execute
       def to_s = "MARK #{uid}"
     end
 
@@ -131,9 +131,12 @@ module Prick::Lang
     end
 
     class Meta < Node
-      attr_reader :table # qualified table name
-      def initialize(table) = super table: table
-      def execute = conn.proc :"prick.register_meta_table", table
+      attr_reader :schema_name
+      attr_reader :table_name
+      def table = "#{schema_name}.#{table_name}"
+      def initialize(schema_name, table_name) = super schema_name: schema_name, table_name: table_name
+#     def execute = conn.proc :"prick.register_meta_table", table
+      def execute = conn.insert "prick.meta_tables", schema_name: schema_name, table_name: table_name
       def to_s = "META #{table}"
     end
 
@@ -144,15 +147,34 @@ module Prick::Lang
       def to_s = "SQL #{sql.inspect}"
     end
 
-    class Call < Sql
+    class Call < Node
       attr_reader :proc
       def initialize(proc) = super proc: proc
       def execute = conn.proc proc
-      def to_s = out.puts "CALL #{proc}"
+      def to_s = "CALL #{proc}"
     end
 
-    class DetectMeta < Call
-      def initialize() = super :"prick.register_meta_tables"
+    class CheckMeta < Node
+      attr_reader :schemas # [String]
+      def initialize(schemas) = super schemas: schemas
+      def execute
+        absent_tables = conn.values %(
+            select schema_name || '.' || table_name as "table_uid"
+            from prick.curr_serials
+            where schema_name in #{conn.quote_list(schemas)}
+            and value > 1
+
+            except
+
+            select schema_name || '.' || table_name as "table_uid"
+            from prick.meta_tables
+        )
+
+        if !absent_tables.empty?
+          error "Found undeclared meta tables: #{absent_tables.join(', ')}"
+        end
+      end
+      def to_s = "CHECK #{schemas.join(', ')}"
     end
 
     class File < Node
@@ -238,7 +260,7 @@ __END__
     class ClearSchemaSeed < Node
     end
 
-    class DetectMeta < Node
+    class CheckMeta < Node
     end
 
     class SearchPath < Node

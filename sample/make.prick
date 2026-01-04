@@ -18,7 +18,7 @@ seed {
 
 schema B
   require A
-  require A.gryf
+  require A.ares
   b-tables.sql
 
   seed {

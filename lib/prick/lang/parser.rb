@@ -57,20 +57,17 @@ module Prick::Lang
     end
 
     def parse(lines = nil)
-      begin
-        push_tokenizer Tokenizer.new(source_file, lines)
-        @ast = parse_program
-        read(eof:false)
-        if !@tokenizer.eof?
-          unexpected_token_error token, "end of file"
-        end
-      ensure
-        pop_tokenizer
+      push_tokenizer Tokenizer.new(source_file, lines)
+      @ast = parse_program
+      read(eof:false)
+      if !@tokenizer.eof?
+        unexpected_token_error token, "end of file"
       end
+      pop_tokenizer
       @ast
     end
 
-    def inspect = "<Parser: #{file}>"
+    def inspect = "<Parser: #{tokenizer&.file}>"
 
   private
     def push_tokenizer(tokenizer) = @tokenizers.push (@tokenizer = tokenizer)
@@ -94,19 +91,19 @@ module Prick::Lang
         when :OPTIONS; parse_options
         when :PROVIDE; parse_provide
         when :REQUIRE; parse_require
-        when :META; parse_meta
         when :IF; parse_if
         when :CASE; parse_case
-        when *Token::PHASES; parse_decl(Ast::Phase, peek)
+        when *Token::PHASES; parse_decl(Ast::Phase, peek) # :INIT, :TERM, ...
         when :EXEC, :EVAL, :ECHO, :SQL; parse_command
+        when :RUBY; not_implemented_error "'ruby' command"
+        when :CALL; parse_call_command
+        when :FILE; parse_file
+        when :DIR; parse_dir
+        when :META; parse_meta
         when :COPY; parse_copy_command
         when :SYNC, :PREPARE; parse_sync_prepare_command
         when :HANDLE; parse_handle_command
-        when :RUBY; not_implemented_error "'ruby' command"
-        when :CALL; parse_call_command
         when :CHECK; parse_check_command
-        when :FILE; parse_file
-        when :DIR; parse_dir
       else
         return nil
       end
@@ -166,9 +163,9 @@ module Prick::Lang
     end
 
     def parse_meta
-      make = Ast::Meta.new(read)
-      make.tables = parse_references
-      make
+      meta = Ast::Meta.new(read)
+      meta.tables = parse_references
+      meta
     end
 
     #
@@ -210,14 +207,11 @@ module Prick::Lang
       else
         source = Ast::SourceFile.new token, path: path
         compiler.sources[path] = source
-        begin
-          push_tokenizer Tokenizer.new path
-          Dir.chdir(source.dirpath) {
-            source.block = parse_block(nil, check: false)
-          }
-        ensure
-          pop_tokenizer
-        end
+        push_tokenizer Tokenizer.new path
+        Dir.chdir(source.dirpath) {
+          source.block = parse_block(nil, check: false)
+        }
+        pop_tokenizer
         source
       end
     end

@@ -81,8 +81,7 @@ module Prick::Lang
         reqs.each &:dirty!
       end
 
-      # Set #include? to true transitively but ignore nodes with #exclude? ==
-      # true
+      # Set #include? to true transitively but ignore excluded nodes
       def include!()
         return if included? || excluded?
         @included = true
@@ -250,10 +249,10 @@ module Prick::Lang
       def require_search_path? = true
     end
 
-    # Artificial node that detects meta tables (before any seed has been
-    # loaded). There is ever only one of these nodes, it is added to the end of
-    # the program TERM block
-    class DetectMetaCommand < Command
+    # Artificial node that detects if all meta tables have been declared
+    # (before any seed has been loaded). There is ever only one of these nodes,
+    # it is added to the end of the program TERM block
+    class CheckMetaCommand < Command
       def initialize(parent) = super(parent, nil)
     end
 
@@ -264,7 +263,8 @@ module Prick::Lang
     end
 
     # Abstract base class for articial nodes that marks the beginning or end of
-    # a block. They serve as anchor points for requirements and dependencies
+    # a block. They serve as anchor points for requirements and dependencies.
+    # Mark commands have the same uid as the enclosing object
     class MarkCommand < NopCommand
       def uid = parent.uid
       def kind = raise # Either :HEAD or :TAIL
@@ -287,16 +287,11 @@ module Prick::Lang
       attr_accessor :uid # UID of required node
       attr_accessor :node # Required node
 
-#     def node=(node)
-#       depend_on(node)
-#       @node = node
-#     end
-
       def initialize(parent, ast, uid = nil)
         constrain parent, Idr::Resource
         constrain ast, Ast::Reference
         super(parent, ast)
-        @uid = uid
+        @uid = uid.downcase
       end
     end
 
@@ -317,7 +312,7 @@ module Prick::Lang
       include ResourceUID
       def initialize(parent, ast, uid)
         super(parent, ast)
-        @uid = uid
+        @uid = uid.downcase
       end
     end
 
@@ -378,11 +373,12 @@ module Prick::Lang
       def include!() super; tail.include! end
       def exclude!() super; head.exclude! end
 
-      def initialize(parent, ast)
+      def initialize(parent, ast, ident)
         constrain parent, Resource, nil
         constrain ast, Ast::Decl, nil # Should quack #ident, nil because of Program
+        constrain ident, String, nil # Only Program has a nil ident
         super(parent, ast)
-        @ident = ast&.ident&.value
+        @ident = ident
         @block = []
       end
 
@@ -403,11 +399,18 @@ module Prick::Lang
     # that is used to anchor requirements. By having these artificial nodes we
     # can insert code after a phase's requirements but before the regular code
     # in the phase and vice-versa at the end of the block
+    #
+    # Phase identifiers are uppercased
     class Phase < Resource
-      # Order is execution-order of phases: init, this, term, seed, auth, merge
-      KINDS = [:INIT, :THIS] + Token::PHASES.reject { _1 == :INIT }
-      ATTRS = KINDS.map(&:downcase)
-      PHASES = KINDS.map { |kind| [kind, [kind.downcase, :"#{kind.downcase}="]] }.to_h
+      # KINDS is in execution-order of phases: init, this, term, seed, auth, merge
+      KINDS = [:INIT, :THIS] + Token::PHASES.reject { _1 == :INIT } # [Symbol]
+      ATTRS = KINDS.map(&:downcase) # [Symbol]
+      PHASES = KINDS.map { |kind| [kind, [kind.downcase, :"#{kind.downcase}="]] }.to_h # {Symbol=>Symbol}
+
+#     def initialize(parent, ast) = super(parent, ast, ast&.ident&.value&.upcase)
+      def initialize(parent, ast, ident = nil)
+        super(parent, ast, ident || ast.ident.value.upcase)
+      end
 
       def kind = ast.kind # Upcase Symbol
       def read_attr = kind.downcase # Reader method in parent object
@@ -422,32 +425,26 @@ module Prick::Lang
     end
 
     # TODO
-    # Drop/create schemas
-    class SetupPhase < Phase
-    end
-
-    # TODO
-    # Registers meta tables
-    class MetaPhase < Phase
+    # Runs after merge and allows old data to be connected to new seed data
+    class PatchPhase < Phase
     end
 
     # Default empty phase. Added to the Idr by the analyzer for undefined phases
     # TODO: Rename to something else
     class DefaultPhase < Phase
-      attr_reader :kind
+      attr_reader :kind # Symbol
       def initialize(parent, kind)
-        super(parent, nil)
+        super(parent, nil, kind.to_s)
         @kind = kind
-        @ident = read_attr
       end
     end
 
     # The implicit 'this' phase
     class ThisPhase < Phase
-      def ident = "this"
       def kind = :THIS
       def read_attr = :this
       def write_attr = :"this="
+      def initialize(parent, ast) = super(parent, ast, kind.to_s) # ast is nil for Program objects
     end
 
     class Procedure < Resource
@@ -459,8 +456,8 @@ module Prick::Lang
       attr_reader :procedures # [Procedure]
       attr_reader :meta_commands # [MetaCommand]
 
-      # Forward #head and #tail to the this-phase
-      forward_to :this, :head, :tail
+      # Forward #head and #tail to the term-phase
+      forward_to :term, :head, :tail
 
       # List of schemas that this schema depends on or requires. Assigned by the analyzer
       attr_accessor :schema_deps
@@ -481,7 +478,8 @@ module Prick::Lang
       def initialize(parent, ast)
         constrain parent, Idr::Resource, nil
         constrain ast, Ast::Schema, Ast::Program
-        super(parent, ast)
+        ident = ast.ident&.value&.downcase # nil for Program object
+        super(parent, ast, ident)
         @schema = self
         @this = ThisPhase.new(self, ast)
 #       @schema_command = self.is_a?(Program) ? NopCommand.new(self) : SchemaCommand.new(self, ast)
@@ -506,30 +504,7 @@ module Prick::Lang
         constrain ast, Ast::Program
         super(nil, ast)
         @schemas = []
-#       @meta_command = DetectMetaCommand.new(self) # FIXME Move to analyzer
       end
-
-#     def include!
-#       puts "PROGRAM#include"
-#       indent {
-#         v = super
-#         puts @included
-#         puts head
-#         puts head.included?.inspect
-#       }
-#     end
-#
-#     def included?()
-#       puts "#included?()"
-#       indent {
-#         puts "head.included?: #{head.included?.inspect}"
-#         puts "tail.included?: #{tail.included?.inspect}"
-#       }
-#
-#       v = super
-#       puts "  -> #{v.inspect}"
-#       v
-#     end
 
       def program? = true
     end

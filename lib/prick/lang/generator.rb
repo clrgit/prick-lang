@@ -31,12 +31,15 @@ module Prick::Lang
     # Generated schemas. These schemas are reset and then redefined
     attr_reader :build_schemas # [Schema]
 
-    # Schemas that are defined but not rebuilt and not invalid
-    attr_reader :preserve_schemas # [Schema]
-
     # Invalidated schemas. These schemas depends on #schemas but are not
     # themselves rebuilt
     attr_reader :invalidate_schemas # [Schema]
+
+    # List of schemas that will be either rebuilt or invalidated
+    def affected_schemas = build_schemas + invalidate_schemas # [Schema]
+
+    # Schemas that are defined but not rebuilt and not invalid
+    attr_reader :preserve_schemas # [Schema]
 
     # Final set of units in execution order
     attr_reader :execute_units # [Unit]
@@ -51,12 +54,8 @@ module Prick::Lang
       # Sort nodes
       tsorted_nodes = topological_sort
 
-
       # Select nodes for the current compiler mode (:build/:make)
       selected_nodes = tsorted_nodes.select { _1.send(mode_method) }
-
-      # Build units and assign to phases. Initializes @phases, @units, and @nodes
-      build_units selected_nodes
 
       # Find schemas to rebuild
       @build_schemas = selected_nodes.map(&:schema).compact.uniq.reject(&:program?)
@@ -67,6 +66,10 @@ module Prick::Lang
       # Find preserved schemas
       @preserve_schemas = idr.schemas - @build_schemas - @invalidate_schemas
 
+      # Build units and assign to phases. Initializes @phases, @units, and @nodes
+      build_units selected_nodes
+
+      # Units to execute
       @execute_units = []
 
       # Assign initial units (creates/drops schemas) and set up transaction
@@ -141,12 +144,12 @@ module Prick::Lang
                 Unit::Bash.new node.kind, node.source
               when Idr::CallCommand
                 Unit::Call.new node.procs
-              when Idr::DetectMetaCommand
-                Unit::DetectMeta.new
+              when Idr::CheckMetaCommand
+                Unit::CheckMeta.new affected_schemas.map(&:uid)
               when Idr::TailCommand
                 Unit::Mark.new node.phase, node.schema&.ident, node.uid
               when Idr::MetaCommand
-                Unit::Meta.new node.table
+                Unit::Meta.new node.schema_name, node.table_name
               when Idr::CopyCommand
                 Unit::Copy.new node.tables
               when Idr::SyncCommand
@@ -243,7 +246,7 @@ module Prick::Lang
           if this_schema = node.schema
             # Insert search path node if needed
             if node.require_search_path? && this_schema != current_schema
-              @execute_units << Unit::SearchPath.new(this_schema.ident) if !this_schema.program?
+              @execute_units << Unit::SearchPath.new(this_schema.ident.to_s.downcase) if !this_schema.program?
               current_schema = this_schema
             end
 

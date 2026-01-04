@@ -67,6 +67,8 @@ private
     return if kinds.empty?
 
     compiler.analyze link: true
+#   compiler.idr.dump
+#   exit
 #   compiler.idr.dumptree
 #   exit
 

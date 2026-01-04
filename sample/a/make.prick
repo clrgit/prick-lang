@@ -1,9 +1,13 @@
 schema A {
   tables.sql
 
-  provide gryf
-  sql select 1
-  sql select 2
+  provide ares
+
+  data.sql
+
+  sql select 'schema A'
+
+  meta tbl1
 
   seed {
     seed.sql

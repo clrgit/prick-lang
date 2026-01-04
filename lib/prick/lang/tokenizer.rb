@@ -51,7 +51,7 @@ module Prick::Lang
     # Return true if peek is valid and is compatible with the given flags
     def peek?(eol: false, eof: false)
       @peeker.read? &&
-        (@peek_eol == eol || !eol && @peeker.token.kind != :EOL) &&
+        (@peek_eol == eol || !eol && @peeker.token&.kind != :EOL) &&
         (@peek_eof == eof || !@peeker.eof?)
     end
 
@@ -92,6 +92,7 @@ module Prick::Lang
 
     def dump
       puts "Tokenizer"; indent {
+        puts "file: #{file}"
         puts "peek_eol: #{@peek_eol}"
         puts "peek_eof: #{@peek_eof}"
         if peek?

@@ -61,7 +61,6 @@ module Prick::Lang
     attr_reader :converter
     attr_reader :analyzer
     attr_reader :generator
-    attr_reader :executer
     # attr_reader :dumper <- TODO
 
     # Data structures
@@ -95,6 +94,9 @@ module Prick::Lang
     attr_reader :meta_tables
     attr_reader :seed_tables
 
+    # Affected schemas
+    attr_reader :affected_schemas
+
     def initialize(
         targets = [DEFAULT_TARGET],
         mode: :build,
@@ -125,57 +127,12 @@ module Prick::Lang
       @converter = Converter.new
       @analyzer = Analyzer.new
       @generator = Generator.new
-      @executer = Executer.new
       @schemas = {}
       @resources = {}
       @unresolved = []
       @requires = []
       @context_stack = [] # Stack of [Idr::Resource, Idr::Block] tuples
       @schema_stack = [] # Stack of Idr::Schema objects
-    end
-
-    #
-    # Compile
-    #
-
-    def compile
-      t0 = Time.now
-
-      load_compiler_state
-
-      time "Parsing" do
-        parse
-      end
-
-      time "Converting" do
-        convert
-      end
-
-      time "Analyzing" do
-        analyze
-      end
-
-      time "Generating" do
-        generate
-      end
-
-      dt = Time.now - t0
-      settings.compile_duration = dt
-    end
-
-    def interpret
-      raise
-      compile do
-        t0 = Time.now
-        time "Executing" do
-          execute
-        end
-        t1 = Time.now
-        dt = t1 - t0
-        settings.execute_duration = dt
-      end
-#     puts "COMPILER absent here"
-#     p conn.tuples "prick.resources"
     end
 
     #
@@ -211,11 +168,6 @@ module Prick::Lang
     # Generate units
     def generate
       @generator.generate
-    end
-
-    # Execute units
-    def execute
-      @executer.execute
     end
 
     #
@@ -318,6 +270,55 @@ module Prick::Lang
     ensure
       @context_stack.pop
       @schema_stack.pop if context.is_a? Idr::Schema
+    end
+
+    #
+    # Compile
+    #
+
+    def compile
+      begin
+        t0 = Time.now
+
+        load_compiler_state
+
+        time "Parsing" do
+          parse
+        end
+
+        time "Converting" do
+          convert
+        end
+
+        time "Analyzing" do
+          analyze
+        end
+
+        time "Generating" do
+          generate
+        end
+
+        dt = Time.now - t0
+        settings.compile_duration = dt
+      rescue
+        @parser&.tokenizer&.dump
+        raise
+      end
+    end
+
+    def interpret
+      raise
+      compile do
+        t0 = Time.now
+        time "Executing" do
+          execute
+        end
+        t1 = Time.now
+        dt = t1 - t0
+        settings.execute_duration = dt
+      end
+#     puts "COMPILER absent here"
+#     p conn.tuples "prick.resources"
     end
 
     #

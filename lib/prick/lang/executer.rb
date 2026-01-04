@@ -121,7 +121,7 @@ end
 __END__
 #         @idr = nil
 #         case @unit
-#           when Unit::DetectMeta
+#           when Unit::CheckMeta
 #             detect_meta_command
 #           when Unit::SchemaCommand
 #             schema_command

@@ -133,11 +133,24 @@ module Prick::Lang
     end
 
     class Ident < Value
-      def to_sym = @token.text.to_sym
+      def to_sym = value.to_sym
     end
 
     class Reference < Value
       attr_accessor :uid
+#     attr_reader :value
+#     def initialize(...)
+#       puts "Reference#initialize"
+#       super(...)
+#       indent {
+#         p token
+#         p token.text
+#         p token.text.downcase
+#
+#       }
+#       value = token.text.downcase
+#     end
+      def to_sym = value.to_sym
     end
 
     class Path < Value

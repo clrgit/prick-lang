@@ -9,20 +9,6 @@ module Prick::Lang
     # List of program and schemas. Assigned by #collect_schemas
     attr_reader :schema_objects # [Idr::Schema]
 
-    # Target nodes
-    def targets # [Node]
-      @targets ||=
-        if compiler.targets.include? Compiler::DEFAULT_TARGET
-          [program] #.schemas.reject(&:exclude)
-        else
-          compiler.targets.map { compiler.resources[_1] }
-        end
-    end
-
-    # List of known schemas (excl. Program)
-#   def schemas = @schemas.to_a
-#   attr_reader :schemas
-
     # Nodes included by the compiler while taking explicitly included/excluded
     # nodes into account
     attr_reader :reachable_nodes
@@ -51,30 +37,33 @@ module Prick::Lang
       end
       if link.nil? || link # Link
         link_block_nodes
+#     puts "HERE"
+
+#     p program.deps.map(&:parent).map(&:ident)
+#     p program.reqs.map(&:parent).map(&:ident)
         link_phases
+#     p program.deps.map(&:parent).map(&:ident)
+#     p program.reqs.map(&:parent).map(&:ident)
         link_program_phases
         mark_nodes
         select_nodes
+#     p program.deps.map(&:parent).map(&:ident)
+#     p program.reqs.map(&:parent).map(&:ident)
+#     exit
       end
       idr
     end
 
     def inspect() = "<#{self.class}>"
 
-
     def dump(marks: false)
-      # Files that succeeded
-      # Files that failed
-      # Files that was never run
-
-      # Problem that some prick files may have no resources
-
       puts "Prick Files"; indent {
         ast.nodes(Ast::SourceFile) { |file|
           dirty = is_dirty?(file.path) ? "D" : " "
           puts "#{dirty} #{file.path}"
         }
       }
+
       puts "Source files"; indent {
         ast.nodes(Ast::File) { |file|
           dirty = is_dirty?(file.path) ? "D" : " "
@@ -144,6 +133,7 @@ module Prick::Lang
     # Assign Schema#this phases by stealing the schema's block. The phase is
     # added to the resource repository
     def assign_this_phase
+#     ([program] + schemas).each { |schema|
       schemas.each { |schema|
         schema.this.retach(schema.block)
         schema.this.block = schema.block
@@ -175,13 +165,18 @@ module Prick::Lang
 
     # Add detect meta node at the end of the program term phase
     def add_detect_meta_nodes
-      idr.nodes(Idr::Phase).select { _1.kind == :TERM }.each { |phase|
-#     idr.trees(Idr::Phase).select { _1.kind == :TERM }.each { |phase|
-        if phase.kind == :TERM && phase.parent == idr
-          phase.block.append Idr::DetectMetaCommand.new(phase)
-        end
-      }
+      phase = program.phases[:TERM]
+      phase.block.append Idr::CheckMetaCommand.new(phase)
     end
+
+
+#     idr.nodes(Idr::Phase).select { _1.kind == :TERM }.each { |phase|
+# #     idr.trees(Idr::Phase).select { _1.kind == :TERM }.each { |phase|
+#       if phase.kind == :TERM && phase.parent == idr
+#         phase.block.append Idr::CheckMetaCommand.new(phase)
+#       end
+#     }
+#   end
 
     # Assign Node#schema. TODO Do we check for sql in main?
     def assign_schema
@@ -199,6 +194,7 @@ module Prick::Lang
       }
     end
 
+    # Assign Schema#meta_commands
     def collect_meta
       idr.nodes(Idr::MetaCommand).each { |meta|
         meta.schema.meta_commands << meta
@@ -248,7 +244,7 @@ module Prick::Lang
       }
     end
 
-    # Computer schema-schema dependencies. Note that this may form a cyclic
+    # Compute schema-schema dependencies. Note that this may form a cyclic
     # graph
     def assign_schema_deps
       schemas.each { |schema|
