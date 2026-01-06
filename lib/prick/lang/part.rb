@@ -107,15 +107,18 @@ module Prick::Lang
     end
 
     # :call-seq:
-    #   part ident, klass = Part
-    #   part ident, [klass]
+    #   part ident, constraint
+    #   part ident, constraint, nil
     #
     # Register a part object and create accessor methods
     #
-    def self.part(ident, constraint = Part)
+    def self.part(ident, constraint, *args)
       constrain ident, Symbol
       constrain constraint, Class, [Class]
       constrain Array(constraint).all? { _1 <= Part }, true # Only Part classes can be parts
+      constrain args.size <= 1, true
+      constrain args.empty? || args.first.nil?, true
+      accept_nil = args.size == 1
 
       method = :"#{ident}="
       member = :"@#{ident}"
@@ -147,7 +150,7 @@ module Prick::Lang
 
         # Define writer method
         define_method(method) { |node|
-          node.is_a?(klass) or unexpected_error klass, node.class
+          (node.nil? ? accept_nil : node.is_a?(klass)) or unexpected_error klass, node.class
           self.assign(ident, node)
         }
       end

@@ -346,33 +346,25 @@ module Prick::Lang
     # HERE HERE HERE
 
     class CopyCommand < MergeCommand
-#     def initialize(parent, ast, table)
-#       super(parent, ast, ta)
-#     end
-    end
-
-
-    class SingleCopyCommand < MergeCommand
-      forward_to :ast, :table
+      forward_to :ast, :table, :source
     end
 
     class SyncCommand < MergeCommand
       forward_to :ast, :table, :key, :id_table, :source
-      def tables = [table]
     end
 
     class PrepareCommand < MergeCommand
       forward_to :ast, :table, :key, :id_table, :source
-      def tables = [table]
     end
 
     class HandleCommand < MergeCommand
-      forward_to :ast, :tables
+      forward_to :ast, :table, :source
     end
 
     # A CheckCommand is only emitted when a check command was triggered. It
     # invalidates all following nodes within the resource when running 'prick
     # make'
+    # FIXME What?
     class CheckCommand < NopCommand
     end
 

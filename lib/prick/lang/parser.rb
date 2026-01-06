@@ -259,6 +259,9 @@ module Prick::Lang
     def parse_handle_command
       command = Ast::HandleCommand.new(read)
       command.tables = parse_references
+      if source = parse_source?(singleline: false)
+        command.source = source
+      end
       command
     end
 

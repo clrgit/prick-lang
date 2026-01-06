@@ -89,12 +89,10 @@ module Prick::Lang
             when Ast::CallCommand; [Idr::CallCommand.new(compiler.context, ast)]
             when Ast::CopyCommand
               ast.tables.map { |ref| Idr::CopyCommand.new(compiler.context, ref, ref.value) }
-            when Ast::SyncCommand;
-              p :EING
-              exit
-              [Idr::SyncCommand.new(compiler.context, ast)]
-            when Ast::PrepareCommand; [Idr::PrepareCommand.new(compiler.context, ast)]
-            when Ast::HandleCommand; [Idr::HandleCommand.new(compiler.context, ast)]
+            when Ast::SyncCommand; [Idr::SyncCommand.new(compiler.context, ast, ast.table.to_s)]
+            when Ast::PrepareCommand; [Idr::PrepareCommand.new(compiler.context, ast, ast.table.to_s)]
+            when Ast::HandleCommand
+              ast.tables.map { |ref| Idr::HandleCommand.new(compiler.context, ref, ref.value) }
           end
     end
 

@@ -334,6 +334,7 @@ module Prick::Lang
 
     class HandleCommand < MergeCommand
       part :tables, [Reference]
+      part :source, Source
     end
 
     #

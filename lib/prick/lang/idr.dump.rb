@@ -196,7 +196,7 @@ module Prick::Lang
     end
 
     class HandleCommand
-      def strtext = tables.map(&:value).join(", ")
+      def strtext = table
     end
 
     class CallCommand
