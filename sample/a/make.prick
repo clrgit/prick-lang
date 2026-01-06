@@ -15,7 +15,10 @@ schema A {
 
   merge {
     copy tbl1
-    copy tbl2
+    handled tbl2
+    sync tbl3, kind
+    prepare tbl4, kind
+
   }
 }
 

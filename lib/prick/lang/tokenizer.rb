@@ -93,6 +93,8 @@ module Prick::Lang
     def dump
       puts "Tokenizer"; indent {
         puts "file: #{file}"
+        puts "token: #{token.inspect}"
+        puts "peek: #{peek_token.inspect}"
         puts "peek_eol: #{@peek_eol}"
         puts "peek_eof: #{@peek_eof}"
         if peek?

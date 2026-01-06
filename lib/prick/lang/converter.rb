@@ -73,6 +73,11 @@ module Prick::Lang
           ast.tables.map { |ref| Idr::MetaCommand.new(compiler.context, ref, ref.value) }
     end
 
+    def convert_copy(ast)
+      constrain ast, Ast::CopyCommand
+    end
+
+
     def convert_command(ast)
       constrain ast, Ast::FileCommand, Ast::SqlCommand, Ast::ExternalCommand, Ast::CallCommand,
                      Ast::CopyCommand, Ast::SyncCommand, Ast::PrepareCommand, Ast::HandleCommand
@@ -82,8 +87,12 @@ module Prick::Lang
             when Ast::SqlCommand; [Idr::SqlCommand.new(compiler.context, ast)]
             when Ast::ExternalCommand; [Idr::ExternalCommand.new(compiler.context, ast)]
             when Ast::CallCommand; [Idr::CallCommand.new(compiler.context, ast)]
-            when Ast::CopyCommand; [Idr::CopyCommand.new(compiler.context, ast)]
-            when Ast::SyncCommand; [Idr::SyncCommand.new(compiler.context, ast)]
+            when Ast::CopyCommand
+              ast.tables.map { |ref| Idr::CopyCommand.new(compiler.context, ref, ref.value) }
+            when Ast::SyncCommand;
+              p :EING
+              exit
+              [Idr::SyncCommand.new(compiler.context, ast)]
             when Ast::PrepareCommand; [Idr::PrepareCommand.new(compiler.context, ast)]
             when Ast::HandleCommand; [Idr::HandleCommand.new(compiler.context, ast)]
           end

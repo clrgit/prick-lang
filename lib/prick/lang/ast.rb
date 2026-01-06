@@ -308,6 +308,10 @@ module Prick::Lang
     #
 
     class MergeCommand < Command
+      def initialize(...)
+        super(...)
+        puts "MergeCommand#initialize"
+      end
     end
 
     class CopyCommand < MergeCommand

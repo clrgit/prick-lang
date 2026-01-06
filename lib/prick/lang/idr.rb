@@ -336,6 +336,7 @@ module Prick::Lang
 #     def require_search_path? = true
 
       def initialize(parent, ast, table)
+        constrain parent, Idr::Phase
         constrain table, String
         @table_name, @schema_name = table.split('.').reverse
         @schema_name ||= parent.ident.to_s
@@ -345,8 +346,11 @@ module Prick::Lang
     # HERE HERE HERE
 
     class CopyCommand < MergeCommand
-      forward_to :ast, :tables
+#     def initialize(parent, ast, table)
+#       super(parent, ast, ta)
+#     end
     end
+
 
     class SingleCopyCommand < MergeCommand
       forward_to :ast, :table

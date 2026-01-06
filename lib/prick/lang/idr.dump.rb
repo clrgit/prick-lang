@@ -164,7 +164,7 @@ module Prick::Lang
     end
 
     class CopyCommand
-      def strtext = tables.map(&:value).join(", ")
+      def strtext = table.to_s
     end
 
     class SyncCommand

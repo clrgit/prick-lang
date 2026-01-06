@@ -201,7 +201,7 @@ module Prick::Lang
         puts "pos: #{pos}"
 #       puts "lines: #{lines.inspect}"
         puts "lines:"; indent {
-          puts lines.map.with_index { |l, i| "[#{i}] #{l}" }.join("\n") #.align(empty: true)
+          puts lines.map.with_index { |l, i| "[#{i}]".ljust(6) + l }.join("\n") #.align(empty: true)
         }
         puts "line: #{line.inspect}"
         puts "rest: #{rest.inspect}"

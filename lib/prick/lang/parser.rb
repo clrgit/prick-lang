@@ -233,7 +233,7 @@ module Prick::Lang
 
     def parse_copy_command
       command = Ast::CopyCommand.new(read)
-      command.tables = parse_idents
+      command.tables = parse_references
       command
     end
 
@@ -244,20 +244,21 @@ module Prick::Lang
       else
         command = Ast::PrepareCommand.new(token)
       end
-      command.table = parse_ident(expect: "table")
-      command.key = parse_ident(expect: "key")
+      command.table = parse_reference(expect: "table")
+      readkind(:COMMA)
+      command.key = v = parse_ident(expect: "key")
 
-      if id_table_token = parse_ident?
+      if id_table_token = parse_reference?
         command.id_table = id_table_token
-      else
-        command.source = parse_source(expect: "sql source", singleline: false) if peek_token
+      elsif source = parse_source?(singleline: false)
+        command.source = source
       end
       command
     end
 
     def parse_handle_command
       command = Ast::HandleCommand.new(read)
-      command.tables = parse_idents
+      command.tables = parse_references
       command
     end
 
@@ -564,9 +565,9 @@ module Prick::Lang
     def parse_name? = Ast::Reference.new(readpred :is_ident?, expect: "name" )
 
     def parse_reference?() = Token::REFS.include?(peek(eol: true)&.kind) ? Ast::Reference.new(read) : nil
-    def parse_reference() Ast::Reference.new(readpred :is_ref?, expect: "reference") end
+    def parse_reference(expect: "reference") Ast::Reference.new(readpred :is_ref?, expect: expect) end
     def parse_references? = readwhile? { parse_reference? }
-    def parse_references = check_expected("reference") { readwhile { parse_reference? } }
+    def parse_references(expect: "reference") = check_expected(expect) { readwhile { parse_reference? } }
 
     # Parse a space-separated list of values. Values are IDENT, REF, or a version match
     def parse_list?
@@ -588,7 +589,7 @@ module Prick::Lang
       end
     end
 
-    # Parse single or multiline source
+    # Parse single or multiline source. If expect is nil, no error is raised
     def parse_source(expect: "command", singleline: true)
       token = peek(eol: true)
       if token.kind == :PIPE
@@ -601,11 +602,17 @@ module Prick::Lang
       elsif singleline && !token.nil?
         source = Ast::Source.new(token)
         source.value = readline&.text
+      elsif expect.nil?
+        return nil
       else
         unexpected_token_error peek, expect
       end
+#     puts "< #{source.value.inspect} >"
       source
     end
+
+    # Like #parse but returns nil if no source was found
+    def parse_source?(**opts) = parse_source(expect: nil, **opts)
 
     #
     # T O K E N I Z E R  I N T E R F A C E
