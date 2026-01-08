@@ -28,9 +28,6 @@ module Prick::Lang
     # phases are present even if they have no nodes
     attr_reader :phases # {PHASE=>[Unit::Node]}
 
-#   # Active phases (phases that have nodes that will be built)
-#   attr_reader :active_phases # [PHASE]
-
     # List of all targeted schemas
     attr_reader :target_schemas # [Schema]
 
@@ -56,8 +53,40 @@ module Prick::Lang
     # Affected phases
     attr_reader :affected_phases # [Phase]
 
+    # Nodes selected by the targets
+    attr_reader :selected_nodes
+
     # Final set of units in execution order
     attr_reader :execute_units # [Unit]
+
+    def dump
+      puts "Generator"; indent {
+        puts "Idr units: #{units.size}"
+        puts "Meta"; indent {
+          puts "Schemas: #{meta.schemas.join(', ')}"
+          puts "Tables: #{meta.tables.map { _1.join('.') }.join(', ')}"
+        }
+        puts "Phases"; indent {
+          puts "affected: #{affected_phases.map &:ident}"
+          phases.each { |k,v|
+            puts "#{k.downcase}: #{v.size}"
+          }
+        }
+        puts "Schemas"; indent {
+          puts "targets: #{target_schemas.map &:ident}"
+          puts "seeds: #{seed_schemas.map &:ident}"
+          puts "build: #{build_schemas.map &:ident}"
+          puts "invalid: #{invalid_schemas.map &:ident}"
+          puts "preserve: #{preserve_schemas.map &:ident}"
+          puts "affected: #{affected_schemas.map &:ident}"
+        }
+        puts "Executable units: #{execute_units.size}"
+
+#       puts "Nodes"; indent {
+#         selected_nodes.each(&:dumpline)
+#       }
+      }
+    end
 
     def initialize
     end
@@ -70,11 +99,11 @@ module Prick::Lang
       tsorted_nodes = topological_sort
 
       # Select nodes for the current compiler mode (:build/:make)
-      selected_nodes = tsorted_nodes.select { _1.send(mode_method) }
+      @selected_nodes = tsorted_nodes.select { _1.send(mode_method) }
 
       # Assign schemas
       if mode == :merge
-        @target_schemas = selected_nodes.map(&:schema).compact.reject(&:program?)
+        @target_schemas = @selected_nodes.map(&:schema).compact.reject(&:program?)
         @seed_schemas = []
         @build_schemas = []
         @invalid_schemas = []
@@ -84,46 +113,36 @@ module Prick::Lang
 
         # TODO Check that all seed tables have been covered
       else
-        target_schemas = Set.new
+        non_seed_schemas = Set.new
         seed_schemas = Set.new
-        selected_nodes.each { |node|
+        @selected_nodes.each { |node|
           next if node.schema.nil?
           next if node.is_a? Idr::Program
-          if node.seed? && !target_schemas.include?(node.schema)
-            seed_schemas.add node.schema
-          else
+          if node.seed?
+            if !non_seed_schemas.include? node.schema
+              seed_schemas.add node.schema
+            else
+              ;
+            end
+          elsif seed_schemas.include? node.schema
             seed_schemas.delete node.schema
+            non_seed_schemas.add node.schema
+          else
+            non_seed_schemas.add node.schema
           end
-          target_schemas.add node.schema
         }
 
-        @target_schemas = target_schemas.to_a
+        @target_schemas = non_seed_schemas.to_a + seed_schemas.to_a
         @seed_schemas = seed_schemas.to_a
         @build_schemas = @target_schemas - @seed_schemas
         @invalid_schemas = transitive_closure(@build_schemas, &:schema_reqs) - @target_schemas
         @preserve_schemas = idr.schemas - affected_schemas
         @affected_schemas = @build_schemas + @invalid_schemas
         @affected_phases = program.phases.values.select(&mode_method)
-
-#       @target_schemas = selected_nodes(&:schema).compact.uniq.reject(&:program?)
-#       @target_schemas = selected_nodes(&:schema).compact.uniq - [program]
-#       @seed_schemas, @non_seed_schemas = @target_schemas.partition(&:seed?)
-#       @build_schemas = selected_nodes.select { !_1.seed?
-#       @build_schemas = @target_schemas.reject(&:seed?)
-#       @build_schemas = selected_nodes.reject(&:program?).reject(&:seed?).map(&:schema).compact.uniq
-#       # Find schemas to rebuild
-#       @build_schemas = selected_nodes.map(&:schema).compact.uniq.reject(&:program?)
-
-#       # Find schemas depending on rebuild schemas but not included by them
-#       @invalidate_schemas = #find_invalid_schemas
-#         transitive_closure(@build_schemas, &:schema_reqs) - @build_schemas
-#
-#       # Find preserved schemas
-#       @preserve_schemas = idr.schemas - affected_schemas
       end
 
       # Build units and assign to phases. Initializes @phases, @units, and @nodes
-      build_units selected_nodes
+      build_units @selected_nodes
 
       # Units to execute
       @execute_units = []
@@ -137,41 +156,6 @@ module Prick::Lang
       # Assign final units and commit outstanding changes
       generate_final_units
     end
-
-    # if running-make
-    #   completed_nodes = completed_resources.transitive_closure(deps)
-    #   dirty_nodes = (make_nodes + updated_files).transitive_closure(uses)
-    #   generated_nodes = all_nodes - (completed_nodes - dirty_nodes)
-    # end
-    #
-    # Also mark schemas: Some schemas doesn't have to be rebuilt even if
-    # they're not completed
-
-    # Generate
-    #   mark dirty using #uses hierarchy if requested
-    #   process reachable nodes
-
-#   def dump
-#     puts "Preserve schemas"; indent {
-#       puts preserve_schemas.map(&:ident)
-#     }
-#     puts "Build schemas"; indent {
-#       puts build_schemas.map(&:ident)
-#     }
-#     puts "Invalidate schemas"; indent {
-#       puts invalidate_schemas.map(&:ident)
-#     }
-#     puts "Phases"; indent {
-#       for phase in PHASES
-#         puts phase; indent {
-#           @phases[phase].each &:dump
-#         }
-#       end
-#     }
-#     puts "Units"; indent {
-#       units.each(&:dump)
-#     }
-#   end
 
     def inspect = "#<Generator ...>"
 
@@ -188,7 +172,7 @@ module Prick::Lang
       @phases = PHASES.map { |kind| [kind, []] }.to_h # {PHASE=>[Unit]}
       @units = []
       @nodes = {}
-      @meta = Unit::Meta.new affected_schemas.map(&:uid) # Idr::MetaCommands-case needs this
+      @meta = Unit::Meta.new build_schemas.map(&:uid) # Idr::MetaCommands-case needs this
       unit_classes = { SQL: Unit::SqlFile, PSQL: Unit::PSqlFile, FOX: Unit::FoxFile, RB: Unit::RubyFile }
       nodes.each { |node|
         unit =
@@ -207,7 +191,7 @@ module Prick::Lang
                 @meta.add_table node.schema_name, node.table_name
                 next
               when Idr::MakeSeedCommand
-                Unit::Seed.new affected_schemas.map(&:uid)
+                Unit::Seed.new seed_schemas.map(&:uid)
               when Idr::TailCommand
                 Unit::Mark.new node.phase, node.schema&.ident, node.uid
               when Idr::CopyCommand
@@ -239,14 +223,11 @@ module Prick::Lang
     #
     # TODO: Check that seed is not running on existing seeded targets
     def generate_initial_units
-#     # Idr object selector method, either :build? or :make?
-#     build_method = :"#{compiler.mode}?"
-
       # Initial begin
       @execute_units << Unit::Transaction.new(:BEGIN)
 
       # Unmark
-      @execute_units << Unit::UnMarks.new(affected_phases, affected_schemas)
+      @execute_units << Unit::UnMarks.new(affected_phases.map(&:ident), affected_schemas.map(&:ident))
 
       # Drop/reset dirty schemas
       if mode != :merge

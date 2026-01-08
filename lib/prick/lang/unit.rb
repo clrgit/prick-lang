@@ -144,11 +144,11 @@ module Prick::Lang
     end
 
     class Meta < Node
-      # Affected schemas from Idr::MakeMetaCommand
+      # Schemas that will be searched for non-empty tables. From Generator#build_schemas
       attr_reader :schemas # [String]
 
       # Array of [schema_name, table_name] tuples from Idr::MetaCommand
-      attr_reader :tables
+      attr_reader :tables # [[String, String]]
 
       def initialize(schemas) = super schemas: schemas, tables: []
       def add_table(schema_name, table_name) = @tables << [schema_name, table_name]
@@ -156,13 +156,15 @@ module Prick::Lang
 
       def execute
         uid_list = conn.quote_list(uids)
+        table_expr = uids.empty? ? "true" : "(schema_name || '.' || table_name) not in #{uid_list}"
+        schema_list = conn.quote_list(schemas)
 
         # Check for undeclared meta table
         absent_tables = conn.values %(
             select schema_name || '.' || table_name
             from prick.current_serials
-            where schema_name in #{conn.quote_list(schemas)}
-            and (schema_name || '.' || table_name) not in #{uid_list}
+            where schema_name in #{schema_list}
+            and #{table_expr}
             and value > 1
         )
 
@@ -171,12 +173,14 @@ module Prick::Lang
         end
 
         # Create meta tables
-        conn.exec %(
-          insert into prick.meta_tables (schema_name, table_name, value)
-            select schema_name, table_name, value
-            from prick.current_serials
-            where schema_name || '.' || table_name in #{uid_list}
-        )
+        if !uids.empty?
+          conn.exec %(
+            insert into prick.meta_tables (schema_name, table_name, value)
+              select schema_name, table_name, value
+              from prick.current_serials
+              where schema_name || '.' || table_name in #{uid_list}
+          )
+        end
       end
 
       def to_s = "META #{(schemas+uids).join(', ')}"
@@ -206,17 +210,19 @@ module Prick::Lang
           error "Found altered meta table(s): #{altered_tables.join(', ')}"
         end
 
-        # Create seed tables
-        schema_list = conn.quote_list(schemas)
-        meta_list = conn.quote_list(meta_tables.map(&:uid))
-        conn.exec %(
-          insert into prick.seed_tables (schema_name, table_name, value)
-            select schema_name, table_name, value
-            from prick.current_serials
-            where schema_name in #{schema_list}
-              and (schema_name || '.' || table_name) not in #{meta_list}
-              and value > 1
-        )
+        # Detect seed tables
+        if !schemas.empty?
+          schema_list = conn.quote_list(schemas)
+          meta_list = conn.quote_list(meta_tables.map(&:uid))
+          conn.exec %(
+            insert into prick.seed_tables (schema_name, table_name, value)
+              select schema_name, table_name, value
+              from prick.current_serials
+              where schema_name in #{schema_list}
+                and (schema_name || '.' || table_name) not in #{meta_list}
+                and value > 1
+          )
+        end
       end
 
       def to_s = "SEED #{schemas.join(', ')}"

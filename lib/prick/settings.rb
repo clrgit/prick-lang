@@ -367,6 +367,7 @@ module Prick
     end
 
     def update_database_state
+      user_conn.cancel_transaction if user_conn.error?
       user_conn.update "prick.runs", @database_state.id, {
         status: status,
         compile_duration: compile_duration,

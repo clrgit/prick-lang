@@ -79,9 +79,10 @@ private
     return if kinds.empty?
 
     compiler.generate
+    compiler.generator.dump if kinds.delete "generator"
     puts compiler.units.map(&:to_s) if kinds.delete "units"
 
-    kinds.empty? or raise ArgumentError
+    kinds.empty? or ShellOpts.error "Illegal dump option '#{kinds.first}'"
   end
 
   def self.dump_tokens(tokens)

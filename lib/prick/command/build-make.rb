@@ -64,11 +64,8 @@ module Prick::Command
         t0 = Time.now
         ShellOpts.verb "Building #{settings.source_file}"
         indent {
-          settings.user_conn.dump "prick.meta_tables"
           compiler.compile
-          settings.user_conn.dump "prick.meta_tables"
           executer.execute
-          settings.user_conn.dump "prick.meta_tables"
         }
         dt = Time.now - t0
         ShellOpts.verb "Done (#{ftime dt})"
