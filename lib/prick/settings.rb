@@ -323,7 +323,9 @@ module Prick
       @environment_loaded = true
     end
 
-    # Load database states from cache files
+    # Load database states from cache files. This is used by 'prick list' to
+    # get a list of prick databases without probing them one by one. TODO: Some
+    # way of synchronizing and maybe also of getting a global view (not cached)
     def load_database_cache
       @database_caches = database_cache_files.map { |file|
 #       [File.basename(File.dirname(file)), OpenStruct.new(YAML.load_extended(file))]
@@ -336,7 +338,9 @@ module Prick
       IO.write database_cache_file, @database_state.to_h.to_yaml_extended
     end
 
-    # Load database state from database
+    # Load database state from database. Data are loaded from PRICK.STATES and
+    # it is assumed that there will only be one record but note that data are
+    # written to PRICK.RUNS that is the base table for the PRICK.STATES view
     def load_database_state
 #     @database_state = user_conn.struct "select * from prick.states limit 1"
       @database_state = user_conn.struct "prick.states"

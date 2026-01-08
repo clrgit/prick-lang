@@ -30,6 +30,7 @@ module Prick::Lang
     include Prick::Lang::Timer
 
     DEFAULT_TARGET = "<main>"
+    DEFAULT_MERGE_TARGET = "MERGE"
 
     # Singleton instance
     def self.instance = @@INSTANCE
@@ -90,21 +91,27 @@ module Prick::Lang
     # registered directly in database when the script is executed
     attr_reader :completed_resources # [uid]
 
-    # Lists of meta and seed tables. Assigned by the analyzer
-    attr_reader :meta_tables # [[schema_name, table_name]]
+#   # List of meta tables. Assigned by the analyzer
+#   attr_reader :meta_tables # [[schema_name, table_name]]
+
+#   # List of seed tables. Assigned by the ...
+#   attr_reader :seed_tables # [[schema_name, table_name]]
 
     # Affected schemas. Initialized by the generator
     forward_to :generator, :affected_schemas
 
     def initialize(
         targets = [DEFAULT_TARGET],
-        mode: :build,
+        mode: :build, # :build, :make, :merge
         timestamp: nil,
         exclude: [],
         variables: {})
 
+      # FIXME FIXME FIXME
+
+
       constrain targets, [String]
-      constrain mode, :build, :make
+      constrain mode, :build, :make, :merge
       constrain timestamp, Time, nil
       constrain exclude, [String]
       constrain variables.keys, [Symbol]
@@ -132,8 +139,8 @@ module Prick::Lang
       @requires = []
       @context_stack = [] # Stack of [Idr::Resource, Idr::Block] tuples
       @schema_stack = [] # Stack of Idr::Schema objects
-      @meta_tables = []
-      @seed_tables = []
+#     @meta_tables = []
+#     @seed_tables = []
     end
 
     #
@@ -285,6 +292,7 @@ module Prick::Lang
         if mode == :build
           reset_compiler_state
         else
+          settings.database_state.status or error "Can't merge into a failed build" if mode == :merge
           load_compiler_state
         end
 
@@ -328,12 +336,15 @@ module Prick::Lang
     end
 
     def save_compiler_state
-      # Add meta tables etc.
+#     p :BING
+#     p meta_tables
+#     exit
+      # Add meta tables etc. NOPE
     end
 
     # Remove the compiler state. This is used by 'prick build'
     def reset_compiler_state
-      conn.truncate "prick", %w(resources meta_tables)
+      conn.truncate "prick", %w(resources meta_tables seed_tables)
       load_compiler_state
     end
 
@@ -390,20 +401,6 @@ module Prick::Lang
             puts "#{kind}: #{counts[kind]}"
           end
         end
-
-#       indent {
-#         puts "present:"; indent { puts present.map { "#{_1} (#{@resources[_1].classname})" } }
-#         puts "absent:"; indent { puts absent }
-#         puts "unknown:"; indent { puts unknown }
-#       }
-#       if unresolved.empty?
-#         puts "unresolved: []"
-#       else
-#         puts "unresolved (#{unresolved.size}):"
-#         indent {
-#           unresolved.each { |node| puts "#{node.token.location}: #{node.unresolved_uid} #{node.classname}" }
-#         }
-#       end
       }
     end
 

@@ -53,6 +53,7 @@ module Prick::Command
           when "pwd"; Prick::Command::PWD
           when "build"; Prick::Command::Build
           when "make"; Prick::Command::Make
+          when "merge"; Prick::Command::Merge
         else
           ShellOpts.failure "'#{cmd}' command is not implemented yet"
         end

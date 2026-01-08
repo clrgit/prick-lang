@@ -140,6 +140,9 @@ module Prick::Lang
       def to_s = "UNMARK #{(phases + schemas).map { _1 || 'nil' }.join(', ')}"
     end
 
+    class MetaSeedNode < Node
+    end
+
     class Meta < Node
       # Affected schemas from Idr::MakeMetaCommand
       attr_reader :schemas # [String]
@@ -292,17 +295,20 @@ module Prick::Lang
 #     attr_reader :sql
 #   end
 
-    # TODO Split into an object per table
-    class Copy < Node
-      attr_reader :tables
-      def initialize(tables) = super tables: tables
-      def execute = bash.command "echo TODO COPY"
-      def to_s = "COPY #{tables.join(', ')}"
+    class MergeNode < Node
+      attr_reader :table
     end
 
-    class AbstractPrepareSync < Node
+    # TODO Split into an object per table
+    class Copy < MergeNode
+      attr_reader :sql
+      def initialize(table, sql) = super table: table, sql: sql
+      def execute = bash.command "echo TODO COPY"
+      def to_s = "COPY #{table} #{sql&.inspect}"
+    end
+
+    class PrepareSyncNode < MergeNode
       def kind = self.classname # "Sync" or "Prepare"
-      attr_reader :table
       attr_reader :key
       attr_reader :id_table
       attr_reader :sql
@@ -310,22 +316,23 @@ module Prick::Lang
       def initialize(table, key, id_table = nil, sql = nil)
         super table: table, key: key, id_table: id_table, sql: sql
       end
-      def to_s = "#{kind} #{table} #{key} #{id_table || 'nil'} #{sql.inspect}"
+      def to_s = [kind.upcase, table, key, id_table, sql&.inspect].compact.join(' ')
     end
 
-    class Sync < AbstractPrepareSync
+    class Sync < PrepareSyncNode
       def execute = bash.command "echo TODO SYNC"
     end
 
-    class Prepare < AbstractPrepareSync
+    class Prepare < PrepareSyncNode
       def execute = bash.command "echo TODO PREPARE"
     end
 
-    class Handle < Node
-      attr_reader :tables
-      def initialize(tables) = super tables: tables
+    class Handle < MergeNode
+#     attr_reader :table
+      attr_reader :sql
+      def initialize(table, sql) = super table: table, sql: sql
       def execute = bash.command "echo TODO HANDLE"
-      def to_s = "HANDLE #{tables.join(', ')}"
+      def to_s = "HANDLE #{table} #{sql&.inspect}"
     end
   end
 end

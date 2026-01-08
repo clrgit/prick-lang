@@ -25,6 +25,7 @@ create table resources (
   phase_name varchar not null,
   schema_name varchar,
   uid varchar not null unique
+  -- present boolean not null default false # TODO TODO TODO
 );
 
 -- Serial values (sequence next-val) for all tables. The serial is defined as

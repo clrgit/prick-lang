@@ -26,7 +26,16 @@ module Prick::Command
         arg =~ /^#{Prick::Lang::Token::TARGET_PATTERN}$/ or ShellOpts::error "Illegal argument '#{arg}'"
         targets << args.shift
       end
-      targets = [Prick::Lang::Compiler::DEFAULT_TARGET] if targets.empty?
+
+      # Handle merge command and set default target
+      if cmd == "merge"
+        targets.each { |target| target =~ /\.MERGE$/ or ShellOpts::error "Not a merge target '#{target}'" }
+        default = Prick::Lang::Compiler::DEFAULT_MERGE_TARGET
+      else
+        targets.each  { |target| target !~ /\.MERGE$/ or ShellOpts::error "Can't build merge target '#{target}'" }
+        default = Prick::Lang::Compiler::DEFAULT_TARGET
+      end
+      targets = [default] if targets.empty?
 
       # Create compiler object
       @compiler = Prick::Lang::Compiler.new(
@@ -55,8 +64,11 @@ module Prick::Command
         t0 = Time.now
         ShellOpts.verb "Building #{settings.source_file}"
         indent {
+          settings.user_conn.dump "prick.meta_tables"
           compiler.compile
+          settings.user_conn.dump "prick.meta_tables"
           executer.execute
+          settings.user_conn.dump "prick.meta_tables"
         }
         dt = Time.now - t0
         ShellOpts.verb "Done (#{ftime dt})"
@@ -84,6 +96,9 @@ module Prick::Command
   end
 
   class Make < BuildMake
+  end
+
+  class Merge < BuildMake
   end
 end
 

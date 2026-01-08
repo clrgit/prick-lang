@@ -25,6 +25,26 @@ module Prick::Lang
       # True iff the node require the schema as search_path
       def require_search_path? = false
 
+      # First node. Default equal to self but resources sets it to the first
+      # artificial HEAD node in the block. The head node collects the node's
+      # requirements, in resources it is used so we're able to insert a node
+      # before all other nodes but after requirements
+      def head = self
+
+      # Last node. Default equal to self but resources sets it to the last
+      # artificial TAIL node in the block. The tail node is the target of other
+      # object's requirements, in resources it is used so we're able to insert
+      # a node after all other nodes but before other object's requirements
+      def tail = self
+
+      # List of nodes that this node directly depends on. The list may only be
+      # manipulated using #depend_on
+      attr_reader :deps
+
+      # List of nodes that requires this node directly. The list may only be
+      # manipulated using #depend_on
+      attr_reader :reqs
+
       # True iff the node is able to change the search_path. This is true for
       # SQL files, inline SQL may not change the search path but there is no
       # check for that
@@ -48,6 +68,16 @@ module Prick::Lang
       # may overlap with #exclude?. Initially false but #built! sets it to true
       def built? = @built
 
+      # True if the node is a merge node. Merge nodes may be dirty but
+      # everyting else must be clean. Initially false but #merge! sets it to
+      # true
+      def merge? = @do_merge
+
+      # True if this is a seed node. Seed nodes may be dirty without
+      # propagating to the schema. Initially false but #merge! sets it to
+      # true
+      def seed? = @is_seed
+
       # True if the node should be excluded from the build. Initially false but
       # #exclude! sets it to true. Excluded nodes are assumed to have already
       # been built - not nodes that should not be built at all
@@ -57,63 +87,56 @@ module Prick::Lang
       # sets it to true
       def included? = @included
 
-      # Return true if the node should be included when using 'prick build'
-      def build? = included? && !excluded?
-
-      # Return true if the node should be included when using 'prick make'
-      def make? = included? && !excluded? && (dirty? || !built?)
-
-       # Return true if the node should be included in the given mode (default
-       # #compiler.mode)
-      def include?(mode) = (mode == :build ? build? : make?)
-
-      # Set #built? to true transitively
+      # Set #built? to true transitively - up-the-tree
       def built!
         return if built?
         @built = true
         deps.each &:built!
       end
 
-      # Set #dirty? to true transitively along the #reqs axis
+      # Set #dirty? to true transitively along the #reqs axis - down-the-tree
       def dirty!
         return if dirty?
         @dirty = true
         reqs.each &:dirty!
       end
 
-      # Set #include? to true transitively but ignore excluded nodes
+      # Set #merge? to true recursively - down-the-tree
+      def merge!
+        return if merge?
+        @do_merge = true
+        children.each &:merge!
+      end
+
+      def seed!
+        return if seed?
+        @is_seed = true
+        children.each &:seed!
+      end
+
+      # Set #include? to true transitively but ignore excluded nodes - up-the-tree
       def include!()
         return if included? || excluded?
         @included = true
         deps.each &:include!
       end
 
-      # Set #exclude? to true transitively
+      # Set #exclude? to true transitively - down-the-tree
       def exclude!()
         return if excluded?
         @excluded = true
         reqs.each &:exclude!
       end
 
-      # First node. Default equal to self but resources sets it to the first
-      # artificial HEAD node in the block. The head node collects the node's
-      # requirements, in resources it is used so we're able to insert a node
-      # before all other nodes but after requirements
-      def head = self
+      # Return true if the node should be included when using 'prick build'
+      def build? = included? && !excluded?
 
-      # Last node. Default equal to self but resources sets it to the last
-      # artificial TAIL node in the block. The tail node is the target of other
-      # object's requirements, in resources it is used so we're able to insert
-      # a node after all other nodes but before other object's requirements
-      def tail = self
+      # Return true if the node should be included when using 'prick make'
+      def make? = included? && !excluded? && (dirty? || !built?)
 
-      # List of nodes that this node directly depends on. The list may only be
-      # manipulated using #depend_on
-      attr_reader :deps
-
-      # List of nodes that requires this node directly. The list may only be
-      # manipulated using #depend_on
-      attr_reader :reqs
+      # Return true if the node should be included in the given mode (default
+      # #compiler.mode). It generalizes #build? and #make?
+      def include?(mode) = (mode == :build ? build? : make?)
 
       def initialize(parent, ast)
         constrain parent, Idr::Resource, nil
@@ -125,6 +148,7 @@ module Prick::Lang
         @reqs = []
         @dirty = false
         @built = false
+        @do_merge = false
         @exclude = false
         @include = false
 
@@ -330,35 +354,33 @@ module Prick::Lang
       attr_accessor :table_name
       def table() = "#{schema_name}.#{table_name}"
 
-#     def schema_name = raise
-#     def table_name = raise
-#     def tables = raise
-#     def require_search_path? = true
-
       def initialize(parent, ast, table)
         constrain parent, Idr::Phase
-        constrain table, String
-        @table_name, @schema_name = table.split('.').reverse
+        constrain table, Ast::Reference, String
+        super(parent, ast)
+        @table_name, @schema_name = table.to_s.split('.').reverse
         @schema_name ||= parent.ident.to_s
       end
     end
 
-    # HERE HERE HERE
-
     class CopyCommand < MergeCommand
-      forward_to :ast, :table, :source
+      forward_to :ast, :source
+      def initialize(parent, ast, table)
+        constrain ast, Ast::CopyCommand
+        super(parent, ast, table)
+      end
     end
 
     class SyncCommand < MergeCommand
-      forward_to :ast, :table, :key, :id_table, :source
+      forward_to :ast, :key, :id_table, :source
     end
 
     class PrepareCommand < MergeCommand
-      forward_to :ast, :table, :key, :id_table, :source
+      forward_to :ast, :key, :id_table, :source
     end
 
     class HandleCommand < MergeCommand
-      forward_to :ast, :table, :source
+      forward_to :ast, :source
     end
 
     # A CheckCommand is only emitted when a check command was triggered. It
@@ -394,6 +416,7 @@ module Prick::Lang
 
       def built!() super; tail.built! end
       def dirty!() super; head.dirty! end
+#     def merge!() super; puts "MMMMMMMMMMMMMMMMMMMMMMMMM #{self.class}" end
       def include!() super; tail.include! end
       def exclude!() super; head.exclude! end
 
@@ -448,6 +471,21 @@ module Prick::Lang
       def append(node) = block.insert(-2, node)
     end
 
+#   class InitPhase < Phase; end
+
+    # The implicit 'this' phase
+    class ThisPhase < Phase
+      def kind = :THIS
+      def read_attr = :this
+      def write_attr = :"this="
+      def initialize(parent, ast) = super(parent, ast, kind.to_s) # ast is nil for Program objects
+    end
+
+#   class TermPhase < Phase; end
+#   class SeedPhase < Phase; end
+#   class AuthPhase < Phase; end
+#   class MergePhase < Phase; end
+
     # TODO
     # Runs after merge and allows old data to be connected to new seed data
     class PatchPhase < Phase
@@ -463,14 +501,6 @@ module Prick::Lang
       end
     end
 
-    # The implicit 'this' phase
-    class ThisPhase < Phase
-      def kind = :THIS
-      def read_attr = :this
-      def write_attr = :"this="
-      def initialize(parent, ast) = super(parent, ast, kind.to_s) # ast is nil for Program objects
-    end
-
     class Procedure < Resource
     end
 
@@ -483,7 +513,7 @@ module Prick::Lang
       # Forward #head and #tail to the term-phase
       forward_to :term, :head, :tail
 
-      # List of schemas that this schema depends on or requires. Assigned by the analyzer
+      # Lists of schemas that this schema depends on or requires. Assigned by the analyzer
       attr_accessor :schema_deps
       attr_accessor :schema_reqs
 

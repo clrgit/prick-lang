@@ -10,7 +10,7 @@ module Prick::Lang
 
       def dumprefnode
         deps_str = deps.empty? ? 'nil' : deps.map(&:serial).join(', ')
-        reqs_str = "[#{reqs.map(&:serial).join(', ')}]"
+        reqs_str = "[#{reqs.map(&:serial).join(', ')}] #{merge? ? "M" : (dirty? ? "D" : "")}"
         puts "#{strrefname} #{serial} -> #{deps_str} #{reqs_str}"
       end
 
@@ -164,7 +164,7 @@ module Prick::Lang
     end
 
     class CopyCommand
-      def strtext = table.to_s
+      def strtext = table
     end
 
     class SyncCommand

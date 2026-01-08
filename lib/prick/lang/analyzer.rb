@@ -22,6 +22,8 @@ module Prick::Lang
     #   link=false -> run assign only
     #   link=nil -> run assign+link (the default)
     #
+    #
+    # TODO: Check that merge blocks have no requirements
     def analyze(link: nil)
       if link.nil? || !link # Assign
         collect_schemas
@@ -51,7 +53,7 @@ module Prick::Lang
     def inspect() = "<#{self.class}>"
 
     def strflags(node, star = nil)
-      (node.dirty? ? "D" : " ") +
+      (node.seed? ? "S" : (node.merge? ? "M" : (node.dirty? ? "D" : " "))) +
       (node.built? ? "B" : " ") +
       (node.excluded? ? "X" : " ") +
       (node.included? ? "I" : " ") +
@@ -74,7 +76,7 @@ module Prick::Lang
         }
       }
 
-      puts "Nodes (D - dirty, B - built, I - included, X - excluded, * - rebuild)"; indent {
+      puts "Nodes (D - dirty, B - built, M - merge, I - included, X - excluded, * - rebuild)"; indent {
         idr.nodes.sort_by(&:serial).each { |node|
           deps = node.deps.empty? ? 'nil' : node.deps.map(&:serial).map(&:inspect).join(", ")
           reqs = node.reqs.empty? ? '' : node.reqs.map(&:serial).map(&:inspect).join(", ")
@@ -100,7 +102,6 @@ module Prick::Lang
 
         }
       }
-
     end
 
   private
@@ -216,7 +217,7 @@ module Prick::Lang
         schema.term.depend_on schema.this
         schema.seed.depend_on schema.term
         schema.auth.depend_on schema.seed
-#       schema.merge.depend_on schema.auth
+        schema.merge.depend_on schema.seed
       }
     end
 
@@ -252,6 +253,9 @@ module Prick::Lang
       mark_clean_nodes
       mark_dirty_source_files
       mark_dirty_files
+      mark_seed_nodes
+      mark_merge_nodes
+      check_merge_nodes
       mark_excluded_nodes
       mark_included_nodes
     end
@@ -280,6 +284,36 @@ module Prick::Lang
       }
     end
 
+    # Mark nodes in seed phases
+    def mark_seed_nodes
+      program.trees(Idr::Phase) { _1.kind == :SEED }.each { |phase|
+        phase.seed!
+      }
+    end
+
+    # Mark nodes in merge phases. Only these nodes will be built when running
+    # 'prick merge'
+    def mark_merge_nodes
+      program.trees(Idr::Phase) { _1.kind == :MERGE }.each { |phase|
+        phase.merge!
+      }
+    end
+
+    # Check that only merge nodes are dirty
+    def check_merge_nodes
+      return if mode != :merge
+      program.nodes(&:dirty?).each {
+        _1.merge? or error "Target is dirty - please rebuild and restore"
+      }
+    end
+
+    # Check that all seed tables have been covered
+    #
+    # TODO TODO TODO
+    def check_merge_coverage
+#     program.
+    end
+
     # Exclude nodes (schemas) from the command line
     def mark_excluded_nodes
       compiler.exclude.map { compiler.resources[_1] }.each(&:exclude!)
@@ -293,6 +327,7 @@ module Prick::Lang
       }
     end
 
+    # Check that targets exist
     def check_targets
       compiler.targets.each { |target|
         compiler.resources[target] or error "No such target '#{target}'"

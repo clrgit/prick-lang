@@ -50,6 +50,7 @@ module Prick::Lang
     def convert_phase(ast)
       constrain ast, Ast::Phase
       check_context ast, Idr::Program, Idr::Schema
+      ident = ast.ident
       phase = Idr::Phase.new(compiler.context, ast)
       compiler.context.send(phase.write_attr, phase)
       compiler.add(phase)
@@ -77,7 +78,6 @@ module Prick::Lang
       constrain ast, Ast::CopyCommand
     end
 
-
     def convert_command(ast)
       constrain ast, Ast::FileCommand, Ast::SqlCommand, Ast::ExternalCommand, Ast::CallCommand,
                      Ast::CopyCommand, Ast::SyncCommand, Ast::PrepareCommand, Ast::HandleCommand
@@ -88,11 +88,11 @@ module Prick::Lang
             when Ast::ExternalCommand; [Idr::ExternalCommand.new(compiler.context, ast)]
             when Ast::CallCommand; [Idr::CallCommand.new(compiler.context, ast)]
             when Ast::CopyCommand
-              ast.tables.map { |ref| Idr::CopyCommand.new(compiler.context, ref, ref.value) }
-            when Ast::SyncCommand; [Idr::SyncCommand.new(compiler.context, ast, ast.table.to_s)]
-            when Ast::PrepareCommand; [Idr::PrepareCommand.new(compiler.context, ast, ast.table.to_s)]
+              ast.tables.map { |tbl| Idr::CopyCommand.new(compiler.context, ast, tbl) }
+            when Ast::SyncCommand; [Idr::SyncCommand.new(compiler.context, ast, ast.table)]
+            when Ast::PrepareCommand; [Idr::PrepareCommand.new(compiler.context, ast, ast.table)]
             when Ast::HandleCommand
-              ast.tables.map { |ref| Idr::HandleCommand.new(compiler.context, ref, ref.value) }
+              ast.tables.map { |tbl| Idr::HandleCommand.new(compiler.context, ast, tbl) }
           end
     end
 
