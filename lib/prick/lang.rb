@@ -1,5 +1,6 @@
 
 require_relative './ext/bash.rb'
+require_relative './ext/graph.rb'
 require_relative './ext/semver.rb'
 require_relative './ext/tree.rb'
 require_relative './ext/x_array.rb'
@@ -75,12 +76,20 @@ private
 #   compiler.idr.check_deps # FIXME HERE HERE HERE
     compiler.idr.dumpref if kinds.delete "refs"
 #   compiler.idr.dump if kinds.delete "links"
-    compiler.analyzer.dump if kinds.delete "deps"
+    compiler.analyzer.dump if kinds.delete "analyzer"
     return if kinds.empty?
 
     compiler.generate
     compiler.generator.dump if kinds.delete "generator"
     puts compiler.units.map(&:to_s) if kinds.delete "units"
+
+    if kinds.delete "deps"
+      targets = compiler.targets
+      resources = targets.map { compiler.resources[_1] }
+      resources.each { |r|
+        puts "DEPS"
+      }
+    end
 
     kinds.empty? or ShellOpts.error "Illegal dump option '#{kinds.first}'"
   end

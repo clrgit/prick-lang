@@ -162,10 +162,6 @@ module Prick::Lang
   private
     attr_reader :graph # {Node=>[Node]} Hash from node to list of dependencies
 
-    def find_invalid_schemas
-      transitive_closure(build_schemas, &:schema_reqs) - build_schemas
-    end
-
     # Note that nodes are sorted in dependency order but may straddle phase
     # boundaries
     def build_units(nodes)
@@ -321,16 +317,6 @@ module Prick::Lang
     #
     # G R A P H   M E T H O D S
     #
-
-    def transitive_closure(nodes, &block)
-      queue = nodes.dup
-      seen = Set.new
-      while node = queue.shift
-        seen << node
-        queue.concat yield(node)
-      end
-      seen.to_a
-    end
 
     def topological_sort
       l = ->(node) {

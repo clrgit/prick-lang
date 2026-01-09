@@ -3,6 +3,7 @@ module Prick::Lang
   class CompilerProcess
     include Prick
     include ErrorFunctions
+    include Graph
 
     def compiler() @compiler ||= Compiler.instance end
     def executer() @executer ||= Executer.instance end
