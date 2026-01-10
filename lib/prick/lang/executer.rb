@@ -23,9 +23,6 @@ module Prick::Lang
       @@INSTANCE = self
     end
 
-#   logger = lambda { |arg| dst.puts arg.sub(/\n\s*\n/m, "\n") + ";" }
-#   def logger(msg) puts  msg.sub(/\n\s*\n/m, "\n") end
-
     def execute
       ShellOpts.verb "Execute", newline: false
       t0 = Time.now
@@ -49,7 +46,6 @@ module Prick::Lang
       logger = settings.log? && !conn.log? ? proc : nil
 
       begin
-#       settings.user_conn.dump "prick.meta_tables"
         settings.create_database_state
         settings.status = false
 
@@ -66,8 +62,6 @@ module Prick::Lang
       end
 
       ShellOpts.verb " (#{ftime dt})"
-#     puts "after"
-#     p conn.tuples "prick.resources"
     end
 
     def inspect = "#<#{self.class} ...>"

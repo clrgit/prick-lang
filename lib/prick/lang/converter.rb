@@ -67,13 +67,6 @@ module Prick::Lang
           }
     end
 
-    def convert_meta(ast)
-      constrain ast, Ast::Meta
-      check_context ast, Idr::Schema
-      compiler.block.concat \
-          ast.tables.map { |ref| Idr::MetaCommand.new(compiler.context, ref, ref.value) }
-    end
-
     def convert_copy(ast)
       constrain ast, Ast::CopyCommand
     end
@@ -157,7 +150,6 @@ module Prick::Lang
           when Ast::Schema; convert_schema(stmt)
           when Ast::Provide; convert_provide(stmt)
           when Ast::Require; convert_require(stmt)
-          when Ast::Meta; convert_meta(stmt)
           when Ast::Phase; convert_phase(stmt)
           when Ast::Command; convert_command(stmt)
           when Ast::SourceFile; convert_stmts(stmt.block)

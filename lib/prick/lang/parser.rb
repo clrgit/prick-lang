@@ -99,7 +99,6 @@ module Prick::Lang
         when :CALL; parse_call_command
         when :FILE; parse_file
         when :DIR; parse_dir
-        when :META; parse_meta
         when :COPY; parse_copy_command
         when :SYNC, :PREPARE; parse_sync_prepare_command
         when :HANDLE; parse_handle_command
@@ -160,12 +159,6 @@ module Prick::Lang
       require_ = Ast::Require.new(read)
       require_.references = parse_references
       require_
-    end
-
-    def parse_meta
-      meta = Ast::Meta.new(read)
-      meta.tables = parse_references
-      meta
     end
 
     #

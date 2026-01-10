@@ -57,39 +57,35 @@ private
     tokens = []
     install_token_listener(tokens) if kinds.include? "tokens"
 
+    # Tokens and ast
     compiler.parse
     dump_tokens(tokens) if kinds.delete "tokens"
     compiler.ast.dump if kinds.delete "ast"
     return if kinds.empty?
 
+    # Converter. FIXME Explain strange result if run before analyzer
     compiler.convert
-    compiler.analyzer.analyze link: false
-    compiler.idr.dump if kinds.delete "idr"
-    return if kinds.empty?
 
-    compiler.analyze link: true
-#   compiler.idr.dump
-#   exit
-#   compiler.idr.dumptree
-#   exit
+    # Analyzer
+    compiler.analyzer.analyze
+    compiler.idr.dump if kinds.delete "idr" # FIXME Should be moved before #analyze
 
-#   compiler.idr.check_deps # FIXME HERE HERE HERE
-    compiler.idr.dumpref if kinds.delete "refs"
-#   compiler.idr.dump if kinds.delete "links"
     compiler.analyzer.dump if kinds.delete "analyzer"
+    compiler.analyzer.dumpsource if kinds.delete "source"
+    compiler.analyzer.dumpfiles if kinds.delete "files"
+    compiler.analyzer.dumpnodes if kinds.delete "nodes"
+    compiler.analyzer.dumpresources if kinds.delete "resources"
+    compiler.analyzer.dumpschemas if kinds.delete "schemas"
+
+    compiler.dumpdeps if kinds.delete "deps"
+    compiler.dumpreqs if kinds.delete "reqs"
+    compiler.dumprefs if kinds.delete "refs"
     return if kinds.empty?
 
+    # Generator
     compiler.generate
     compiler.generator.dump if kinds.delete "generator"
     puts compiler.units.map(&:to_s) if kinds.delete "units"
-
-    if kinds.delete "deps"
-      targets = compiler.targets
-      resources = targets.map { compiler.resources[_1] }
-      resources.each { |r|
-        puts "DEPS"
-      }
-    end
 
     kinds.empty? or ShellOpts.error "Illegal dump option '#{kinds.first}'"
   end
@@ -101,12 +97,15 @@ private
 end
 
 require_relative './lang/compiler.rb'
+require_relative './lang/compiler.dump.rb'
 require_relative './lang/reader.rb'
 require_relative './lang/tokenizer.rb'
 require_relative './lang/parser.rb'
 require_relative './lang/evaluator.rb'
 require_relative './lang/converter.rb'
 require_relative './lang/analyzer.rb'
+require_relative './lang/analyzer.dump.rb'
 require_relative './lang/generator.rb'
+require_relative './lang/generator.dump.rb'
 require_relative './lang/executer.rb'
 

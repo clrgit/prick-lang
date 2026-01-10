@@ -17,8 +17,11 @@ module Prick::Lang
     # included (eg. Unit::Marks)
     attr_reader :units
 
-    # A Unit::Meta object that collects all Idr::MetaCommand tables
-    attr_reader :meta
+    # Meta unit
+    attr_reader :meta # Unit::Meta
+
+    # Seed unit
+    attr_reader :seed # Unit::Seed
 
     # Nodes by unit. Used to lookup the associated node without polluting Unit
     # with compiler objects
@@ -28,7 +31,8 @@ module Prick::Lang
     # phases are present even if they have no nodes
     attr_reader :phases # {PHASE=>[Unit::Node]}
 
-    # List of all targeted schemas
+    # List of all targeted schemas. They're partitioned into seed, build,
+    # invalid, and preserved below
     attr_reader :target_schemas # [Schema]
 
     # List of seed-exlusive schemas. These schemas recieve data-only updates
@@ -58,35 +62,6 @@ module Prick::Lang
 
     # Final set of units in execution order
     attr_reader :execute_units # [Unit]
-
-    def dump
-      puts "Generator"; indent {
-        puts "Idr units: #{units.size}"
-        puts "Meta"; indent {
-          puts "Schemas: #{meta.schemas.join(', ')}"
-          puts "Tables: #{meta.tables.map { _1.join('.') }.join(', ')}"
-        }
-        puts "Phases"; indent {
-          puts "affected: #{affected_phases.map &:ident}"
-          phases.each { |k,v|
-            puts "#{k.downcase}: #{v.size}"
-          }
-        }
-        puts "Schemas"; indent {
-          puts "targets: #{target_schemas.map &:ident}"
-          puts "seeds: #{seed_schemas.map &:ident}"
-          puts "build: #{build_schemas.map &:ident}"
-          puts "invalid: #{invalid_schemas.map &:ident}"
-          puts "preserve: #{preserve_schemas.map &:ident}"
-          puts "affected: #{affected_schemas.map &:ident}"
-        }
-        puts "Executable units: #{execute_units.size}"
-
-#       puts "Nodes"; indent {
-#         selected_nodes.each(&:dumpline)
-#       }
-      }
-    end
 
     def initialize
     end
@@ -168,7 +143,6 @@ module Prick::Lang
       @phases = PHASES.map { |kind| [kind, []] }.to_h # {PHASE=>[Unit]}
       @units = []
       @nodes = {}
-      @meta = Unit::Meta.new build_schemas.map(&:uid) # Idr::MetaCommands-case needs this
       unit_classes = { SQL: Unit::SqlFile, PSQL: Unit::PSqlFile, FOX: Unit::FoxFile, RB: Unit::RubyFile }
       nodes.each { |node|
         unit =
@@ -182,12 +156,9 @@ module Prick::Lang
               when Idr::CallCommand
                 Unit::Call.new node.procs
               when Idr::MakeMetaCommand
-                @meta # This places the meta command at the right spot. TODO: Where?
-              when Idr::MetaCommand
-                @meta.add_table node.schema_name, node.table_name
-                next
+                @meta = Unit::Meta.new build_schemas.map(&:uid)
               when Idr::MakeSeedCommand
-                Unit::Seed.new seed_schemas.map(&:uid)
+                @seed = Unit::Seed.new (build_schemas + seed_schemas).map(&:uid)
               when Idr::TailCommand
                 Unit::Mark.new node.phase, node.schema&.ident, node.uid
               when Idr::CopyCommand

@@ -32,7 +32,6 @@ module Prick::Lang
       PROCEDURE: "procedure",
       REQUIRE: "require",
       PROVIDE: "provide",
-      META: "meta",
       RETURN: "return",
 
       # Phases. Phases are not keywords but builtin identifirs and can be
@@ -72,7 +71,7 @@ module Prick::Lang
       BRACE_END: "}",
       COMMA: ",",
 
-      # Continuation
+      # Line continuation
       PIPE: "|",
 
       # Operators

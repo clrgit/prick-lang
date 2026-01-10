@@ -34,7 +34,6 @@ module Prick::Lang
         add_make_seed_node
         assign_schema
         assign_phases
-        collect_meta
         resolve_references
         assign_schema_deps
 
@@ -51,58 +50,6 @@ module Prick::Lang
     end
 
     def inspect() = "<#{self.class}>"
-
-    def strflags(node, star = nil)
-      (node.seed? ? "S" : (node.merge? ? "M" : (node.dirty? ? "D" : " "))) +
-      (node.built? ? "B" : " ") +
-      (node.excluded? ? "X" : " ") +
-      (node.included? ? "I" : " ") +
-      (star.nil? ? '' : (star ? '*' : ' ')) +
-      " "
-    end
-
-    def dump
-      puts "Prick Files"; indent {
-        ast.nodes(Ast::SourceFile) { |file|
-          dirty = is_dirty?(file.path) ? "D" : " "
-          puts "#{dirty} #{file.path}"
-        }
-      }
-
-      puts "Source files"; indent {
-        ast.nodes(Ast::File) { |file|
-          dirty = is_dirty?(file.path) ? "D" : " "
-          puts "#{dirty} #{file.path}"
-        }
-      }
-
-      puts "Nodes (D - dirty, B - built, M - merge, I - included, X - excluded, * - rebuild)"; indent {
-        idr.nodes.sort_by(&:serial).each { |node|
-          deps = node.deps.empty? ? 'nil' : node.deps.map(&:serial).map(&:inspect).join(", ")
-          reqs = node.reqs.empty? ? '' : node.reqs.map(&:serial).map(&:inspect).join(", ")
-          flags = strflags(node, (compiler.mode == :build && node.build? || compiler.mode == :make && node.make?))
-          printf "#{flags}%3s -> %s [%s] ", node.serial, deps, reqs
-          node.dumpdep
-        }
-      }
-
-      puts "Resources"; indent {
-        compiler.present.each { |uid|
-          node = compiler.resources[uid]
-          flags = strflags(node)
-          printf flags
-          puts "#{uid} -> #{node.tail.serial}"
-        }
-      }
-
-      puts "Schemas"; indent {
-        compiler.schemas.values.each { |node|
-          flags = strflags(node)
-          puts "#{flags}#{node.uid}"
-
-        }
-      }
-    end
 
   private
     # Helper function. Return true if path exists and is modified after last
@@ -180,13 +127,6 @@ module Prick::Lang
         schema.phases.each { |kind, phase|
           phase.block.each { |command| command.phase = kind }
         }
-      }
-    end
-
-    # Assign Schema#meta_commands
-    def collect_meta
-      idr.nodes(Idr::MetaCommand).each { |meta|
-        meta.schema.meta_commands << meta
       }
     end
 

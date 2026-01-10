@@ -336,19 +336,6 @@ module Prick::Lang
       end
     end
 
-    class MetaCommand < NopCommand
-      attr_accessor :schema_name
-      attr_accessor :table_name
-      def table() = "#{schema_name}.#{table_name}"
-
-      def initialize(parent, ast, name)
-        constrain parent, Idr::Schema
-        super(parent, ast)
-        @table_name, @schema_name = name.split('.').reverse
-        @schema_name ||= parent.ident.to_s
-      end
-    end
-
     class MergeCommand < Command
       attr_accessor :schema_name
       attr_accessor :table_name
@@ -401,7 +388,8 @@ module Prick::Lang
     #
     class Resource < Node
       include ResourceUID
-      # Redefine ResourceUID. TODO: Why not in #initialize?
+      # Redefine ResourceUID. TODO: Why not in #initialize? Maybe because
+      # resources can be relocated/renamed?
       def uid = [parent&.uid, ident].compact.join(".")
 
       def klass = self.class
@@ -454,10 +442,7 @@ module Prick::Lang
       ATTRS = KINDS.map(&:downcase) # [Symbol]
       PHASES = KINDS.map { |kind| [kind, [kind.downcase, :"#{kind.downcase}="]] }.to_h # {Symbol=>Symbol}
 
-#     def initialize(parent, ast) = super(parent, ast, ast&.ident&.value&.upcase)
-      def initialize(parent, ast, ident = nil)
-        super(parent, ast, ident || ast.ident.value.upcase)
-      end
+      def initialize(parent, ast, ident = nil) = super(parent, ast, ident || ast.ident.value.upcase)
 
       def kind = ast.kind # Upcase Symbol
       def read_attr = kind.downcase # Reader method in parent object
@@ -508,12 +493,12 @@ module Prick::Lang
 #     attr_reader :schema_command # Command
       attr_accessor *Phase::ATTRS # init, this, seed, term, auth, merge
       attr_reader :procedures # [Procedure]
-      attr_reader :meta_commands # [MetaCommand]
 
       # Forward #head and #tail to the term-phase
       forward_to :term, :head, :tail
 
-      # Lists of schemas that this schema depends on or requires. Assigned by the analyzer
+      # Lists of schemas that this schema depends on or requires. Assigned by
+      # the analyzer
       attr_accessor :schema_deps
       attr_accessor :schema_reqs
 
@@ -538,7 +523,6 @@ module Prick::Lang
         @this = ThisPhase.new(self, ast)
 #       @schema_command = self.is_a?(Program) ? NopCommand.new(self) : SchemaCommand.new(self, ast)
         @procedures = []
-        @meta_commands = []
         @schema_deps = []
         @schema_reqs = []
       end

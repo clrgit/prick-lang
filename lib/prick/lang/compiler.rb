@@ -52,7 +52,7 @@ module Prick::Lang
     # Source and environment
 #   attr_reader :file # Source file relative to the current directory (after -C)
     attr_reader :dir # Current user directory when the compiler was invoked (before -C)
-    attr_reader :mode # Symbol - Either :build or :make. Default is :build
+    attr_reader :mode # Symbol - Either :build, :make, or :merge. Default is :build
     attr_reader :sources # { String => Ast::SourceFile }. Hash of included prick files
     attr_reader :targets # [String] - Target UIDs
     attr_reader :exclude # [String] - Excluded UIDs
@@ -91,12 +91,6 @@ module Prick::Lang
     # from the last run when prick was started. New completed resources are
     # registered directly in database when the script is executed
     attr_reader :completed_resources # [uid]
-
-#   # List of meta tables. Assigned by the analyzer
-#   attr_reader :meta_tables # [[schema_name, table_name]]
-
-#   # List of seed tables. Assigned by the ...
-#   attr_reader :seed_tables # [[schema_name, table_name]]
 
     # Affected schemas. Initialized by the generator
     forward_to :generator, :affected_schemas
@@ -140,8 +134,6 @@ module Prick::Lang
       @requires = []
       @context_stack = [] # Stack of [Idr::Resource, Idr::Block] tuples
       @schema_stack = [] # Stack of Idr::Schema objects
-#     @meta_tables = []
-#     @seed_tables = []
     end
 
     #
@@ -329,28 +321,25 @@ module Prick::Lang
     #
 
     # Load completed resources from PRICK.RESOURCES and the last successful
-    # timestamp (TODO: needs much more work). Note that there is no
-    # corresponding #save_compiler_state because resources are created as the
-    # program is executed
+    # timestamp (TODO: needs much more work). Note that the corresponding
+    # #save_compiler_state is currently empty because the new state is assigned
+    # piecemal while the program is executed
     def load_compiler_state
       @completed_resources = conn.values %(select uid from prick.resources)
     end
 
     def save_compiler_state
-#     p :BING
-#     p meta_tables
-#     exit
-      # Add meta tables etc. NOPE
+      # Empty for now
     end
 
     # Remove the compiler state. This is used by 'prick build'
     def reset_compiler_state
-      conn.truncate "prick", %w(resources meta_tables seed_tables)
+      conn.truncate "prick", %w(resources tables)
       load_compiler_state
     end
 
     #
-    # Utilities
+    # U T I L I T I E S
     #
 
     # Compute fully qualified uid - prepends the current context uid to the
@@ -367,47 +356,8 @@ module Prick::Lang
     end
     def self.userpath(path) = instance.userpath(path)
 
-    #
-    # D U M P
-    #
-
     # Shorten error messages
     def inspect = "#<Compiler ...>"
-
-    def dump
-      puts "Compiler"
-      indent {
-        puts "timestamp: #{@timestamp&.strftime("%F %T %Z") || 'nil'}"
-        puts "created_at: #{settings.created_at.strftime("%F %T %Z")}"
-        pindent "variables:" do puts variables.map { |k,v| "#{k}: #{v}" } end
-        pindent "sources:" do puts sources.keys end
-        pindent "resources ('*' - dirty):" do
-          resources.sort_by(&:first).each { |uid, node|
-            dirty = mode == :make && node.dirty? ? "*" : nil
-            puts [uid, dirty, "(#{node.classname})"].compact.join(' ') + " #{node.ast.class}"
-          }
-        end
-
-        pindent "nodes:" do
-          kinds = [:dirty, :built, :excluded, :build, :make]
-          methods = kinds.map { |k| [k, :"#{k}?"] }.to_h
-          counts = kinds.map { |k| [k, 0] }.to_h
-          idr.each { |node|
-            for kind, method in methods
-              counts[kind] += 1 if node.send(method)
-            end
-          }
-          puts "all: #{counts.values.sum}"
-          for kind in kinds
-            puts "#{kind}: #{counts[kind]}"
-          end
-        end
-      }
-    end
-
-    def dump_units
-      units.each { |unit| puts "TODO" }
-    end
 
   private
     @@INSTANCE = nil

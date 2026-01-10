@@ -96,7 +96,7 @@ module Prick::Lang
       def initialize(phase_name, schema_name, uid)
         super phase_name: phase_name, schema_name: schema_name, uid: uid
       end
-#     def execute = conn.insert "prick.resources", [:phase_name, :schema_name, :uid], marks
+      def execute = raise # Executed through Marks that collects a number of inserts into one statement
       def to_a = [phase_name, schema_name, uid] # For Marks#execute
       def to_s = "MARK #{uid}"
     end
@@ -121,20 +121,20 @@ module Prick::Lang
       def execute
         sql_phases = conn.quote_list phases
         sql_schemas = conn.quote_list schemas
-        phase_expr = "phase_name in #{sql_phases} and schema_name is null" if !phases.empty?
-        schema_expr = "schema_name in #{sql_schemas}" if !schemas.empty?
-        expr = [phase_expr, schema_expr].compact.join(" or ")
+
+        schema_expr = !schemas.empty? ? "schema_name in #{sql_schemas}" : "false"
+        phase_expr = !phases.empty? ? "phase_name in #{sql_phases} and schema_name is null" : "false"
+        kind_expr = !phases.empty? ? "kind in #{sql_phases}" : "false"
+
         conn.exec %(
           delete from prick.resources
-          where #{expr}
+          where #{phase_expr}
+          or #{schema_expr}
         )
         conn.exec %(
-          delete from prick.meta_tables
-          where #{schema_expr || 'true'}
-        )
-        conn.exec %(
-          delete from prick.seed_tables
-          where #{schema_expr || 'true'}
+          delete from prick.tables
+          where #{kind_expr}
+          or #{schema_expr}
         )
       end
       def to_s = "UNMARK #{(phases + schemas).map { _1 || 'nil' }.join(', ')}"
@@ -147,43 +147,21 @@ module Prick::Lang
       # Schemas that will be searched for non-empty tables. From Generator#build_schemas
       attr_reader :schemas # [String]
 
-      # Array of [schema_name, table_name] tuples from Idr::MetaCommand
-      attr_reader :tables # [[String, String]]
-
       def initialize(schemas) = super schemas: schemas, tables: []
-      def add_table(schema_name, table_name) = @tables << [schema_name, table_name]
-      def uids = tables.map { _1.join('.') } # Table uids
 
+      # Find non-empty tables and save them to PRICK.TABLES as meta tables
       def execute
-        uid_list = conn.quote_list(uids)
-        table_expr = uids.empty? ? "true" : "(schema_name || '.' || table_name) not in #{uid_list}"
         schema_list = conn.quote_list(schemas)
-
-        # Check for undeclared meta table
-        absent_tables = conn.values %(
-            select schema_name || '.' || table_name
-            from prick.current_serials
-            where schema_name in #{schema_list}
-            and #{table_expr}
-            and value > 1
+        conn.exec %(
+            insert into prick.tables (schema_name, table_name, kind, value)
+              select schema_name, table_name, 'META', value
+                from prick.current_serials
+                where schema_name in #{schema_list}
+                and value > 1
         )
-
-        if !absent_tables.empty?
-          error "Found undeclared meta table(s): #{absent_tables.join(', ')}"
-        end
-
-        # Create meta tables
-        if !uids.empty?
-          conn.exec %(
-            insert into prick.meta_tables (schema_name, table_name, value)
-              select schema_name, table_name, value
-              from prick.current_serials
-              where schema_name || '.' || table_name in #{uid_list}
-          )
-        end
       end
 
-      def to_s = "META #{(schemas+uids).join(', ')}"
+      def to_s = "META #{(schemas).join(', ')}"
     end
 
     # Should check that meta tables are untouched
@@ -191,18 +169,22 @@ module Prick::Lang
       # Affected schemas
       attr_reader :schemas # [String]
 
+#     def initialize(schemas) p schemas; raise end
       def initialize(schemas) = super schemas: schemas
 
       def execute
+
         # Check for altered meta tables
         meta_tables = conn.structs %(
             select
               m.schema_name || '.' || m.table_name as "uid",
               c.value <> m.value as "altered"
-            from prick.meta_tables m
+            from prick.tables m
             join prick.current_serials c
               on c.schema_name = m.schema_name
               and c.table_name = m.table_name
+            where
+              m.kind = 'META'
         )
 
         altered_tables = meta_tables.select(&:altered).map(&:uid)
@@ -215,8 +197,8 @@ module Prick::Lang
           schema_list = conn.quote_list(schemas)
           meta_list = conn.quote_list(meta_tables.map(&:uid))
           conn.exec %(
-            insert into prick.seed_tables (schema_name, table_name, value)
-              select schema_name, table_name, value
+            insert into prick.tables (schema_name, table_name, kind, value)
+              select schema_name, table_name, 'SEED', value
               from prick.current_serials
               where schema_name in #{schema_list}
                 and (schema_name || '.' || table_name) not in #{meta_list}
@@ -227,7 +209,6 @@ module Prick::Lang
 
       def to_s = "SEED #{schemas.join(', ')}"
     end
-
 
     class Sql < Node
       attr_reader :sql

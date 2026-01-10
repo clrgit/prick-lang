@@ -62,7 +62,7 @@ module Prick::Command
     def run
       begin
         t0 = Time.now
-        ShellOpts.verb "Building #{settings.source_file}"
+        ShellOpts.verb "Building #{settings.database} #{settings.source_file}"
         indent {
           compiler.compile
           executer.execute

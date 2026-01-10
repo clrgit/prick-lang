@@ -41,7 +41,7 @@ SPEC = %(
   --reflections-file=FILE
     Reflections file. Default is '#{Prick::SCHEMA_DIRNAME}/#{Prick::REFLECTIONS_FILENAME}'
 
-  --dump=tokens|ast|idr|refs|deps|units|state|generator,
+  --dump=tokens|ast|idr|units|source|files|nodes|resources|schemas|refs|deps|reqs|state|analyzer|generator,
     Dump debug. Default is 'ast'
 
   -D,dryrun

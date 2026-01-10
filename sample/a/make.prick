@@ -7,8 +7,6 @@ schema A {
 
   sql select 'schema A'
 
-  meta tbl1
-
   seed {
     seed.sql
   }

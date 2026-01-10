@@ -2,27 +2,47 @@
 module Prick::Lang
   using String::Text
   module Idr
+
     #
-    # Dumping references
+    # Dumping references and dependencies
     #
+
     class Node
       def strrefname = self.classname
 
-      def dumprefnode
+      def dumpdeps() puts strrefname; indent { deps.each &:dumpdeps } end
+      def dumpreqs() puts strrefname; indent { reqs.each &:dumpreqs } end
+
+      def dumprefsnode
         deps_str = deps.empty? ? 'nil' : deps.map(&:serial).join(', ')
-        reqs_str = "[#{reqs.map(&:serial).join(', ')}] #{merge? ? "M" : (dirty? ? "D" : "")}"
+        reqs_str = "[#{reqs.map(&:serial).join(', ')}]"
         puts "#{strrefname} #{serial} -> #{deps_str} #{reqs_str}"
+#       ptrs_str = reqs.map(&:strptr).join(', ')
+#       puts "#{strrefname} #{serial} -> #{deps_str} #{reqs_str} #{ptrs_str}"
       end
 
-      def dumpref
-        dumprefnode
-        indent { children.each(&:dumpref) }
+      def dumprefs
+        dumprefsnode
+        indent { children.each(&:dumprefs) }
+      end
+
+      def strkind = self.classname.sub("Command", "").upcase
+
+      def strptr
+        if self.is_a?(Idr::ResourceUID)
+          uid
+        else
+          strkind + "[#{serial}]"
+        end
       end
     end
 
     class MarkCommand; def strrefname = "#{kind} #{uid}" end
+    class RequireCommand; def strrefname = "#{super} -> #{node.uid}" end
     class Resource; def strrefname = ident end
     class Program; def strrefname = "<main>" end
+
+#   compiler.targets.each { compiler.resources[_1].dumprefs } if kinds.delete "refs"
 
     #
     # Dumping mess
@@ -273,9 +293,8 @@ module Prick::Lang
 
     class Schema
 #     PARTS = [:create, :functions, :phases, :block]
-      PARTS = [:procedures, :meta_tables, :phases]
+      PARTS = [:procedures, :phases]
       def strtext = ident
-      def meta_tables = meta_commands.map(&:table) # [String] Only used in dump
       def dumpunit = puts "SCHEMA #{ident}"
     end
 

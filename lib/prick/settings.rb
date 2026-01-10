@@ -366,6 +366,7 @@ module Prick
       @database_state.id = id
     end
 
+    # Update database state. Clears the transaction if it failed
     def update_database_state
       user_conn.cancel_transaction if user_conn.error?
       user_conn.update "prick.runs", @database_state.id, {
