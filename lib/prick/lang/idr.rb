@@ -337,29 +337,35 @@ module Prick::Lang
     end
 
     class MergeCommand < Command
-      attr_accessor :schema_name
+      KINDS = %w(COPY SYNC PREPARE HANDLE).map &:to_sym
+
+      # Merge kind
+      attr_reader :kind
+
+      # Table
+      def schema_name() @schema_name ||= schema.ident end
       attr_accessor :table_name
       def table() = "#{schema_name}.#{table_name}"
+
+      # True if records should be registered in PRICK.RECORDS
+      def records? = false
 
       def initialize(parent, ast, table)
         constrain parent, Idr::Phase
         constrain table, Ast::Reference, String
         super(parent, ast)
         @table_name, @schema_name = table.to_s.split('.').reverse
-        @schema_name ||= parent.ident.to_s
+        @kind = self.classname.sub("Command", "").upcase.to_sym
       end
     end
 
     class CopyCommand < MergeCommand
       forward_to :ast, :source
-      def initialize(parent, ast, table)
-        constrain ast, Ast::CopyCommand
-        super(parent, ast, table)
-      end
     end
 
     class SyncCommand < MergeCommand
       forward_to :ast, :key, :id_table, :source
+      def records? = true
     end
 
     class PrepareCommand < MergeCommand

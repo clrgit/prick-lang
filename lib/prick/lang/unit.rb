@@ -153,23 +153,44 @@ module Prick::Lang
       def execute
         schema_list = conn.quote_list(schemas)
         conn.exec %(
-            insert into prick.tables (schema_name, table_name, kind, value)
-              select schema_name, table_name, 'META', value
-                from prick.current_serials
-                where schema_name in #{schema_list}
-                and value > 1
+          insert into prick.tables (schema_name, table_name, kind, value)
+            select schema_name, table_name, 'META', value
+              from prick.current_serials
+              where schema_name in #{schema_list}
+              and value > 1
         )
       end
 
       def to_s = "META #{(schemas).join(', ')}"
     end
 
-    # Should check that meta tables are untouched
+    # TODO: Also delete from references? Or is that done elsewhere?
+    class UnTables < Node
+      attr_reader :schemas
+      def initialize(schemas) = super schemas: schemas
+      def execute(expr = "true")
+        conn.exec %(
+          delete from prick.tables
+            where schema_name in #{conn.quote_list(schemas)}
+            and #{expr}
+        )
+      end
+    end
+
+    # UnMeta implies UnSeed
+    class UnMeta < Node
+      def to_s = "UNMETA #{schemas.join(', ')}"
+    end
+
+    class UnSeed < Node
+      def execute = super "kind = 'SEED'"
+      def to_s = "UNSEED #{schemas.join(', ')}"
+    end
+
     class Seed < Node
       # Affected schemas
       attr_reader :schemas # [String]
 
-#     def initialize(schemas) p schemas; raise end
       def initialize(schemas) = super schemas: schemas
 
       def execute
@@ -192,9 +213,15 @@ module Prick::Lang
         end
 
         if !schemas.empty?
+
+#         tables = conn.values %(
+#
+#         )
+
           # Detect and add seed tables
           schema_list = conn.quote_list(schemas)
           meta_list = conn.quote_list(meta_tables.map(&:uid))
+
           tables =
             conn.values %(
               insert into prick.tables (schema_name, table_name, kind, value)
@@ -206,14 +233,14 @@ module Prick::Lang
                 returning row(schema_name, table_name)
             )
 
-          # Add records
-          for schema_name, table_name in tables
-            conn.exec %(
-              insert into prick.records (schema_name, table_name, record_id)
-                select '#{schema_name}', '#{table_name}', id
-                from #{schema_name}.#{table_name}
-            )
-          end
+#         # Add records
+#         for schema_name, table_name in tables
+#           conn.exec %(
+#             insert into prick.records (schema_name, table_name, record_id)
+#               select '#{schema_name}', '#{table_name}', id
+#               from #{schema_name}.#{table_name}
+#           )
+#         end
         end
       end
 

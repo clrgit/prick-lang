@@ -36,9 +36,9 @@ module Prick::Lang
     # Singleton instance
     def self.instance = @@INSTANCE
 
-    # Absolute path to main source file (after -C). Note that
-    # #settings.source_file is not necessarily an absolute path
-    attr_reader :source_file
+    #
+    # DATABASE
+    #
 
     # Database environment
     forward_to :settings, :database, :username, :environment
@@ -46,8 +46,20 @@ module Prick::Lang
     # Owner connection
     def conn = settings.user_conn
 
+    #
+    # RUNTIME
+    #
+
+    # Absolute path to main source file (after -C). Note that
+    # #settings.source_file is not necessarily an absolute path
+    attr_reader :source_file
+
     # Runtime options
     forward_to :settings, :dryrun?, :verbose?, :log?
+
+    #
+    # ENVIRONMENT
+    #
 
     # Source and environment
 #   attr_reader :file # Source file relative to the current directory (after -C)
@@ -58,14 +70,20 @@ module Prick::Lang
     attr_reader :exclude # [String] - Excluded UIDs
     attr_reader :variables # {Var=>Val} - Command-line and built-in variables
 
-    # Processors
+    #
+    # PROCESSORS
+    #
+
+    # Processors are executable objects that performs a step in the compile process
     attr_reader :parser
     attr_reader :converter
     attr_reader :analyzer
     attr_reader :generator
     # attr_reader :dumper <- TODO
 
-    # Data structures
+    #
+    # DATA STRUCTURES
+    #
     def ast = @parser.ast # Ast::Program. Initialized by #parse
     def idr = @converter.idr # Idr::Program. Initialized by #convert and updated by #analyze
     def units = @generator.execute_units # [Unit::Node]. Units to execute. Initialized by #generate
@@ -73,12 +91,28 @@ module Prick::Lang
     # Top-level Idr Program node. Just a synonym for #idr. Intialized by the analyzer
     alias_method :program, :idr
 
+    #
+    # OBJECTS
+    #
+
     # Idr schemas. This excludes Ast schemas that was filtered away by the
     # converter process. These schemas may be ignored later in the compile
     # process, though
     attr_reader :schemas # { String => Idr::Schema }, initialized by the analyzer
 
-    # State data. State data are read by #load_compiler_state
+    # Map from merge operation (COPY, SYNC, ...) to lists of involved
+    # Idr::MergeCommand objects. The merge commands acts as a table, hence the
+    # name
+    attr_reader :merge_tables
+
+    # Affected schemas. Initialized by the generator
+    forward_to :generator, :affected_schemas
+
+    #
+    # STATE DATA
+    #
+    # State data are read by #load_compiler_state
+    #
 
     # Timestamp of last run, default EPOCH. The timestamp for the current run
     # (successful or nor) can be found as settings.created_at
@@ -91,9 +125,6 @@ module Prick::Lang
     # from the last run when prick was started. New completed resources are
     # registered directly in database when the script is executed
     attr_reader :completed_resources # [uid]
-
-    # Affected schemas. Initialized by the generator
-    forward_to :generator, :affected_schemas
 
     def initialize(
         targets = [DEFAULT_TARGET],
@@ -129,6 +160,7 @@ module Prick::Lang
       @analyzer = Analyzer.new
       @generator = Generator.new
       @schemas = {}
+      @merge_tables = Idr::MergeCommand::KINDS.map { |k| [k, []] }.to_h
       @resources = {}
       @unresolved = []
       @requires = []
@@ -162,8 +194,8 @@ module Prick::Lang
     end
 
     # Analyze Idr
-    def analyze(link: nil)
-      @analyzer.analyze(link: link)
+    def analyze
+      @analyzer.analyze
     end
 
     # Generate units

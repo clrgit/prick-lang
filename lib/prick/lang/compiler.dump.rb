@@ -8,6 +8,11 @@ module Prick::Lang
         puts "created_at: #{settings.created_at.strftime("%F %T %Z")}"
         pindent "variables:" do puts variables.map { |k,v| "#{k}: #{v}" } end
         pindent "sources:" do puts sources.keys end
+        pindent "merge tables:" do
+          for kind in Idr::MergeCommand::KINDS
+            puts "#{kind.downcase}: #{merge_tables[kind].map(&:table).join(', ')}"
+          end
+        end
         pindent "resources ('*' - dirty):" do
           resources.sort_by(&:first).each { |uid, node|
             dirty = mode == :make && node.dirty? ? "*" : nil

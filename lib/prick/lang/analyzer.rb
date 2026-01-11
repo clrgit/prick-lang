@@ -13,39 +13,32 @@ module Prick::Lang
     # nodes into account
     attr_reader :reachable_nodes
 
-#   attr_reader :reachable_schemas
+    def analyze
+      # Assign
+      collect_schemas
+      collect_merge_tables
+      assign_this_phase
+      assign_default_phases
+      add_phase_nodes
+      add_make_meta_node
+      add_make_seed_node
+      assign_schema
+      assign_phases
+      resolve_references
+      assign_schema_deps
 
-    # Analyze IDR. The link flag controls which part of the process are
-    # executed, it is used to dump the Idr at different stages
-    #
-    #   link=true -> run link only
-    #   link=false -> run assign only
-    #   link=nil -> run assign+link (the default)
-    #
-    #
-    # TODO: Check that merge blocks have no requirements
-    def analyze(link: nil)
-      if link.nil? || !link # Assign
-        collect_schemas
-        assign_this_phase
-        assign_default_phases
-        add_phase_nodes
-        add_make_meta_node
-        add_make_seed_node
-        assign_schema
-        assign_phases
-        resolve_references
-        assign_schema_deps
+      # Check
+      check_targets
+      # check_merge_blocks TODO: Check that merge blocks have no requirements
 
-        check_targets
-      end
-      if link.nil? || link # Link
-        link_block_nodes
-        link_phases
-        link_program_phases
-        mark_nodes
-        select_nodes
-      end
+      # Link
+      link_block_nodes
+      link_phases
+      link_program_phases
+      mark_nodes
+      select_nodes
+
+      # Augmented idr
       idr
     end
 
@@ -67,6 +60,12 @@ module Prick::Lang
         compiler.schemas[schema.ident] = schema
       }
       @schema_objects = [program] + program.schemas
+    end
+
+    def collect_merge_tables
+      compiler.program.trees(Idr::MergeCommand).each { |command|
+        compiler.merge_tables[command.kind] << command
+      }
     end
 
     # Assign Schema#this phases by stealing the schema's block. The phase is
@@ -114,7 +113,7 @@ module Prick::Lang
       phase.append Idr::MakeSeedCommand.new(phase)
     end
 
-    # Assign Node#schema. TODO Do we check for sql in main?
+    # Assign Node#schema. TODO will fail on sql in main - do we check for that?
     def assign_schema
       schemas.each { |schema|
         schema.nodes.each { |node| node.schema = schema }
@@ -224,22 +223,24 @@ module Prick::Lang
       }
     end
 
-    # Mark nodes in seed phases
+    # Mark nodes in seed phases. Seed nodes are only run if the SEED is being
+    # built
     def mark_seed_nodes
       program.trees(Idr::Phase) { _1.kind == :SEED }.each { |phase|
         phase.seed!
       }
     end
 
-    # Mark nodes in merge phases. Only these nodes will be built when running
+    # Mark nodes in merge phases. Merge nodes are only executed when running
     # 'prick merge'
     def mark_merge_nodes
+#     program.trees(Idr::Phase, kind: :MERGE) # IDEA
       program.trees(Idr::Phase) { _1.kind == :MERGE }.each { |phase|
         phase.merge!
       }
     end
 
-    # Check that only merge nodes are dirty
+    # Check that only merge nodes are dirty when merging
     def check_merge_nodes
       return if mode != :merge
       program.nodes(&:dirty?).each {
@@ -250,6 +251,8 @@ module Prick::Lang
     # Check that all seed tables have been covered
     #
     # TODO TODO TODO
+    #
+    # Can't do here. Must be done runtime
     def check_merge_coverage
 #     program.
     end
