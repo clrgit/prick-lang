@@ -173,7 +173,6 @@ module Prick::Lang
       def initialize(schemas) = super schemas: schemas
 
       def execute
-
         # Check for altered meta tables
         meta_tables = conn.structs %(
             select
@@ -192,18 +191,29 @@ module Prick::Lang
           error "Found altered meta table(s): #{altered_tables.join(', ')}"
         end
 
-        # Detect seed tables
         if !schemas.empty?
+          # Detect and add seed tables
           schema_list = conn.quote_list(schemas)
           meta_list = conn.quote_list(meta_tables.map(&:uid))
-          conn.exec %(
-            insert into prick.tables (schema_name, table_name, kind, value)
-              select schema_name, table_name, 'SEED', value
-              from prick.current_serials
-              where schema_name in #{schema_list}
-                and (schema_name || '.' || table_name) not in #{meta_list}
-                and value > 1
-          )
+          tables =
+            conn.values %(
+              insert into prick.tables (schema_name, table_name, kind, value)
+                select schema_name, table_name, 'SEED', value
+                from prick.current_serials
+                where schema_name in #{schema_list}
+                  and (schema_name || '.' || table_name) not in #{meta_list}
+                  and value > 1
+                returning row(schema_name, table_name)
+            )
+
+          # Add records
+          for schema_name, table_name in tables
+            conn.exec %(
+              insert into prick.records (schema_name, table_name, record_id)
+                select '#{schema_name}', '#{table_name}', id
+                from #{schema_name}.#{table_name}
+            )
+          end
         end
       end
 
