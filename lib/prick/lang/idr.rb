@@ -337,7 +337,7 @@ module Prick::Lang
     end
 
     class MergeCommand < Command
-      KINDS = %w(COPY SYNC PREPARE HANDLE).map &:to_sym
+      KINDS = %w(COPY APPEND SYNC PREPARE HANDLE).map &:to_sym
 
       # Merge kind
       attr_reader :kind
@@ -360,6 +360,10 @@ module Prick::Lang
     end
 
     class CopyCommand < MergeCommand
+      forward_to :ast, :source
+    end
+
+    class AppendCommand < MergeCommand
       forward_to :ast, :source
     end
 

@@ -163,6 +163,8 @@ module Prick::Lang
                 Unit::Mark.new node.phase, node.schema&.ident, node.uid
               when Idr::CopyCommand
                 Unit::Copy.new node.table, node.source
+              when Idr::AppendCommand
+                Unit::Append.new node.table, node.source
               when Idr::SyncCommand
                 Unit::Sync.new node.table, node.key, node.id_table, node.source
               when Idr::PrepareCommand

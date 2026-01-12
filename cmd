@@ -80,27 +80,5 @@ case "$1" in
         eval $TIMECMD bundle exec exe/prick-lang -C $PROJECT "$@"
 
         ;;
-
-#   setup)
-#       eval $TIMECMD bundle exec exe/prick-lang -C $PROJECT setup ${@:-$PROJECT}
-#       ;;
-#   teardown)
-#       eval $TIMECMD bundle exec exe/prick-lang -C $PROJECT teardown ${@:-$PROJECT}
-#       ;;
-#   info)
-#       eval $TIMECMD bundle exec exe/prick-lang -C $PROJECT info $@
-#       ;;
-#   cd)
-#       eval $TIMECMD bundle exec exe/prick-lang -C $PROJECT cd $@
-#       ;;
-#   pwd)
-#       eval $TIMECMD bundle exec exe/prick-lang -C $PROJECT pwd
-#       ;;
-#   build)
-#       eval $TIMECMD bundle exec exe/prick-lang -C $PROJECT build "$@"
-#       ;;
-#   *)
-#       error "Command not supported '$CMD'"
-#       ;;
 esac
 

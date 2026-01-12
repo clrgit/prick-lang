@@ -331,6 +331,13 @@ module Prick::Lang
       def to_s = "COPY #{table} #{sql&.inspect}"
     end
 
+    class Append < MergeNode
+      attr_reader :sql
+      def initialize(table, sql) = super table: table, sql: sql
+      def execute = bash.command "echo TODO APPEND"
+      def to_s = "APPEND #{table} #{sql&.inspect}"
+    end
+
     class PrepareSyncNode < MergeNode
       def kind = self.classname # "Sync" or "Prepare"
       attr_reader :key

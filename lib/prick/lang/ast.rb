@@ -315,6 +315,11 @@ module Prick::Lang
       part :source, Source
     end
 
+    class AppendCommand < MergeCommand
+      part :tables, [Reference]
+      part :source, Source
+    end
+
     class PrepareCommand < MergeCommand
       part :table, Reference
       part :key, Ident

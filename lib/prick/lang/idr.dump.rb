@@ -187,6 +187,10 @@ module Prick::Lang
       def strtext = table
     end
 
+    class AppendCommand
+      def strtext = table
+    end
+
     class SyncCommand
       def strtext = [table, key, id_table].compact.join(' ')
 

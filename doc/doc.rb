@@ -161,6 +161,10 @@ DESCR = %(
               Copy tables are copied directly. They may not be referenced by
               ID. Copy tables are merged using the 'copy' method
 
+            Append tables
+              Append tables are like copy tables but records can be added in
+              production. They are merged using the 'append' method
+
             Key tables
               Key tables have a unique key in addition to the ID. They can use
               the 'sync' or 'prepare' merge strategies (in addition to 'copy')
@@ -191,18 +195,24 @@ DESCR = %(
         never are). Link tables are generated with IDs starting at the first
         free ID in the production database
 
-        Link table records are tracked in seed_records and are deleted on merge.
-        Build records are then appended to the target table
+        Link table records are tracked in seed_records and are deleted on merge
+        (other data is kept).  Build records are then appended to the target
+        table
 
     Merge strategies
       A merge may be done on a whole table or on a subset defined by a set
       of IDs, default prick.merge_records
 
       copy
-          Delete existing data using prick.merge_records and copy source. This
-          is the fastest strategy but the table should be read-only in the
-          production environment and may not be referred to by ID except from
-          other copy tables
+          Delete all existing data copy source without changes. This is the
+          fastest strategy but the table should be read-only in the production
+          environment and may not be referred to by ID except from other copy
+          tables
+
+      append
+          Delete existing records using PRICK.RECORDS. Records from the source
+          database are recreated starting at the highest ID in the production
+          database so they can be merged without changes
 
       sync
           Like copy but IDs are preserved for existing records so they can be
@@ -218,6 +228,9 @@ DESCR = %(
     Keywords
       copy TABLE...
           Merge tables using the copy strategy
+
+      append TABLE...
+          Merge tables using the append strategy
 
       sync TABLE KEY [ID-TABLE]
       sync TABLE KEY '|' SQL

@@ -100,6 +100,7 @@ module Prick::Lang
         when :FILE; parse_file
         when :DIR; parse_dir
         when :COPY; parse_copy_command
+        when :APPEND; parse_append_command
         when :SYNC, :PREPARE; parse_sync_prepare_command
         when :HANDLE; parse_handle_command
         when :CHECK; parse_check_command
@@ -226,6 +227,12 @@ module Prick::Lang
 
     def parse_copy_command
       command = Ast::CopyCommand.new(read)
+      command.tables = parse_references
+      command
+    end
+
+    def parse_append_command
+      command = Ast::AppendCommand.new(read)
       command.tables = parse_references
       command
     end

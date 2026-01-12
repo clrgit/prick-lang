@@ -67,21 +67,26 @@ module Prick::Lang
           }
     end
 
-    def convert_copy(ast)
-      constrain ast, Ast::CopyCommand
-    end
+#   def convert_copy(ast)
+#     constrain ast, Ast::CopyCommand
+#   end
+#
+#   def convert_append(ast)
+#     constrain ast, Ast::AppendCommand
+#   end
 
     def convert_command(ast)
       constrain ast, Ast::FileCommand, Ast::SqlCommand, Ast::ExternalCommand, Ast::CallCommand,
-                     Ast::CopyCommand, Ast::SyncCommand, Ast::PrepareCommand, Ast::HandleCommand
+                     Ast::CopyCommand, Ast::AppendCommand, Ast::SyncCommand, Ast::PrepareCommand, 
+                     Ast::HandleCommand
       compiler.block.concat \
           case ast
             when Ast::FileCommand; [Idr::FileCommand.new(compiler.context, ast.file)]
             when Ast::SqlCommand; [Idr::SqlCommand.new(compiler.context, ast)]
             when Ast::ExternalCommand; [Idr::ExternalCommand.new(compiler.context, ast)]
             when Ast::CallCommand; [Idr::CallCommand.new(compiler.context, ast)]
-            when Ast::CopyCommand
-              ast.tables.map { |tbl| Idr::CopyCommand.new(compiler.context, ast, tbl) }
+            when Ast::CopyCommand; ast.tables.map { |tbl| Idr::CopyCommand.new(compiler.context, ast, tbl) }
+            when Ast::AppendCommand; ast.tables.map { |tbl| Idr::AppendCommand.new(compiler.context, ast, tbl) }
             when Ast::SyncCommand; [Idr::SyncCommand.new(compiler.context, ast, ast.table)]
             when Ast::PrepareCommand; [Idr::PrepareCommand.new(compiler.context, ast, ast.table)]
             when Ast::HandleCommand

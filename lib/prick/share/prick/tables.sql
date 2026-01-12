@@ -41,7 +41,7 @@ create table merge_method_kinds (
 );
 
 insert into table_kinds (kind) values ('META'), ('SEED'), ('DATA');
-insert into merge_method_kinds (kind) values ('COPY'), ('SYNC'), ('PREPARE'), ('HANDLE');
+insert into merge_method_kinds (kind) values ('COPY'), ('APPEND'), ('SYNC'), ('PREPARE'), ('HANDLE');
 
 -- Tables
 --

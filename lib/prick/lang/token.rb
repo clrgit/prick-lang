@@ -62,6 +62,7 @@ module Prick::Lang
 
       # Merge commands
       COPY: "copy",
+      APPEND: "append",
       SYNC: "sync",
       PREPARE: "prepare",
       HANDLE: "handled",
