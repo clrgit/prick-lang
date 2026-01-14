@@ -5,9 +5,8 @@ require 'shellopts'
 require_relative '../lib/prick.rb'
 require_relative '../doc/doc.rb'
 
-# Note that we can't use EFILE and similar file names are relative to the -C
-# directory
-#
+# Note that we can't use EFILE or similar because file names are relative to
+# the -C directory (Are they? Or should they be?)
 SPEC = %(
   @ Prick compiler
 

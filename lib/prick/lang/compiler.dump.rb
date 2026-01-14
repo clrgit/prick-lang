@@ -10,7 +10,7 @@ module Prick::Lang
         pindent "sources:" do puts sources.keys end
         pindent "merge tables:" do
           for kind in Idr::MergeCommand::KINDS
-            puts "#{kind.downcase}: #{merge_tables[kind].map(&:table).join(', ')}"
+            puts "#{kind.downcase}: #{merge_commands[kind].map(&:table).join(', ')}"
           end
         end
         pindent "resources ('*' - dirty):" do

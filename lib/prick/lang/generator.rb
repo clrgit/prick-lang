@@ -23,9 +23,12 @@ module Prick::Lang
     # Seed unit
     attr_reader :seed # Unit::Seed
 
+    # Merge units
+    attr_reader :merge # [Idr::
+
     # Nodes by unit. Used to lookup the associated node without polluting Unit
     # with compiler objects
-    attr_reader :nodes # {Unit => Node}
+    attr_reader :nodes # {Unit => Idr::Node}
 
     # Units and associated node by phase in dependency order. Note that all
     # phases are present even if they have no nodes
@@ -158,7 +161,10 @@ module Prick::Lang
               when Idr::MakeMetaCommand
                 @meta = Unit::Meta.new build_schemas.map(&:uid)
               when Idr::MakeSeedCommand
-                @seed = Unit::Seed.new (build_schemas + seed_schemas).map(&:uid)
+#               merge_tables = compiler.merge_commands.values.flatten.select(&:records?).map(&:table)
+                merge_commands = compiler.merge_commands.values.flatten.select(&:records?)
+                merge_tables = merge_commands.map { |c| [c.table, c.kind] }
+                @seed = Unit::Seed.new (build_schemas + seed_schemas).map(&:uid), merge_tables
               when Idr::TailCommand
                 Unit::Mark.new node.phase, node.schema&.ident, node.uid
               when Idr::CopyCommand

@@ -103,7 +103,8 @@ module Prick::Lang
     # Map from merge operation (COPY, SYNC, ...) to lists of involved
     # Idr::MergeCommand objects. The merge commands acts as a table, hence the
     # name
-    attr_reader :merge_tables
+#   attr_reader :merge_tables # {Idr::MergeCommand::KINDS => [IdrMergeCommand]}
+    attr_reader :merge_commands # {Idr::MergeCommand::KINDS => [IdrMergeCommand]}
 
     # Affected schemas. Initialized by the generator
     forward_to :generator, :affected_schemas
@@ -160,7 +161,7 @@ module Prick::Lang
       @analyzer = Analyzer.new
       @generator = Generator.new
       @schemas = {}
-      @merge_tables = Idr::MergeCommand::KINDS.map { |k| [k, []] }.to_h
+      @merge_commands = Idr::MergeCommand::KINDS.map { |k| [k, []] }.to_h
       @resources = {}
       @unresolved = []
       @requires = []
@@ -366,7 +367,7 @@ module Prick::Lang
 
     # Remove the compiler state. This is used by 'prick build'
     def reset_compiler_state
-      conn.truncate "prick", %w(resources tables)
+      conn.truncate "prick", %w(resources records tables)
       load_compiler_state
     end
 

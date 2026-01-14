@@ -39,13 +39,14 @@ module Prick::Lang
       def to_s = raise
 
     private
-      # Normalize value to be either a String, Symbol, an array of those, or
-      # any object that responds to #to_s
+      # Normalize value to be either a String, Symbol, a hash or an array of
+      # those, or any object that responds to #to_s
       def norm(v)
         case v
           when nil; v
           when Symbol, String; v
           when Array; v.map { norm(_1) }
+          when Hash; v.map { [norm(_1), norm(_2)] }.to_h
           else v.to_s
         end
       end
@@ -191,60 +192,148 @@ module Prick::Lang
       # Affected schemas
       attr_reader :schemas # [String]
 
-      def initialize(schemas) = super schemas: schemas
+      # Merge tables by kind (copy-tables are not included)
+      attr_reader :merge_tables # [[table:String, kind:Idr::MergeCommand::KIND]]
+
+      def initialize(schemas, merge_tables) = super schemas: schemas, merge_tables: merge_tables
 
       def execute
-        # Check for altered meta tables
+        # Find meta tables. The meta tables are created in Meta#execute
         meta_tables = conn.structs %(
-            select
-              m.schema_name || '.' || m.table_name as "uid",
-              c.value <> m.value as "altered"
-            from prick.tables m
-            join prick.current_serials c
-              on c.schema_name = m.schema_name
-              and c.table_name = m.table_name
-            where
-              m.kind = 'META'
+          select
+            m.schema_name || '.' || m.table_name as uid,
+            c.value <> m.value as "altered"
+          from prick.tables m
+          join prick.current_serials c
+            on c.schema_name = m.schema_name
+            and c.table_name = m.table_name
+          where
+            m.kind = 'META'
         )
 
+        # Check for altered meta tables
         altered_tables = meta_tables.select(&:altered).map(&:uid)
         if !altered_tables.empty?
           error "Found altered meta table(s): #{altered_tables.join(', ')}"
         end
 
-        if !schemas.empty?
+        return if schemas.empty?
 
-#         tables = conn.values %(
-#
-#         )
-
-          # Detect and add seed tables
-          schema_list = conn.quote_list(schemas)
-          meta_list = conn.quote_list(meta_tables.map(&:uid))
-
-          tables =
-            conn.values %(
-              insert into prick.tables (schema_name, table_name, kind, value)
-                select schema_name, table_name, 'SEED', value
-                from prick.current_serials
+        # Find tables. This includes valid merge tables (non-empty), non-empty
+        # but undeclared tables, absent merge tables, and empty merge tables
+        value_list = conn.quote_rows(merge_tables)
+        schema_list = conn.quote_list(schemas)
+        meta_list = conn.quote_value(meta_tables.map(&:uid))
+        tables =
+            conn.structs %(
+              with non_empty as (
+                select
+                  coalesce(m.table, s.schema_name || '.' || s.table_name) as "table",
+                  m.kind,
+                  s.schema_name, s.table_name, s.value,
+                  m.table is null as "undeclared",
+                  s.schema_name is null as "absent",
+                  s.value is not null and s.value = 1 as "empty"
+                from (values #{value_list}) m("table", kind)
+                  full outer join prick.current_serials s
+                    on (s.schema_name || '.' || s.table_name) = m.table
                 where schema_name in #{schema_list}
-                  and (schema_name || '.' || table_name) not in #{meta_list}
-                  and value > 1
-                returning row(schema_name, table_name)
+                  and (m.table is not null or s.value > 1)
+              )
+              select ne.*
+              from non_empty ne
+              where not ne.table = any(#{meta_list})
             )
 
-#         # Add records
-#         for schema_name, table_name in tables
-#           conn.exec %(
-#             insert into prick.records (schema_name, table_name, record_id)
-#               select '#{schema_name}', '#{table_name}', id
-#               from #{schema_name}.#{table_name}
-#           )
-#         end
+        # Check for non-empty tables that are not declared as merge tables
+        undeclared_tables = tables.select(&:undeclared).map(&:table)
+        undeclared_tables.empty? or
+            error "Undeclared seed table(s): #{undeclared_tables.join(', ')}"
+
+        # Check for absent merge tables
+        absent_tables = tables.select(&:absent).map(&:table)
+        absent_tables.empty? or
+            error "Absent merge table(s): #{absent_tables.join(', ')}"
+
+        # Check for empty merge tables
+        empty_tables = tables.select(&:empty).map(&:table)
+        empty_tables.empty? or
+            error "Empty merge table(s): #{empty_tables.join(', ')}"
+
+        # Create PRICK.TABLES records
+        values = tables.map { [_1.schema_name, _1.table_name, 'SEED', _1.kind, _1.value] }
+        value_list = conn.quote_rows(values)
+        table_records = conn.values %(
+          insert into prick.tables (schema_name, table_name, kind, merge_method, value)
+            values #{value_list}
+            returning row(id, schema_name || '.' || table_name)
+        )
+
+        # Register merge table records in PRICK.RECORDS
+        for id, table in table_records
+          conn.exec %(
+            insert into prick.records (table_id, record_id)
+              select #{id}, id
+              from #{table}
+          )
         end
+
+#       conn.values %(
+#           insert into prick.tables (schema_name, table_name, kind, method_kind, value)
+#             select s.schema_name, s.table_name, 'SEED', m.kind, s.value,
+#             from (values #{value_list}) m(table, kind)
+#             join prick.current_serials s
+#             where schema_name in #{schema_list}
+#               and not (s.schema_name || '.' || s.table_name) = m.table
+#               and s.value > 1
+#             returning row(id, schema_name || '.' || table_name)
+#       )
+
+
+#       # Find seed tables
+#       schema_list = conn.quote_list(schemas)
+#       meta_array = conn.quote_value(meta_tables.map(&:uid), elem_type: "varchar")
+#       seed_tables =
+#           conn.values %(
+#             insert into prick.tables (schema_name, table_name, kind, value)
+#               select schema_name, table_name, 'SEED', value,
+#                 case schema_name || '.' || table_name
+#               from prick.current_serials
+#               where schema_name in #{schema_list}
+#                 and not (schema_name || '.' || table_name) = any(#{meta_array})
+#                 and value > 1
+#               returning row(id, schema_name || '.' || table_name)
+#           )
+
+#       # Check against declared merge tables
+#       unknown_tables = seed_tables.map(&:last) - merge_tables
+#       if !unknown_tables.empty?
+#         error "Found unknown merge table(s): #{unknown_tables.join(', ')}"
+#       end
+
+        # Update merge method
+
+#       # Register records in merge tables. We use .seed_tables instead of
+#       # .merge_tables because we need the table id
+#       for id, table in seed_tables
+#         conn.exec %(
+#           insert into prick.records (table_id, record_id)
+#             select #{id}, id
+#             from #{table}
+#         )
+#       end
+      end
+        # Just the presense of a merge section should cause merge tables to
+        # be registered in PRICK.TABLES
+
+
+      def check_altered_meta_tables
       end
 
       def to_s = "SEED #{schemas.join(', ')}"
+
+    private
+      def dot(*args) = args.join('.')
     end
 
     class Sql < Node

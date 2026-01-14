@@ -64,7 +64,7 @@ module Prick::Lang
 
     def collect_merge_tables
       compiler.program.trees(Idr::MergeCommand).each { |command|
-        compiler.merge_tables[command.kind] << command
+        compiler.merge_commands[command.kind] << command
       }
     end
 

@@ -340,15 +340,17 @@ module Prick::Lang
       KINDS = %w(COPY APPEND SYNC PREPARE HANDLE).map &:to_sym
 
       # Merge kind
-      attr_reader :kind
+      attr_reader :kind # MergeCommand::KINDS
 
       # Table
       def schema_name() @schema_name ||= schema.ident end
       attr_accessor :table_name
       def table() = "#{schema_name}.#{table_name}"
 
-      # True if records should be registered in PRICK.RECORDS
-      def records? = false
+      # True if records should be registered in PRICK.RECORDS. Not used because
+      # it is hardcoded into the seed Unit (hard to fix throughly)
+      def self.records? = true
+      def records? = self.class.records?
 
       def initialize(parent, ast, table)
         constrain parent, Idr::Phase
@@ -361,6 +363,7 @@ module Prick::Lang
 
     class CopyCommand < MergeCommand
       forward_to :ast, :source
+      def self.records? = false
     end
 
     class AppendCommand < MergeCommand
@@ -369,7 +372,6 @@ module Prick::Lang
 
     class SyncCommand < MergeCommand
       forward_to :ast, :key, :id_table, :source
-      def records? = true
     end
 
     class PrepareCommand < MergeCommand
