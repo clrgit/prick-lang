@@ -1,9 +1,17 @@
 #!/usr/bin/env ruby
 
+#super_t0 = Time.now
+
 require 'shellopts'
 
 require_relative '../lib/prick.rb'
 require_relative '../doc/doc.rb'
+
+# Time analysis
+#   Command line start of ruby script: 40ms
+#   Shell script: 10ms
+#   Bundle start of ruby script: 160ms
+#   Prick load required files: 75ms
 
 # Note that we can't use EFILE or similar because file names are relative to
 # the -C directory (Are they? Or should they be?)
@@ -128,6 +136,10 @@ COMMANDS.include?(cmd) or ShellOpts::error "Illegal command #{cmd}"
 
 # Create command object. This compiles the source
 command = Prick::Command.create(cmd, opts, args)
+
+#super_t1 = Time.now
+#puts "Super time: #{(1000*(super_t1 - super_t0)).round}ms"
+#exit
 
 # Execute
 command.run
