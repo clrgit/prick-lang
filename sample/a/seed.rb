@@ -4,7 +4,7 @@ require 'pg_conn'
 
 conn = PgConn.new "dev"
 
-conn.insert "a.tbl2", [:name, :count], (1..10).map { |i| ["tbl2[#{i}]", i] }.to_a
+start = ARGV[0]&.to_i || 0
 
-#insert into tbl2 (name, count) values ('An entry in A', 42);
+conn.insert "a.tbl2", [:name, :count], (1..10).map { |i| ["tbl2[#{i}]", start+i-1] }.to_a
 

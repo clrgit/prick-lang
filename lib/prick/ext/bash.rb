@@ -9,7 +9,7 @@ module Bash
     attr_reader :stderr
 
     def initialize(cmd, status, stdin, stdout, stderr)
-      super(stderr.join("\n"))
+      super(cmd + "\n" + stderr.join("\n"))
       @cmd = cmd
       @status = status
       @stdin = stdin

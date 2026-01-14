@@ -130,7 +130,6 @@ module Prick::Lang
 
       # Join phases in execution order
       generate_script_units
-
       # Assign final units and commit outstanding changes
       generate_final_units
     end
@@ -155,13 +154,12 @@ module Prick::Lang
               when Idr::SqlCommand
                 Unit::Sql.new node.source
               when Idr::ExternalCommand
-                Unit::Bash.new node.kind, node.source
+                Unit::Bash.new node.kind, node.path, node.source
               when Idr::CallCommand
                 Unit::Call.new node.procs
               when Idr::MakeMetaCommand
                 @meta = Unit::Meta.new build_schemas.map(&:uid)
               when Idr::MakeSeedCommand
-#               merge_tables = compiler.merge_commands.values.flatten.select(&:records?).map(&:table)
                 merge_commands = compiler.merge_commands.values.flatten.select(&:records?)
                 merge_tables = merge_commands.map { |c| [c.table, c.kind] }
                 @seed = Unit::Seed.new (build_schemas + seed_schemas).map(&:uid), merge_tables

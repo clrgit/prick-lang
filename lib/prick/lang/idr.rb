@@ -263,6 +263,13 @@ module Prick::Lang
       forward_to :ast, :source, :kind
       def path = ast.dir
 
+#     def initialize(...)
+#       super(...)
+#       puts "ExternalCommand#initialize"; indent {
+#         puts "path: #{path}"
+#       }
+#     end
+
       def require_search_path? = kind == :EVAL
       def change_search_path? = kind == :EVAL
       def require_commit_before? = true

@@ -11,7 +11,7 @@ module Prick::Lang
       def self.conn=(conn) @@CONN = conn end
       def conn() @@CONN end
 
-      # Bash object. Initialized by the executer
+      # Bash object. Initialized by the executer so not valid for the generator
       @@BASH = nil
       def self.bash=(bash) @@BASH = bash end
       def bash() @@BASH end
@@ -221,9 +221,11 @@ module Prick::Lang
 
         # Find tables. This includes valid merge tables (non-empty), non-empty
         # but undeclared tables, and absent or empty merge tables
-        value_list = conn.quote_rows(merge_tables)
-        schema_list = conn.quote_list(schemas)
-        meta_list = conn.quote_value(meta_tables.map(&:uid))
+        value_list = merge_tables.empty? ? "(null, null)" : conn.quote_rows(merge_tables)
+#       value_table_list = conn.quote_array(merge_tables.
+        schema_list = conn.quote_value(schemas, elem_type: 'varchar')
+        meta_list = conn.quote_value(meta_tables.map(&:uid), elem_type: 'varchar')
+
         tables =
             conn.structs %(
               with non_empty as (
@@ -237,7 +239,7 @@ module Prick::Lang
                 from (values #{value_list}) m("table", kind)
                   full outer join prick.current_serials s
                     on (s.schema_name || '.' || s.table_name) = m.table
-                where schema_name in #{schema_list}
+                where schema_name = any(#{schema_list})
                   and (m.table is not null or s.value > 1)
               )
               select ne.*
@@ -328,13 +330,16 @@ module Prick::Lang
 
     class Bash < Node
       attr_reader :kind # "EXEC" or "EVAL"
+      attr_reader :path
       attr_reader :command
-      def initialize(kind, command) = super kind: kind, command: command
+      def initialize(kind, path, command) = super kind: kind, path: path, command: command
       def execute
-        sql = bash.command command
-        conn.execute sql if kind == :EVAL
+        Dir.chdir(path) {
+          sql = bash.command command
+          conn.execute sql if kind == :EVAL
+        }
       end
-      def to_s = "#{kind} #{bash.command}"
+      def to_s = "#{kind} #{command}"
     end
 
     # TODO MERGE can't be used as a target for build or make. It is only used

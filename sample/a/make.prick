@@ -8,8 +8,8 @@ schema A {
   sql select 'schema A'
 
   seed {
-    seed.sql
-    seed.rb
+    seed.sql seed.rb
+    exec ../a/seed.rb 100
   }
 
   merge {
