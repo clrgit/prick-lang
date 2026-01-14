@@ -9,6 +9,7 @@ schema A {
 
   seed {
     seed.sql
+    seed.rb
   }
 
   merge {
@@ -17,7 +18,6 @@ schema A {
     sync tbl3, kind
     prepare tbl4, kind
     handled tbl5
-
   }
 }
 

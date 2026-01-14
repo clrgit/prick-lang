@@ -220,7 +220,7 @@ module Prick::Lang
         return if schemas.empty?
 
         # Find tables. This includes valid merge tables (non-empty), non-empty
-        # but undeclared tables, absent merge tables, and empty merge tables
+        # but undeclared tables, and absent or empty merge tables
         value_list = conn.quote_rows(merge_tables)
         schema_list = conn.quote_list(schemas)
         meta_list = conn.quote_value(meta_tables.map(&:uid))
@@ -277,57 +277,6 @@ module Prick::Lang
               from #{table}
           )
         end
-
-#       conn.values %(
-#           insert into prick.tables (schema_name, table_name, kind, method_kind, value)
-#             select s.schema_name, s.table_name, 'SEED', m.kind, s.value,
-#             from (values #{value_list}) m(table, kind)
-#             join prick.current_serials s
-#             where schema_name in #{schema_list}
-#               and not (s.schema_name || '.' || s.table_name) = m.table
-#               and s.value > 1
-#             returning row(id, schema_name || '.' || table_name)
-#       )
-
-
-#       # Find seed tables
-#       schema_list = conn.quote_list(schemas)
-#       meta_array = conn.quote_value(meta_tables.map(&:uid), elem_type: "varchar")
-#       seed_tables =
-#           conn.values %(
-#             insert into prick.tables (schema_name, table_name, kind, value)
-#               select schema_name, table_name, 'SEED', value,
-#                 case schema_name || '.' || table_name
-#               from prick.current_serials
-#               where schema_name in #{schema_list}
-#                 and not (schema_name || '.' || table_name) = any(#{meta_array})
-#                 and value > 1
-#               returning row(id, schema_name || '.' || table_name)
-#           )
-
-#       # Check against declared merge tables
-#       unknown_tables = seed_tables.map(&:last) - merge_tables
-#       if !unknown_tables.empty?
-#         error "Found unknown merge table(s): #{unknown_tables.join(', ')}"
-#       end
-
-        # Update merge method
-
-#       # Register records in merge tables. We use .seed_tables instead of
-#       # .merge_tables because we need the table id
-#       for id, table in seed_tables
-#         conn.exec %(
-#           insert into prick.records (table_id, record_id)
-#             select #{id}, id
-#             from #{table}
-#         )
-#       end
-      end
-        # Just the presense of a merge section should cause merge tables to
-        # be registered in PRICK.TABLES
-
-
-      def check_altered_meta_tables
       end
 
       def to_s = "SEED #{schemas.join(', ')}"
@@ -373,7 +322,7 @@ module Prick::Lang
     end
 
     class RubyFile < File
-      def execute = bash.command "echo TODO RUBY"
+      def execute = bash.command file
       def to_s = "RUBY #{file}"
     end
 

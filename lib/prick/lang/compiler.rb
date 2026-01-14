@@ -134,9 +134,6 @@ module Prick::Lang
         exclude: [],
         variables: {})
 
-      # FIXME FIXME FIXME
-
-
       constrain targets, [String]
       constrain mode, :build, :make, :merge
       constrain timestamp, Time, nil
@@ -152,7 +149,6 @@ module Prick::Lang
       @mode = mode
       @sources = {}
       @targets = targets
-#     exit if !timestamp.nil?
       @timestamp = timestamp || settings.database_state.created_at
       @exclude = exclude
       @variables = variables
