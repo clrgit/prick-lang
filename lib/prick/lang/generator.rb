@@ -161,7 +161,7 @@ module Prick::Lang
                 @meta = Unit::Meta.new build_schemas.map(&:uid)
               when Idr::MakeSeedCommand
                 merge_commands = compiler.merge_commands.values.flatten.select(&:records?)
-                merge_tables = merge_commands.map { |c| [c.table, c.kind] }
+                merge_tables = merge_commands.map { |c| [c.kind, c.table, c.key] }
                 @seed = Unit::Seed.new (build_schemas + seed_schemas).map(&:uid), merge_tables
               when Idr::TailCommand
                 Unit::Mark.new node.phase, node.schema&.ident, node.uid

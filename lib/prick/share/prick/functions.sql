@@ -1,6 +1,15 @@
 
 set search_path to prick, pg_temp;
 
+/* read_serial
+ * read_serials
+ *    Get current postgres serials and write them to the PRICK.SERIALS table
+ *
+ * write_serial
+ * write_serials
+ *    Set current postgres serials to values from the PRICK.SERIALS table
+*/
+
 drop function if exists prick.get_serial(varchar) cascade;
 drop function if exists prick.get_serial(varchar, varchar) cascade;
 drop procedure if exists prick.update_serials() cascade;
@@ -23,7 +32,12 @@ create function prick.get_serial(schema_name varchar, table_name varchar) return
   select prick.get_serial(schema_name || '.' || table_name);
 $$ language sql;
 
--- Update prick.serials with current values from the prick.curr_serials view
+
+
+-- Update prick.serials with current values from the prick.curr_serials view.
+-- This is done on the production database in preparation for a merge. The
+-- tables should then be dumped and loaded into the source database and
+-- postgres serials adjusted accordingly
 create procedure prick.sync_serials() as $$
   begin
     delete from prick.serials;

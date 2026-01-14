@@ -346,6 +346,10 @@ module Prick::Lang
     class MergeCommand < Command
       KINDS = %w(COPY APPEND SYNC PREPARE HANDLE).map &:to_sym
 
+      # Fat interface
+      def key = nil
+      def id_table = nil
+
       # Merge kind
       attr_reader :kind # MergeCommand::KINDS
 

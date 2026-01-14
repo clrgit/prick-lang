@@ -154,7 +154,7 @@ module Prick::Lang
       def execute
         schema_list = conn.quote_list(schemas)
         conn.exec %(
-          insert into prick.tables (schema_name, table_name, kind, value)
+          insert into prick.tables (schema_name, table_name, kind, serial)
             select schema_name, table_name, 'META', value
               from prick.current_serials
               where schema_name in #{schema_list}
@@ -193,7 +193,7 @@ module Prick::Lang
       attr_reader :schemas # [String]
 
       # Merge tables by kind (copy-tables are not included)
-      attr_reader :merge_tables # [[table:String, kind:Idr::MergeCommand::KIND]]
+      attr_reader :merge_tables # # [[kind:Idr::MergeCommand::Kind, table:String, key_field:String]]
 
       def initialize(schemas, merge_tables) = super schemas: schemas, merge_tables: merge_tables
 
@@ -202,7 +202,7 @@ module Prick::Lang
         meta_tables = conn.structs %(
           select
             m.schema_name || '.' || m.table_name as uid,
-            c.value <> m.value as "altered"
+            c.value <> m.serial as "altered"
           from prick.tables m
           join prick.current_serials c
             on c.schema_name = m.schema_name
@@ -221,22 +221,21 @@ module Prick::Lang
 
         # Find tables. This includes valid merge tables (non-empty), non-empty
         # but undeclared tables, and absent or empty merge tables
-        value_list = merge_tables.empty? ? "(null, null)" : conn.quote_rows(merge_tables)
-#       value_table_list = conn.quote_array(merge_tables.
+        value_list = merge_tables.empty? ? "(null, null, null)" : conn.quote_rows(merge_tables)
         schema_list = conn.quote_value(schemas, elem_type: 'varchar')
         meta_list = conn.quote_value(meta_tables.map(&:uid), elem_type: 'varchar')
-
         tables =
             conn.structs %(
               with non_empty as (
                 select
-                  coalesce(m.table, s.schema_name || '.' || s.table_name) as "table",
                   m.kind,
-                  s.schema_name, s.table_name, s.value,
+                  coalesce(m.table, s.schema_name || '.' || s.table_name) as "table",
+                  m.key_field,
+                  s.schema_name, s.table_name, s.value as "serial",
                   m.table is null as "undeclared",
                   s.schema_name is null as "absent",
                   s.value is not null and s.value = 1 as "empty"
-                from (values #{value_list}) m("table", kind)
+                from (values #{value_list}) m(kind, "table", key_field)
                   full outer join prick.current_serials s
                     on (s.schema_name || '.' || s.table_name) = m.table
                 where schema_name = any(#{schema_list})
@@ -262,29 +261,36 @@ module Prick::Lang
         empty_tables.empty? or
             error "Empty merge table(s): #{empty_tables.join(', ')}"
 
+        # Check that anything has to be done
+        !tables.empty? or
+            error "Nothing to be done"
+
         # Create PRICK.TABLES records
-        values = tables.map { [_1.schema_name, _1.table_name, 'SEED', _1.kind, _1.value] }
+        values = tables.map { [_1.schema_name, _1.table_name, 'SEED', _1.kind, _1.key_field, _1.serial] }
         value_list = conn.quote_rows(values)
         table_records = conn.values %(
-          insert into prick.tables (schema_name, table_name, kind, merge_method, value)
+          insert into prick.tables (schema_name, table_name, kind, merge_method, key_field, serial)
             values #{value_list}
-            returning row(id, schema_name || '.' || table_name)
+            returning row(id, schema_name || '.' || table_name, merge_method, key_field)
         )
 
         # Register merge table records in PRICK.RECORDS
-        for id, table in table_records
+        for id, table, merge_method, key_field in table_records
+          key_expr =
+              case merge_method.to_sym
+                when :APPEND; "null"
+                when :SYNC, :PREPARE; "#{conn.quote_identifier key_field}"
+                else next
+              end
           conn.exec %(
-            insert into prick.records (table_id, record_id)
-              select #{id}, id
+            insert into prick.records (table_id, record_id, ident)
+              select #{id}, id, #{key_expr}
               from #{table}
           )
         end
       end
 
       def to_s = "SEED #{schemas.join(', ')}"
-
-    private
-      def dot(*args) = args.join('.')
     end
 
     class Sql < Node
